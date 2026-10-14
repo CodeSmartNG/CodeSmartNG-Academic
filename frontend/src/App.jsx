@@ -41,6 +41,12 @@ import MarkAttendance from "./pages/school-admin/Attendance/MarkAttendance";
 import ClassMonthlyReport from "./pages/school-admin/Attendance/ClassMonthlyReport";
 import AttendanceStats from "./pages/school-admin/Attendance/AttendanceStats";
 import ParentAttendance from "./pages/parent/Attendance";
+
+//Bill payment 
+import FeeStructures from "./pages/school-admin/Fees/FeeStructures";
+import BillList from "./pages/school-admin/Fees/BillList";
+import BillDetail from "./pages/school-admin/Fees/BillDetail";
+import ParentFees from "./pages/parent/Fees";
 // ── Misc ────────────────────────────────────────────────────
 import NotFound from "./pages/NotFound";
 
@@ -226,6 +232,42 @@ export default function App() {
   element={
     <RoleRoute allow={["parent"]}>
       <ParentResults />
+    </RoleRoute>
+  }
+/>
+
+          
+
+
+<Route
+  path="/dashboard/fees"
+  element={
+    <RoleRoute allow={["proprietor", "admin"]}>
+      <BillList />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/fees/structures"
+  element={
+    <RoleRoute allow={["proprietor", "admin"]}>
+      <FeeStructures />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/fees/bills/:id"
+  element={
+    <RoleRoute allow={["proprietor", "admin"]}>
+      <BillDetail />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/fees/children"
+  element={
+    <RoleRoute allow={["parent"]}>
+      <ParentFees />
     </RoleRoute>
   }
 />
