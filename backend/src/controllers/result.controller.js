@@ -4,6 +4,8 @@ import Student from "../models/Student.js";
 import Class from "../models/Class.js";
 import Subject from "../models/Subject.js";
 import User from "../models/User.js";
+import { generateReportCardPDF } from "../services/pdf.service.js";
+
 import {
   gradeFromPercentage,
   computePosition,
@@ -529,4 +531,62 @@ export const getChildrenResults = async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
+
+  
+  
+// GET /api/results/pupil/:studentId/pdf?session=&term=
+export const downloadReportCardPDF = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const { session, term } = req.query;
+
+    // Permission (reuse parent/pupil check)
+    if (req.user.role === "parent") {
+      const hasChild = req.user.children?.some((c) => c.toString() === studentId);
+      if (!hasChild) return res.status(403).json({ success: false, message: "Access denied" });
+    }
+    if (req.user.role === "pupil" && req.user.studentRecord?.toString() !== studentId) {
+      return res.status(403).json({ success: false, message: "Access denied" });
+    }
+
+    const student = await Student.findOne({ _id: studentId, schoolId: req.schoolId })
+      .populate("classId");
+    if (!student) return res.status(404).json({ success: false, message: "Pupil not found" });
+
+    const results = await Result.find({
+      schoolId: req.schoolId, studentId, session, term,
+    }).populate("subjectId", "name code isDevelopmental").sort({ "subjectId.name": 1 });
+
+    const anchor = results.find((r) => r.isAnchor);
+    const school = await (await import("../models/School.js")).default.findById(req.schoolId);
+
+    const buffer = await generateReportCardPDF({
+      school,
+      student,
+      class: student.classId,
+      session,
+      term,
+      results,
+      summary: anchor ? {
+        overallTotal: anchor.overallTotal,
+        overallAverage: anchor.overallAverage,
+        overallGrade: anchor.overallGrade,
+        positionInClass: anchor.positionInClass,
+        totalPupilsInClass: anchor.totalPupilsInClass,
+        formTeacherComment: anchor.formTeacherComment,
+        headTeacherComment: anchor.headTeacherComment,
+      } : null,
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${student.admissionNumber}-${term}.pdf"`
+    );
+    res.send(buffer);
+  } catch (err) {
+    console.error("PDF error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 };
