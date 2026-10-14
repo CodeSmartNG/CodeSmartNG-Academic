@@ -38,6 +38,7 @@ const NAV_BY_ROLE = {
     { to: "/dashboard/results", label: "Results", icon: "fa-award" },
     { to: "/dashboard/fees", label: "Fees", icon: "fa-naira-sign" },
     { to: "/dashboard/announcements", label: "Announcements", icon: "fa-bullhorn" },
+    { to: "/dashboard/children/attendance", label: "Attendance", icon: "fa-calendar-check" },
   ],
   pupil: [
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
