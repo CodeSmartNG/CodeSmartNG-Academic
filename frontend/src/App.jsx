@@ -32,7 +32,10 @@ import ParentDashboard from "./pages/parent/Dashboard";
 import PupilDashboard from "./pages/pupil/Dashboard";
 
 
-
+import MarkAttendance from "./pages/school-admin/Attendance/MarkAttendance";
+import ClassMonthlyReport from "./pages/school-admin/Attendance/ClassMonthlyReport";
+import AttendanceStats from "./pages/school-admin/Attendance/AttendanceStats";
+import ParentAttendance from "./pages/parent/Attendance";
 // ── Misc ────────────────────────────────────────────────────
 import NotFound from "./pages/NotFound";
 
@@ -146,6 +149,42 @@ export default function App() {
   element={
     <RoleRoute allow={["proprietor", "admin"]}>
       <SubjectList />
+    </RoleRoute>
+  }
+/>
+
+          
+
+// Inside ProtectedRoute block:
+<Route
+  path="/dashboard/attendance"
+  element={
+    <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+      <MarkAttendance />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/attendance/monthly"
+  element={
+    <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+      <ClassMonthlyReport />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/attendance/stats"
+  element={
+    <RoleRoute allow={["proprietor", "admin"]}>
+      <AttendanceStats />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/children/attendance"
+  element={
+    <RoleRoute allow={["parent"]}>
+      <ParentAttendance />
     </RoleRoute>
   }
 />
