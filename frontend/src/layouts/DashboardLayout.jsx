@@ -21,6 +21,8 @@ const NAV_BY_ROLE = {
     { to: "/dashboard/attendance", label: "Attendance", icon: "fa-calendar-check" },
     { to: "/dashboard/results", label: "Results", icon: "fa-award" },
     { to: "/dashboard/fees", label: "Fees", icon: "fa-naira-sign" },
+    { to: "/dashboard/classes", label: "Classes", icon: "fa-chalkboard" },
+    { to: "/dashboard/subjects", label: "Subjects", icon: "fa-book-open" },
   ],
   teacher: [
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
