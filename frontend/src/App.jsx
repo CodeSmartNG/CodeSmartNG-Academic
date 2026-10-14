@@ -1,24 +1,53 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./routes/ProtectedRoute";
+import RoleRoute from "./routes/RoleRoute";
+import DashboardLayout from "./layouts/DashboardLayout";
+
+// ── Auth ────────────────────────────────────────────────────
 import Login from "./pages/auth/Login";
+import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
+import RegisterSchool from "./pages/auth/RegisterSchool";
+import ChangePassword from "./pages/auth/ChangePassword";
+
+// ── Super Admin ─────────────────────────────────────────────
 import SuperAdminDashboard from "./pages/super-admin/Dashboard";
+import SchoolsList from "./pages/super-admin/SchoolsList";
+
+// ── School Admin ────────────────────────────────────────────
 import SchoolAdminDashboard from "./pages/school-admin/Dashboard";
+
+// ── Students (Module 2) ─────────────────────────────────────
+import StudentList from "./pages/school-admin/Students/StudentList";
+import AdmissionForm from "./pages/school-admin/Students/AdmissionForm";
+import StudentDetail from "./pages/school-admin/Students/StudentDetail";
+import PromotePupils from "./pages/school-admin/Students/PromotePupils";
+
+// ── Teachers, Parents, Pupils ───────────────────────────────
 import TeacherDashboard from "./pages/teacher/Dashboard";
 import ParentDashboard from "./pages/parent/Dashboard";
 import PupilDashboard from "./pages/pupil/Dashboard";
 
-const DashboardRouter = () => {
-  const { user } = useAuth();
-  if (!user) return <Navigate to="/login" />;
-  switch (user.role) {
-    case "super_admin": return <SuperAdminDashboard />;
-    case "proprietor":
-    case "admin": return <SchoolAdminDashboard />;
-    case "teacher": return <TeacherDashboard />;
-    case "parent": return <ParentDashboard />;
-    case "pupil": return <PupilDashboard />;
-    default: return <Navigate to="/login" />;
-  }
+// ── Misc ────────────────────────────────────────────────────
+import NotFound from "./pages/NotFound";
+
+// ─────────────────────────────────────────────────────────────
+// Role → dashboard home page mapping
+// ─────────────────────────────────────────────────────────────
+const ROLE_HOME = {
+  super_admin: <SuperAdminDashboard />,
+  proprietor: <SchoolAdminDashboard />,
+  admin: <SchoolAdminDashboard />,
+  teacher: <TeacherDashboard />,
+  parent: <ParentDashboard />,
+  pupil: <PupilDashboard />,
+};
+
+const DashboardHome = () => {
+  // `user` is guaranteed by ProtectedRoute
+  const user = JSON.parse(localStorage.getItem("csn_user") || "null");
+  return ROLE_HOME[user?.role] ?? <Navigate to="/login" replace />;
 };
 
 export default function App() {
@@ -26,9 +55,74 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* ── Public ──────────────────────────────────── */}
           <Route path="/login" element={<Login />} />
-          <Route path="/dashboard" element={<DashboardRouter />} />
-          <Route path="*" element={<Navigate to="/dashboard" />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/register-school" element={<RegisterSchool />} />
+
+          {/* ── Protected + layout ──────────────────────── */}
+          <Route
+            element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          >
+            {/* Dashboard home — role-based */}
+            <Route path="/dashboard" element={<DashboardHome />} />
+
+            {/* Change password (all roles) */}
+            <Route path="/dashboard/change-password" element={<ChangePassword />} />
+
+            {/* ── Super Admin only ─────────────────────── */}
+            <Route
+              path="/dashboard/schools"
+              element={
+                <RoleRoute allow={["super_admin"]}>
+                  <SchoolsList />
+                </RoleRoute>
+              }
+            />
+
+            {/* ── Students (admin, proprietor, teacher can view) ── */}
+            <Route
+              path="/dashboard/students"
+              element={
+                <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+                  <StudentList />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/students/new"
+              element={
+                <RoleRoute allow={["proprietor", "admin"]}>
+                  <AdmissionForm />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/students/promote"
+              element={
+                <RoleRoute allow={["proprietor", "admin"]}>
+                  <PromotePupils />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/students/:id"
+              element={
+                <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+                  <StudentDetail />
+                </RoleRoute>
+              }
+            />
+          </Route>
+
+          {/* ── Fallbacks ───────────────────────────────── */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
