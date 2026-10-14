@@ -23,11 +23,15 @@ import StudentList from "./pages/school-admin/Students/StudentList";
 import AdmissionForm from "./pages/school-admin/Students/AdmissionForm";
 import StudentDetail from "./pages/school-admin/Students/StudentDetail";
 import PromotePupils from "./pages/school-admin/Students/PromotePupils";
-
+import ClassList from "./pages/school-admin/Classes/ClassList";
+import ClassDetail from "./pages/school-admin/Classes/ClassDetail";
+import SubjectList from "./pages/school-admin/Subjects/SubjectList";
 // ── Teachers, Parents, Pupils ───────────────────────────────
 import TeacherDashboard from "./pages/teacher/Dashboard";
 import ParentDashboard from "./pages/parent/Dashboard";
 import PupilDashboard from "./pages/pupil/Dashboard";
+
+
 
 // ── Misc ────────────────────────────────────────────────────
 import NotFound from "./pages/NotFound";
@@ -120,6 +124,31 @@ export default function App() {
             />
           </Route>
 
+
+          <Route
+  path="/dashboard/classes"
+  element={
+    <RoleRoute allow={["proprietor", "admin"]}>
+      <ClassList />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/classes/:id"
+  element={
+    <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+      <ClassDetail />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/subjects"
+  element={
+    <RoleRoute allow={["proprietor", "admin"]}>
+      <SubjectList />
+    </RoleRoute>
+  }
+/>
           {/* ── Fallbacks ───────────────────────────────── */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<NotFound />} />
