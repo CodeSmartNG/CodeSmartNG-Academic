@@ -277,3 +277,27 @@ export default function MarkAttendance() {
             toast.type === "success"
               ? "bg-green-600 text-white"
               : "bg-red-600 text-white"
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SummaryCard({ label, value, color }) {
+  const colors = {
+    green: "bg-green-50 text-green-700",
+    red: "bg-red-50 text-red-700",
+    amber: "bg-amber-50 text-amber-700",
+    blue: "bg-blue-50 text-blue-700",
+    slate: "bg-slate-100 text-slate-600",
+  };
+  return (
+    <div className={`p-3 rounded-xl ${colors[color]}`}>
+      <div className="text-xl font-bold">{value}</div>
+      <div className="text-xs mt-1">{label}</div>
+    </div>
+  );
+}
