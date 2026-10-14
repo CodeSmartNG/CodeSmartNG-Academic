@@ -31,6 +31,11 @@ import TeacherDashboard from "./pages/teacher/Dashboard";
 import ParentDashboard from "./pages/parent/Dashboard";
 import PupilDashboard from "./pages/pupil/Dashboard";
 
+//-----------Assessment---------
+import AssessmentList from "./pages/school-admin/Results/AssessmentList";
+import EnterScores from "./pages/school-admin/Results/EnterScores";
+import Broadsheet from "./pages/school-admin/Results/Broadsheet";
+import ParentResults from "./pages/parent/Results";
 
 import MarkAttendance from "./pages/school-admin/Attendance/MarkAttendance";
 import ClassMonthlyReport from "./pages/school-admin/Attendance/ClassMonthlyReport";
@@ -155,7 +160,7 @@ export default function App() {
 
           
 
-// Inside ProtectedRoute block:
+
 <Route
   path="/dashboard/attendance"
   element={
@@ -185,6 +190,42 @@ export default function App() {
   element={
     <RoleRoute allow={["parent"]}>
       <ParentAttendance />
+    </RoleRoute>
+  }
+/>
+
+          
+
+
+<Route
+  path="/dashboard/results"
+  element={
+    <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+      <AssessmentList />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/results/scores/:id"
+  element={
+    <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+      <EnterScores />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/results/broadsheet"
+  element={
+    <RoleRoute allow={["proprietor", "admin"]}>
+      <Broadsheet />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/results/children"
+  element={
+    <RoleRoute allow={["parent"]}>
+      <ParentResults />
     </RoleRoute>
   }
 />
