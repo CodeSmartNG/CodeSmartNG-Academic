@@ -532,7 +532,7 @@ export const getChildrenResults = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 
-  
+  };
   
 // GET /api/results/pupil/:studentId/pdf?session=&term=
 export const downloadReportCardPDF = async (req, res) => {
@@ -589,4 +589,4 @@ export const downloadReportCardPDF = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
-};
+
