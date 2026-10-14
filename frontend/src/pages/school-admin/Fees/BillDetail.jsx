@@ -216,4 +216,78 @@ function RecordPaymentModal({ bill, onClose, onRecorded }) {
 
         {["bank_transfer", "cheque", "pos"].includes(form.method) && (
           <>
-            <label className="
+            <label className="block mb-3">
+              <span className="text-sm text-slate-600">Reference / Teller No.</span>
+              <input className="mt-1 w-full border rounded-lg p-2"
+                value={form.reference}
+                onChange={(e) => setForm({ ...form, reference: e.target.value })} />
+            </label>
+            <label className="block mb-3">
+              <span className="text-sm text-slate-600">Bank Name</span>
+              <input className="mt-1 w-full border rounded-lg p-2"
+                value={form.bankName}
+                onChange={(e) => setForm({ ...form, bankName: e.target.value })} />
+            </label>
+          </>
+        )}
+
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <label>
+            <span className="text-sm text-slate-600">Payer Name</span>
+            <input className="mt-1 w-full border rounded-lg p-2"
+              value={form.payerName}
+              onChange={(e) => setForm({ ...form, payerName: e.target.value })} />
+          </label>
+          <label>
+            <span className="text-sm text-slate-600">Payer Phone</span>
+            <input className="mt-1 w-full border rounded-lg p-2"
+              value={form.payerPhone}
+              onChange={(e) => setForm({ ...form, payerPhone: e.target.value })} />
+          </label>
+        </div>
+
+        <label className="block mb-4">
+          <span className="text-sm text-slate-600">Notes</span>
+          <textarea className="mt-1 w-full border rounded-lg p-2" rows="2"
+            value={form.notes}
+            onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+        </label>
+
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 border rounded-lg">Cancel</button>
+          <button onClick={submit} disabled={saving || !form.amount}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg disabled:opacity-50">
+            {saving ? "Saving…" : "Record Payment"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value, color }) {
+  const colors = {
+    slate: "bg-slate-50 text-slate-700",
+    green: "bg-green-50 text-green-700",
+    red: "bg-red-50 text-red-700",
+  };
+  return (
+    <div className={`p-3 rounded-xl ${colors[color]}`}>
+      <div className="text-lg font-bold font-mono">{value}</div>
+      <div className="text-xs mt-1">{label}</div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const styles = {
+    paid: "bg-green-100 text-green-700",
+    partial: "bg-amber-100 text-amber-700",
+    unpaid: "bg-red-100 text-red-700",
+  };
+  return (
+    <span className={`px-3 py-1 rounded-full text-xs font-medium ${styles[status]}`}>
+      {status}
+    </span>
+  );
+}
