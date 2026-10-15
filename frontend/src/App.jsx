@@ -14,6 +14,8 @@ import ChangePassword from "./pages/auth/ChangePassword";
 // ── Super Admin ─────────────────────────────────────────────
 import SuperAdminDashboard from "./pages/super-admin/Dashboard";
 import SchoolsList from "./pages/super-admin/SchoolsList";
+import AnnouncementList from "./pages/school-admin/Announcements/AnnouncementList";
+import CreateAnnouncement from "./pages/school-admin/Announcements/CreateAnnouncement";
 
 // ── School Admin ────────────────────────────────────────────
 import SchoolAdminDashboard from "./pages/school-admin/Dashboard";
@@ -30,6 +32,12 @@ import SubjectList from "./pages/school-admin/Subjects/SubjectList";
 import TeacherDashboard from "./pages/teacher/Dashboard";
 import ParentDashboard from "./pages/parent/Dashboard";
 import PupilDashboard from "./pages/pupil/Dashboard";
+import CreateHomework from "./pages/teacher/Homework/CreateHomework";
+import HomeworkList from "./pages/teacher/Homework/HomeworkList";
+import HomeworkDetail from "./pages/teacher/Homework/HomeworkDetail";
+import ParentAnnouncements from "./pages/parent/Announcements";
+import ParentHomework from "./pages/parent/Homework";
+import PupilHomework from "./pages/pupil/Homework";
 
 //-----------Assessment---------
 import AssessmentList from "./pages/school-admin/Results/AssessmentList";
@@ -319,6 +327,80 @@ export default function App() {
   element={
     <RoleRoute allow={["proprietor", "admin"]}>
       <LinkRequests />
+    </RoleRoute>
+  }
+/>
+
+          
+
+
+
+
+
+
+<Route
+  path="/dashboard/homework"
+  element={
+    <RoleRoute allow={["teacher", "admin", "proprietor"]}>
+      <HomeworkList />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/homework/new"
+  element={
+    <RoleRoute allow={["teacher", "admin", "proprietor"]}>
+      <CreateHomework />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/homework/:id"
+  element={
+    <RoleRoute allow={["teacher", "admin", "proprietor"]}>
+      <HomeworkDetail />
+    </RoleRoute>
+  }
+/>
+
+<Route
+  path="/dashboard/announcements"
+  element={
+    <RoleRoute allow={["proprietor", "admin"]}>
+      <AnnouncementList />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/announcements/new"
+  element={
+    <RoleRoute allow={["proprietor", "admin"]}>
+      <CreateAnnouncement />
+    </RoleRoute>
+  }
+/>
+
+<Route
+  path="/dashboard/announcements/view"
+  element={
+    <RoleRoute allow={["parent", "pupil", "teacher"]}>
+      <ParentAnnouncements />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/homework/view"
+  element={
+    <RoleRoute allow={["parent"]}>
+      <ParentHomework />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/homework/mine"
+  element={
+    <RoleRoute allow={["pupil"]}>
+      <PupilHomework />
     </RoleRoute>
   }
 />
