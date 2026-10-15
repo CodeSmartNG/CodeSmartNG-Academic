@@ -47,6 +47,13 @@ import FeeStructures from "./pages/school-admin/Fees/FeeStructures";
 import BillList from "./pages/school-admin/Fees/BillList";
 import BillDetail from "./pages/school-admin/Fees/BillDetail";
 import ParentFees from "./pages/parent/Fees";
+//-----parent ----
+import ParentDashboard from "./pages/parent/Dashboard";
+import ChildDetail from "./pages/parent/ChildDetail";
+import LinkChild from "./pages/parent/LinkChild";
+import ParentContact from "./pages/parent/Contact";
+import ParentProfile from "./pages/parent/Profile";
+import LinkRequests from "./pages/school-admin/LinkRequests";
 // ── Misc ────────────────────────────────────────────────────
 import NotFound from "./pages/NotFound";
 
@@ -268,6 +275,50 @@ export default function App() {
   element={
     <RoleRoute allow={["parent"]}>
       <ParentFees />
+    </RoleRoute>
+  }
+/>
+
+          
+
+
+<Route
+  path="/dashboard/children/:id"
+  element={
+    <RoleRoute allow={["parent"]}>
+      <ChildDetail />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/link-child"
+  element={
+    <RoleRoute allow={["parent"]}>
+      <LinkChild />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/contact"
+  element={
+    <RoleRoute allow={["parent"]}>
+      <ParentContact />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/profile"
+  element={
+    <RoleRoute allow={["parent"]}>
+      <ParentProfile />
+    </RoleRoute>
+  }
+/>
+<Route
+  path="/dashboard/link-requests"
+  element={
+    <RoleRoute allow={["proprietor", "admin"]}>
+      <LinkRequests />
     </RoleRoute>
   }
 />
