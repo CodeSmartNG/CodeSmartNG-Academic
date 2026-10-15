@@ -13,6 +13,7 @@ const NAV_BY_ROLE = {
     { to: "/dashboard/attendance", label: "Attendance", icon: "fa-calendar-check" },
     { to: "/dashboard/results", label: "Results", icon: "fa-award" },
     { to: "/dashboard/fees", label: "Fees", icon: "fa-naira-sign" },
+    { to: "/dashboard/announcements", label: "Announcements", icon: "fa-bullhorn" },
   ],
   admin: [
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
@@ -31,6 +32,8 @@ const NAV_BY_ROLE = {
     { to: "/dashboard/attendance", label: "Attendance", icon: "fa-calendar-check" },
     { to: "/dashboard/results", label: "Results", icon: "fa-award" },
     { to: "/dashboard/assignments", label: "Assignments", icon: "fa-book" },
+    { to: "/dashboard/homework", label: "Homework", icon: "fa-book" },
+    { to: "/dashboard/announcements/view", label: "Announcements", icon: "fa-bullhorn" },
   ],
   parent: [
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
@@ -47,12 +50,16 @@ const NAV_BY_ROLE = {
     { to: "/dashboard/contact", label: "Contact", icon: "fa-envelope" },
     { to: "/dashboard/link-child", label: "Link a Child", icon: "fa-link" },
     { to: "/dashboard/profile", label: "Profile", icon: "fa-user" },
+    { to: "/dashboard/announcements/view", label: "Announcements", icon: "fa-bullhorn" },
+    { to: "/dashboard/homework/view", label: "Homework", icon: "fa-book" },
   ],
   pupil: [
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
     { to: "/dashboard/assignments", label: "Homework", icon: "fa-book" },
     { to: "/dashboard/results", label: "My Results", icon: "fa-award" },
     { to: "/dashboard/materials", label: "Learning Materials", icon: "fa-folder-open" },
+    { to: "/dashboard/homework/mine", label: "Homework", icon: "fa-book" },
+    { to: "/dashboard/announcements/view", label: "Announcements", icon: "fa-bullhorn" },
   ],
 };
 
