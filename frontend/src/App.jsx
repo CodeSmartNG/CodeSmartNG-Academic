@@ -14,6 +14,8 @@ import ChangePassword from "./pages/auth/ChangePassword";
 // ── Super Admin ─────────────────────────────────────────────
 import SuperAdminDashboard from "./pages/super-admin/Dashboard";
 import SchoolsList from "./pages/super-admin/SchoolsList";
+
+// ── Announcements ───────────────────────────────────────────
 import AnnouncementList from "./pages/school-admin/Announcements/AnnouncementList";
 import CreateAnnouncement from "./pages/school-admin/Announcements/CreateAnnouncement";
 
@@ -25,13 +27,39 @@ import StudentList from "./pages/school-admin/Students/StudentList";
 import AdmissionForm from "./pages/school-admin/Students/AdmissionForm";
 import StudentDetail from "./pages/school-admin/Students/StudentDetail";
 import PromotePupils from "./pages/school-admin/Students/PromotePupils";
+
+// ── Classes & Subjects (Module 3) ───────────────────────────
 import ClassList from "./pages/school-admin/Classes/ClassList";
 import ClassDetail from "./pages/school-admin/Classes/ClassDetail";
 import SubjectList from "./pages/school-admin/Subjects/SubjectList";
-// ── Teachers, Parents, Pupils ───────────────────────────────
-import TeacherDashboard from "./pages/teacher/Dashboard";
+
+// ── Attendance (Module 4) ───────────────────────────────────
+import MarkAttendance from "./pages/school-admin/Attendance/MarkAttendance";
+import ClassMonthlyReport from "./pages/school-admin/Attendance/ClassMonthlyReport";
+import AttendanceStats from "./pages/school-admin/Attendance/AttendanceStats";
+import ParentAttendance from "./pages/parent/Attendance";
+
+// ── Results (Module 5) ──────────────────────────────────────
+import AssessmentList from "./pages/school-admin/Results/AssessmentList";
+import EnterScores from "./pages/school-admin/Results/EnterScores";
+import Broadsheet from "./pages/school-admin/Results/Broadsheet";
+import ParentResults from "./pages/parent/Results";
+
+// ── Fees (Module 6) ─────────────────────────────────────────
+import FeeStructures from "./pages/school-admin/Fees/FeeStructures";
+import BillList from "./pages/school-admin/Fees/BillList";
+import BillDetail from "./pages/school-admin/Fees/BillDetail";
+import ParentFees from "./pages/parent/Fees";
+
+// ── Parent Portal (Module 7) ────────────────────────────────
 import ParentDashboard from "./pages/parent/Dashboard";
-import PupilDashboard from "./pages/pupil/Dashboard";
+import ChildDetail from "./pages/parent/ChildDetail";
+import LinkChild from "./pages/parent/LinkChild";
+import ParentContact from "./pages/parent/Contact";
+import ParentProfile from "./pages/parent/Profile";
+import LinkRequests from "./pages/school-admin/LinkRequests";
+
+// ── Homework & Announcements (Module 8) ─────────────────────
 import CreateHomework from "./pages/teacher/Homework/CreateHomework";
 import HomeworkList from "./pages/teacher/Homework/HomeworkList";
 import HomeworkDetail from "./pages/teacher/Homework/HomeworkDetail";
@@ -39,29 +67,10 @@ import ParentAnnouncements from "./pages/parent/Announcements";
 import ParentHomework from "./pages/parent/Homework";
 import PupilHomework from "./pages/pupil/Homework";
 
-//-----------Assessment---------
-import AssessmentList from "./pages/school-admin/Results/AssessmentList";
-import EnterScores from "./pages/school-admin/Results/EnterScores";
-import Broadsheet from "./pages/school-admin/Results/Broadsheet";
-import ParentResults from "./pages/parent/Results";
+// ── Other Roles ─────────────────────────────────────────────
+import TeacherDashboard from "./pages/teacher/Dashboard";
+import PupilDashboard from "./pages/pupil/Dashboard";
 
-import MarkAttendance from "./pages/school-admin/Attendance/MarkAttendance";
-import ClassMonthlyReport from "./pages/school-admin/Attendance/ClassMonthlyReport";
-import AttendanceStats from "./pages/school-admin/Attendance/AttendanceStats";
-import ParentAttendance from "./pages/parent/Attendance";
-
-//Bill payment 
-import FeeStructures from "./pages/school-admin/Fees/FeeStructures";
-import BillList from "./pages/school-admin/Fees/BillList";
-import BillDetail from "./pages/school-admin/Fees/BillDetail";
-import ParentFees from "./pages/parent/Fees";
-//-----parent ----
-import ParentDashboard from "./pages/parent/Dashboard";
-import ChildDetail from "./pages/parent/ChildDetail";
-import LinkChild from "./pages/parent/LinkChild";
-import ParentContact from "./pages/parent/Contact";
-import ParentProfile from "./pages/parent/Profile";
-import LinkRequests from "./pages/school-admin/LinkRequests";
 // ── Misc ────────────────────────────────────────────────────
 import NotFound from "./pages/NotFound";
 
@@ -78,7 +87,6 @@ const ROLE_HOME = {
 };
 
 const DashboardHome = () => {
-  // `user` is guaranteed by ProtectedRoute
   const user = JSON.parse(localStorage.getItem("csn_user") || "null");
   return ROLE_HOME[user?.role] ?? <Navigate to="/login" replace />;
 };
@@ -94,7 +102,7 @@ export default function App() {
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/register-school" element={<RegisterSchool />} />
 
-          {/* ── Protected + layout ──────────────────────── */}
+          {/* ── Protected + layout (everything inside one wrapper) ── */}
           <Route
             element={
               <ProtectedRoute>
@@ -118,7 +126,7 @@ export default function App() {
               }
             />
 
-            {/* ── Students (admin, proprietor, teacher can view) ── */}
+            {/* ── Students ─────────────────────────────── */}
             <Route
               path="/dashboard/students"
               element={
@@ -151,259 +159,246 @@ export default function App() {
                 </RoleRoute>
               }
             />
+
+            {/* ── Classes & Subjects ───────────────────── */}
+            <Route
+              path="/dashboard/classes"
+              element={
+                <RoleRoute allow={["proprietor", "admin"]}>
+                  <ClassList />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/classes/:id"
+              element={
+                <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+                  <ClassDetail />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/subjects"
+              element={
+                <RoleRoute allow={["proprietor", "admin"]}>
+                  <SubjectList />
+                </RoleRoute>
+              }
+            />
+
+            {/* ── Attendance ───────────────────────────── */}
+            <Route
+              path="/dashboard/attendance"
+              element={
+                <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+                  <MarkAttendance />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/attendance/monthly"
+              element={
+                <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+                  <ClassMonthlyReport />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/attendance/stats"
+              element={
+                <RoleRoute allow={["proprietor", "admin"]}>
+                  <AttendanceStats />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/children/attendance"
+              element={
+                <RoleRoute allow={["parent"]}>
+                  <ParentAttendance />
+                </RoleRoute>
+              }
+            />
+
+            {/* ── Results ──────────────────────────────── */}
+            <Route
+              path="/dashboard/results"
+              element={
+                <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+                  <AssessmentList />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/results/scores/:id"
+              element={
+                <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+                  <EnterScores />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/results/broadsheet"
+              element={
+                <RoleRoute allow={["proprietor", "admin"]}>
+                  <Broadsheet />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/results/children"
+              element={
+                <RoleRoute allow={["parent"]}>
+                  <ParentResults />
+                </RoleRoute>
+              }
+            />
+
+            {/* ── Fees ─────────────────────────────────── */}
+            <Route
+              path="/dashboard/fees"
+              element={
+                <RoleRoute allow={["proprietor", "admin"]}>
+                  <BillList />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/fees/structures"
+              element={
+                <RoleRoute allow={["proprietor", "admin"]}>
+                  <FeeStructures />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/fees/bills/:id"
+              element={
+                <RoleRoute allow={["proprietor", "admin"]}>
+                  <BillDetail />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/fees/children"
+              element={
+                <RoleRoute allow={["parent"]}>
+                  <ParentFees />
+                </RoleRoute>
+              }
+            />
+
+            {/* ── Parent Portal ────────────────────────── */}
+            <Route
+              path="/dashboard/children/:id"
+              element={
+                <RoleRoute allow={["parent"]}>
+                  <ChildDetail />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/link-child"
+              element={
+                <RoleRoute allow={["parent"]}>
+                  <LinkChild />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/contact"
+              element={
+                <RoleRoute allow={["parent"]}>
+                  <ParentContact />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/profile"
+              element={
+                <RoleRoute allow={["parent"]}>
+                  <ParentProfile />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/link-requests"
+              element={
+                <RoleRoute allow={["proprietor", "admin"]}>
+                  <LinkRequests />
+                </RoleRoute>
+              }
+            />
+
+            {/* ── Homework ─────────────────────────────── */}
+            <Route
+              path="/dashboard/homework"
+              element={
+                <RoleRoute allow={["teacher", "admin", "proprietor"]}>
+                  <HomeworkList />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/homework/new"
+              element={
+                <RoleRoute allow={["teacher", "admin", "proprietor"]}>
+                  <CreateHomework />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/homework/:id"
+              element={
+                <RoleRoute allow={["teacher", "admin", "proprietor"]}>
+                  <HomeworkDetail />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/homework/view"
+              element={
+                <RoleRoute allow={["parent"]}>
+                  <ParentHomework />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/homework/mine"
+              element={
+                <RoleRoute allow={["pupil"]}>
+                  <PupilHomework />
+                </RoleRoute>
+              }
+            />
+
+            {/* ── Announcements ────────────────────────── */}
+            <Route
+              path="/dashboard/announcements"
+              element={
+                <RoleRoute allow={["proprietor", "admin"]}>
+                  <AnnouncementList />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/announcements/new"
+              element={
+                <RoleRoute allow={["proprietor", "admin"]}>
+                  <CreateAnnouncement />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/dashboard/announcements/view"
+              element={
+                <RoleRoute allow={["parent", "pupil", "teacher"]}>
+                  <ParentAnnouncements />
+                </RoleRoute>
+              }
+            />
           </Route>
 
-
-          <Route
-  path="/dashboard/classes"
-  element={
-    <RoleRoute allow={["proprietor", "admin"]}>
-      <ClassList />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/classes/:id"
-  element={
-    <RoleRoute allow={["proprietor", "admin", "teacher"]}>
-      <ClassDetail />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/subjects"
-  element={
-    <RoleRoute allow={["proprietor", "admin"]}>
-      <SubjectList />
-    </RoleRoute>
-  }
-/>
-
-          
-
-
-<Route
-  path="/dashboard/attendance"
-  element={
-    <RoleRoute allow={["proprietor", "admin", "teacher"]}>
-      <MarkAttendance />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/attendance/monthly"
-  element={
-    <RoleRoute allow={["proprietor", "admin", "teacher"]}>
-      <ClassMonthlyReport />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/attendance/stats"
-  element={
-    <RoleRoute allow={["proprietor", "admin"]}>
-      <AttendanceStats />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/children/attendance"
-  element={
-    <RoleRoute allow={["parent"]}>
-      <ParentAttendance />
-    </RoleRoute>
-  }
-/>
-
-          
-
-
-<Route
-  path="/dashboard/results"
-  element={
-    <RoleRoute allow={["proprietor", "admin", "teacher"]}>
-      <AssessmentList />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/results/scores/:id"
-  element={
-    <RoleRoute allow={["proprietor", "admin", "teacher"]}>
-      <EnterScores />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/results/broadsheet"
-  element={
-    <RoleRoute allow={["proprietor", "admin"]}>
-      <Broadsheet />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/results/children"
-  element={
-    <RoleRoute allow={["parent"]}>
-      <ParentResults />
-    </RoleRoute>
-  }
-/>
-
-          
-
-
-<Route
-  path="/dashboard/fees"
-  element={
-    <RoleRoute allow={["proprietor", "admin"]}>
-      <BillList />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/fees/structures"
-  element={
-    <RoleRoute allow={["proprietor", "admin"]}>
-      <FeeStructures />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/fees/bills/:id"
-  element={
-    <RoleRoute allow={["proprietor", "admin"]}>
-      <BillDetail />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/fees/children"
-  element={
-    <RoleRoute allow={["parent"]}>
-      <ParentFees />
-    </RoleRoute>
-  }
-/>
-
-          
-
-
-<Route
-  path="/dashboard/children/:id"
-  element={
-    <RoleRoute allow={["parent"]}>
-      <ChildDetail />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/link-child"
-  element={
-    <RoleRoute allow={["parent"]}>
-      <LinkChild />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/contact"
-  element={
-    <RoleRoute allow={["parent"]}>
-      <ParentContact />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/profile"
-  element={
-    <RoleRoute allow={["parent"]}>
-      <ParentProfile />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/link-requests"
-  element={
-    <RoleRoute allow={["proprietor", "admin"]}>
-      <LinkRequests />
-    </RoleRoute>
-  }
-/>
-
-          
-
-
-
-
-
-
-<Route
-  path="/dashboard/homework"
-  element={
-    <RoleRoute allow={["teacher", "admin", "proprietor"]}>
-      <HomeworkList />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/homework/new"
-  element={
-    <RoleRoute allow={["teacher", "admin", "proprietor"]}>
-      <CreateHomework />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/homework/:id"
-  element={
-    <RoleRoute allow={["teacher", "admin", "proprietor"]}>
-      <HomeworkDetail />
-    </RoleRoute>
-  }
-/>
-
-<Route
-  path="/dashboard/announcements"
-  element={
-    <RoleRoute allow={["proprietor", "admin"]}>
-      <AnnouncementList />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/announcements/new"
-  element={
-    <RoleRoute allow={["proprietor", "admin"]}>
-      <CreateAnnouncement />
-    </RoleRoute>
-  }
-/>
-
-<Route
-  path="/dashboard/announcements/view"
-  element={
-    <RoleRoute allow={["parent", "pupil", "teacher"]}>
-      <ParentAnnouncements />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/homework/view"
-  element={
-    <RoleRoute allow={["parent"]}>
-      <ParentHomework />
-    </RoleRoute>
-  }
-/>
-<Route
-  path="/dashboard/homework/mine"
-  element={
-    <RoleRoute allow={["pupil"]}>
-      <PupilHomework />
-    </RoleRoute>
-  }
-/>
           {/* ── Fallbacks ───────────────────────────────── */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<NotFound />} />
