@@ -23,6 +23,7 @@ const NAV_BY_ROLE = {
     { to: "/dashboard/fees", label: "Fees", icon: "fa-naira-sign" },
     { to: "/dashboard/classes", label: "Classes", icon: "fa-chalkboard" },
     { to: "/dashboard/subjects", label: "Subjects", icon: "fa-book-open" },
+    { to: "/dashboard/link-requests", label: "Link Requests", icon: "fa-link" },
   ],
   teacher: [
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
@@ -39,6 +40,13 @@ const NAV_BY_ROLE = {
     { to: "/dashboard/fees", label: "Fees", icon: "fa-naira-sign" },
     { to: "/dashboard/announcements", label: "Announcements", icon: "fa-bullhorn" },
     { to: "/dashboard/children/attendance", label: "Attendance", icon: "fa-calendar-check" },
+    { to: "/dashboard", label: "Dashboard", icon: "fa-home", end: true },
+    { to: "/dashboard/children/attendance", label: "Attendance", icon: "fa-calendar-check" },
+    { to: "/dashboard/results/children", label: "Results", icon: "fa-award" },
+    { to: "/dashboard/fees/children", label: "Fees", icon: "fa-naira-sign" },
+    { to: "/dashboard/contact", label: "Contact", icon: "fa-envelope" },
+    { to: "/dashboard/link-child", label: "Link a Child", icon: "fa-link" },
+    { to: "/dashboard/profile", label: "Profile", icon: "fa-user" },
   ],
   pupil: [
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
