@@ -4,6 +4,9 @@ import attendanceRoutes from "./routes/attendance.routes.js";
 import assessmentRoutes from "./routes/assessment.routes.js";
 import resultRoutes from "./routes/result.routes.js";
 import feeRoutes from "./routes/fee.routes.js";
+import parentRoutes from "./routes/parent.routes.js";
+
+app.use("/api/parent", parentRoutes);
 app.use("/api/fees", feeRoutes);
 
 app.use("/api/assessments", assessmentRoutes);
