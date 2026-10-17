@@ -10,15 +10,16 @@ export default function Login() {
 
   const submit = async (e) => {
   e.preventDefault();
-  setError("");
+  setError(""); // Clear previous errors
   try {
     await login(form.email, form.password, form.schoolSlug || undefined);
-    
-    // 👇 USE THIS INSTEAD OF navigate("/dashboard")
-    window.location.href = "/dashboard"; 
-    
+    window.location.href = "/dashboard";
   } catch (err) {
-    setError(err.response?.data?.message || "Login failed");
+    // 👇 FORCE THE ERROR TO SHOW UP
+    console.error("FULL ERROR OBJECT:", err);
+    
+    const msg = err.response?.data?.message || err.message || "Unknown error";
+    setError(`Backend says: ${msg}`); 
   }
 };
 
