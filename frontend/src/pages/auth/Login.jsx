@@ -9,14 +9,18 @@ export default function Login() {
   const [error, setError] = useState("");
 
   const submit = async (e) => {
-    e.preventDefault();
-    try {
-      await login(form.email, form.password, form.schoolSlug || undefined);
-window.location.href = "/dashboard"; // Forces a clean load
-    } catch (err) {
-      setError(err.response?.data?.message || "Login failed");
-    }
-  };
+  e.preventDefault();
+  setError("");
+  try {
+    await login(form.email, form.password, form.schoolSlug || undefined);
+    
+    // 👇 USE THIS INSTEAD OF navigate("/dashboard")
+    window.location.href = "/dashboard"; 
+    
+  } catch (err) {
+    setError(err.response?.data?.message || "Login failed");
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
