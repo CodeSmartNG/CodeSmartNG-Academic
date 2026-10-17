@@ -40,16 +40,16 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password, schoolSlug) => {
-    const { data } = await api.post("/auth/login", { email, password, schoolSlug });
-    
-    // 👇 FIXED: Access the nested data correctly
-    const { token, user: loggedInUser } = data.data;
+  const { data } = await api.post("/auth/login", { email, password, schoolSlug });
+  
+  // 👇 FIXED: Accessing the nested data correctly
+  const { token, user: loggedInUser } = data.data;
 
-    localStorage.setItem("csn_token", token);
-    localStorage.setItem("csn_user", JSON.stringify(loggedInUser));
-    setUser(loggedInUser);
-    return loggedInUser;
-  };
+  localStorage.setItem("csn_token", token);
+  localStorage.setItem("csn_user", JSON.stringify(loggedInUser));
+  setUser(loggedInUser);
+  return loggedInUser;
+};
 
   const logout = () => {
     localStorage.removeItem("csn_token");
