@@ -12,7 +12,7 @@ export default function Login() {
     e.preventDefault();
     try {
       await login(form.email, form.password, form.schoolSlug || undefined);
-      navigate("/dashboard");
+window.location.href = "/dashboard"; // Forces a clean load
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");
     }
