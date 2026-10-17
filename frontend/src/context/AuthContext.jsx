@@ -9,22 +9,51 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const token = localStorage.getItem("csn_token");
-    if (!token) return setLoading(false);
+    const cachedUser = localStorage.getItem("csn_user");
+
+    // Load user from cache instantly so they don't get kicked out on refresh
+    if (cachedUser) {
+      try {
+        setUser(JSON.parse(cachedUser));
+      } catch {
+        localStorage.removeItem("csn_user");
+      }
+    }
+
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    // Verify token with backend
     api.get("/auth/me")
-      .then(({ data }) => setUser(data.user))
-      .catch(() => localStorage.removeItem("csn_token"))
+      .then(({ data }) => {
+        setUser(data.data.user);
+        localStorage.setItem("csn_user", JSON.stringify(data.data.user));
+      })
+      .catch(() => {
+        localStorage.removeItem("csn_token");
+        localStorage.removeItem("csn_user");
+        setUser(null);
+      })
       .finally(() => setLoading(false));
   }, []);
 
   const login = async (email, password, schoolSlug) => {
     const { data } = await api.post("/auth/login", { email, password, schoolSlug });
-    localStorage.setItem("csn_token", data.token);
-    setUser(data.user);
-    return data.user;
+    
+    // 👇 FIXED: Access the nested data correctly
+    const { token, user: loggedInUser } = data.data;
+
+    localStorage.setItem("csn_token", token);
+    localStorage.setItem("csn_user", JSON.stringify(loggedInUser));
+    setUser(loggedInUser);
+    return loggedInUser;
   };
 
   const logout = () => {
     localStorage.removeItem("csn_token");
+    localStorage.removeItem("csn_user");
     setUser(null);
   };
 
