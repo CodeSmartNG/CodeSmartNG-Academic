@@ -9,7 +9,7 @@ const router = express.Router();
 const signToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
-// Step 1: Proprietor registers a school (status = pending)
+// Step 1: Proprietor registers a school
 router.post("/register-school", async (req, res) => {
   const { schoolName, email, phone, address, proprietorName, password } = req.body;
   try {
@@ -25,13 +25,18 @@ router.post("/register-school", async (req, res) => {
       password,
       role: "proprietor",
     });
+    
     res.status(201).json({
+      success: true,
       message: "School registered. Awaiting CodeSmartNG approval.",
-      schoolId: school._id,
-      token: signToken(user._id),
+      data: {
+        schoolId: school._id,
+        token: signToken(user._id),
+        user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role }
+      }
     });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ success: false, message: err.message });
   }
 });
 
@@ -39,37 +44,42 @@ router.post("/register-school", async (req, res) => {
 router.post("/login", async (req, res) => {
   const { email, password, schoolSlug } = req.body;
   try {
-    const query = { email };
+    const query = { email: email.toLowerCase() };
     if (schoolSlug) {
       const school = await School.findOne({ slug: schoolSlug });
-      if (!school) return res.status(404).json({ message: "School not found" });
+      if (!school) return res.status(404).json({ success: false, message: "School not found" });
       query.schoolId = school._id;
     }
     const user = await User.findOne(query).select("+password");
     if (!user || !(await user.comparePassword(password)))
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
 
     if (user.role !== "super_admin") {
       const school = await School.findById(user.schoolId);
       if (!school || school.status !== "approved")
-        return res.status(403).json({ message: "School not approved yet" });
+        return res.status(403).json({ success: false, message: "School not approved yet" });
     }
 
     user.lastLogin = new Date();
     await user.save({ validateBeforeSave: false });
 
+    // 👇 STANDARDIZED RESPONSE
     res.json({
-      token: signToken(user._id),
-      user: {
-        id: user._id, fullName: user.fullName, email: user.email,
-        role: user.role, schoolId: user.schoolId,
-      },
+      success: true,
+      message: "Login successful",
+      data: {
+        token: signToken(user._id),
+        user: {
+          id: user._id, fullName: user.fullName, email: user.email,
+          role: user.role, schoolId: user.schoolId,
+        },
+      }
     });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ success: false, message: err.message });
   }
 });
 
-router.get("/me", protect, (req, res) => res.json({ user: req.user }));
+router.get("/me", protect, (req, res) => res.json({ success: true, data: { user: req.user } }));
 
 export default router;
