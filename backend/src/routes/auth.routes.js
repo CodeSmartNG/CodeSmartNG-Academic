@@ -27,14 +27,20 @@ router.post("/register-school", async (req, res) => {
     });
     
     res.status(201).json({
-      success: true,
-      message: "School registered. Awaiting CodeSmartNG approval.",
-      data: {
-        schoolId: school._id,
-        token: signToken(user._id),
-        user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role }
-      }
-    });
+  success: true,
+  message: "School registered. Awaiting CodeSmartNG approval.",
+  data: {
+    schoolId: school._id,
+    token: signToken(user._id),
+    user: { 
+      id: user._id, 
+      fullName: user.fullName, 
+      email: user.email, 
+      role: user.role,
+      schoolId: user.schoolId 
+    }
+  }
+});
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
   }
