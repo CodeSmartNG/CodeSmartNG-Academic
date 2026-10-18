@@ -67,7 +67,7 @@ export default function RegisterSchool() {
           {saving ? "Registering…" : "Register School"}
         </button>
 
-        <div className="text-center text-sm">
+        <div className="text-center text-sm pt-2">
           <Link to="/login" className="text-blue-600 hover:underline">
             Already have an account? Log in
           </Link>
