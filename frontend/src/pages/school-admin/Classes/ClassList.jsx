@@ -17,7 +17,7 @@ export default function ClassList() {
         classApi.list(filters),
         classApi.stats(),
       ]);
-      setClasses(listRes.data.data.classes);
+      setClasses(listRes.data?.data?.classes || []);
       setStats(statsRes.data.data);
     } catch (err) {
       console.error(err);
