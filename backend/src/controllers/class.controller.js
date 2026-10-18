@@ -8,26 +8,44 @@ import User from "../models/User.js";
 // ─────────────────────────────────────────────────────────────
 export const createClass = async (req, res) => {
   try {
+    // 1. Log exactly what the backend receives so you can see it in Render Logs
+    console.log("👉 CREATE CLASS - BODY:", req.body);
+    console.log("👉 CREATE CLASS - SCHOOL ID:", req.schoolId);
+    console.log("👉 CREATE CLASS - USER:", req.user ? req.user._id : "NO USER");
+
     const { name, level, section, capacity, academicSession } = req.body;
 
+    // 2. Validate required fields
+    if (!name || !level || !academicSession) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Missing required fields (name, level, academicSession)" 
+      });
+    }
+
+    // 3. Create the class safely
     const cls = await Class.create({
       schoolId: req.schoolId,
       name,
       level,
-      section,
-      capacity,
+      section: section || "",
+      capacity: capacity || 30,
       academicSession,
-      createdBy: req.user._id,
+      createdBy: req.user ? req.user._id : null, // 👈 SAFE CHECK
     });
 
     res.status(201).json({ success: true, message: "Class created", data: { class: cls } });
   } catch (err) {
+    console.error("❌ ERROR CREATING CLASS:", err);
+    
     if (err.code === 11000) {
       return res.status(400).json({
         success: false,
         message: "A class with this name already exists for this session",
       });
     }
+    
+    // Return the exact database error message to the frontend
     res.status(400).json({ success: false, message: err.message });
   }
 };
