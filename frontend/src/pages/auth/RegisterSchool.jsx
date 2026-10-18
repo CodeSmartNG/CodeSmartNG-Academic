@@ -17,7 +17,7 @@ export default function RegisterSchool() {
     setError("");
     try {
       await api.post("/auth/register-school", form);
-      alert("School registered! Awaiting CodeSmartNG approval. You will be notified by email.");
+      alert("School registered! Awaiting CodeSmartNG approval. You can now login.");
       navigate("/login");
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed");
@@ -31,20 +31,20 @@ export default function RegisterSchool() {
       <form onSubmit={submit} className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-lg space-y-4">
         <h1 className="text-2xl font-bold text-slate-800">Register Your School</h1>
         <p className="text-sm text-slate-500">
-          We'll review your application and approve within 24 hours.
+          We'll review your application and approve it shortly.
         </p>
 
         {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
 
-        <input className="w-full border rounded-lg p-3" placeholder="School name"
+        <input className="w-full border rounded-lg p-3" placeholder="School name (e.g. Bright Future Academy)"
           value={form.schoolName}
           onChange={(e) => setForm({ ...form, schoolName: e.target.value })}
           required />
-        <input className="w-full border rounded-lg p-3" type="email" placeholder="School email"
+        <input className="w-full border rounded-lg p-3" type="email" placeholder="School email (e.g. admin@school.com)"
           value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })}
           required />
-        <input className="w-full border rounded-lg p-3" placeholder="School phone"
+        <input className="w-full border rounded-lg p-3" placeholder="School phone (e.g. 08012345678)"
           value={form.phone}
           onChange={(e) => setForm({ ...form, phone: e.target.value })}
           required />
