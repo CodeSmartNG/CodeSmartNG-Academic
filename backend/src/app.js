@@ -23,7 +23,20 @@ const app = express();
 
 // ── Security & Middleware ───────────────────────────────────
 app.use(helmet());
-app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
+app.use(cors({ 
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    
+    // Allow any Vercel domain OR the CLIENT_URL from Render
+    if (origin.includes("vercel.app") || origin === process.env.CLIENT_URL) {
+      return callback(null, true);
+    }
+    
+    return callback(new Error('CORS blocked: ' + origin));
+  },
+  credentials: true 
+}));
 app.use(express.json({ limit: "2mb" }));
 app.use(morgan(process.env.NODE_ENV === "development" ? "dev" : "combined"));
 
