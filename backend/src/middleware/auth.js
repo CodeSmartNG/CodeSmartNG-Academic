@@ -33,3 +33,19 @@ export const authorize = (...roles) => (req, res, next) => {
   }
   next();
 };
+
+// 👇 THIS IS THE MISSING FUNCTION
+export const tenantScope = (req, res, next) => {
+  if (req.user.role === "super_admin") {
+    req.schoolId = null;
+    return next();
+  }
+  if (!req.user.schoolId) {
+    return res.status(403).json({ 
+      success: false, 
+      message: "No school associated with this account" 
+    });
+  }
+  req.schoolId = req.user.schoolId;
+  next();
+};
