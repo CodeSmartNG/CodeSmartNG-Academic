@@ -11,7 +11,7 @@ export default function SchoolsList() {
     setLoading(true);
     api
       .get("/schools")
-      .then(({ data }) => setSchools(data.data.schools))
+      .then(({ data }) => setSchools(data?.data?.schools || []))
       .catch((err) =>
         setError(err.response?.data?.message || "Failed to load schools")
       )
