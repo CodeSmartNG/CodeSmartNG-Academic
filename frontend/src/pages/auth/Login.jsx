@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom"; // 👈 Added Link
 import { useAuth } from "../../context/AuthContext";
 
 export default function Login() {
@@ -9,26 +9,26 @@ export default function Login() {
   const [error, setError] = useState("");
 
   const submit = async (e) => {
-  e.preventDefault();
-  setError(""); // Clear previous errors
-  try {
-    await login(form.email, form.password, form.schoolSlug || undefined);
-    window.location.href = "/dashboard";
-  } catch (err) {
-    // 👇 FORCE THE ERROR TO SHOW UP
-    console.error("FULL ERROR OBJECT:", err);
-    
-    const msg = err.response?.data?.message || err.message || "Unknown error";
-    setError(`Backend says: ${msg}`); 
-  }
-};
+    e.preventDefault();
+    setError(""); // Clear previous errors
+    try {
+      await login(form.email, form.password, form.schoolSlug || undefined);
+      window.location.href = "/dashboard";
+    } catch (err) {
+      console.error("FULL ERROR OBJECT:", err);
+      const msg = err.response?.data?.message || err.message || "Unknown error";
+      setError(`Backend says: ${msg}`); 
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <form onSubmit={submit} className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md space-y-4">
         <h1 className="text-2xl font-bold text-slate-800">CodeSmartNG Academic</h1>
         <p className="text-sm text-slate-500">Smart School Management, Better Learning.</p>
+        
         {error && <div className="text-red-600 text-sm">{error}</div>}
+        
         <input
           className="w-full border rounded-lg p-3"
           placeholder="School slug (optional for super admin)"
@@ -54,6 +54,13 @@ export default function Login() {
         <button className="w-full bg-blue-700 hover:bg-blue-800 text-white p-3 rounded-lg font-medium">
           Sign in
         </button>
+
+        {/* 👇 THIS IS THE NEW LINK */}
+        <div className="text-center text-sm pt-2">
+          <Link to="/register-school" className="text-blue-600 hover:underline">
+            Don't have a school account? Register here
+          </Link>
+        </div>
       </form>
     </div>
   );
