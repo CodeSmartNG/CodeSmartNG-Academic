@@ -5,10 +5,10 @@ import mongoose from "mongoose";
 
 import authRoutes from "./routes/auth.routes.js";
 import schoolRoutes from "./routes/school.routes.js";
-// import studentRoutes from "./routes/student.routes.js";
-// import attendanceRoutes from "./routes/attendance.routes.js";
-// import resultRoutes from "./routes/result.routes.js";
-// import paymentRoutes from "./routes/payment.routes.js";
+import studentRoutes from "./routes/student.routes.js";
+import attendanceRoutes from "./routes/attendance.routes.js";
+import resultRoutes from "./routes/result.routes.js";
+import paymentRoutes from "./routes/payment.routes.js";
 
 dotenv.config();
 const app = express();
@@ -19,10 +19,10 @@ app.use(express.json());
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/schools", schoolRoutes);
-// app.use("/api/students", studentRoutes);
-// app.use("/api/attendance", attendanceRoutes);
-// app.use("/api/results", resultRoutes);
-// app.use("/api/payments", paymentRoutes);
+app.use("/api/students", studentRoutes);
+app.use("/api/attendance", attendanceRoutes);
+app.use("/api/results", resultRoutes);
+app.use("/api/payments", paymentRoutes);
 
 app.get("/", (_, res) =>
   res.json({
