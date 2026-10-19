@@ -3,6 +3,7 @@ import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import RoleRoute from "./routes/RoleRoute";
 import DashboardLayout from "./layouts/DashboardLayout";
+import ErrorBoundary from "./pages/ErrorBoundary"; // 👈 Added ErrorBoundary
 
 // ── Auth ────────────────────────────────────────────────────
 import Login from "./pages/auth/Login";
@@ -93,317 +94,321 @@ const DashboardHome = () => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* ── Public ──────────────────────────────────── */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password/:token" element={<ResetPassword />} />
-          <Route path="/register-school" element={<RegisterSchool />} />
+    <ErrorBoundary> {/* 👈 Wrapped the entire app as a safety net */}
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* ── Public ──────────────────────────────────── */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
+            <Route path="/register-school" element={<RegisterSchool />} />
 
-          {/* ── Protected + layout (everything inside one wrapper) ── */}
-          <Route
-            element={
-              <ProtectedRoute>
-                <DashboardLayout />
-              </ProtectedRoute>
-            }
-          >
-            {/* Dashboard home — role-based */}
-            <Route path="/dashboard" element={<DashboardHome />} />
+            {/* ── Protected + layout ──────────────────────── */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <ErrorBoundary> {/* 👈 Added here so the Sidebar stays visible if a page crashes */}
+                    <DashboardLayout />
+                  </ErrorBoundary>
+                </ProtectedRoute>
+              }
+            >
+              {/* Dashboard home — role-based */}
+              <Route path="/dashboard" element={<DashboardHome />} />
 
-            {/* Change password (all roles) */}
-            <Route path="/dashboard/change-password" element={<ChangePassword />} />
+              {/* Change password (all roles) */}
+              <Route path="/dashboard/change-password" element={<ChangePassword />} />
 
-            {/* ── Super Admin only ─────────────────────── */}
-            <Route
-              path="/dashboard/schools"
-              element={
-                <RoleRoute allow={["super_admin"]}>
-                  <SchoolsList />
-                </RoleRoute>
-              }
-            />
+              {/* ── Super Admin only ─────────────────────── */}
+              <Route
+                path="/dashboard/schools"
+                element={
+                  <RoleRoute allow={["super_admin"]}>
+                    <SchoolsList />
+                  </RoleRoute>
+                }
+              />
 
-            {/* ── Students ─────────────────────────────── */}
-            <Route
-              path="/dashboard/students"
-              element={
-                <RoleRoute allow={["proprietor", "admin", "teacher"]}>
-                  <StudentList />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/students/new"
-              element={
-                <RoleRoute allow={["proprietor", "admin"]}>
-                  <AdmissionForm />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/students/promote"
-              element={
-                <RoleRoute allow={["proprietor", "admin"]}>
-                  <PromotePupils />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/students/:id"
-              element={
-                <RoleRoute allow={["proprietor", "admin", "teacher"]}>
-                  <StudentDetail />
-                </RoleRoute>
-              }
-            />
+              {/* ── Students ─────────────────────────────── */}
+              <Route
+                path="/dashboard/students"
+                element={
+                  <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+                    <StudentList />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/students/new"
+                element={
+                  <RoleRoute allow={["proprietor", "admin"]}>
+                    <AdmissionForm />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/students/promote"
+                element={
+                  <RoleRoute allow={["proprietor", "admin"]}>
+                    <PromotePupils />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/students/:id"
+                element={
+                  <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+                    <StudentDetail />
+                  </RoleRoute>
+                }
+              />
 
-            {/* ── Classes & Subjects ───────────────────── */}
-            <Route
-              path="/dashboard/classes"
-              element={
-                <RoleRoute allow={["proprietor", "admin"]}>
-                  <ClassList />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/classes/:id"
-              element={
-                <RoleRoute allow={["proprietor", "admin", "teacher"]}>
-                  <ClassDetail />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/subjects"
-              element={
-                <RoleRoute allow={["proprietor", "admin"]}>
-                  <SubjectList />
-                </RoleRoute>
-              }
-            />
+              {/* ── Classes & Subjects ───────────────────── */}
+              <Route
+                path="/dashboard/classes"
+                element={
+                  <RoleRoute allow={["proprietor", "admin"]}>
+                    <ClassList />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/classes/:id"
+                element={
+                  <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+                    <ClassDetail />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/subjects"
+                element={
+                  <RoleRoute allow={["proprietor", "admin"]}>
+                    <SubjectList />
+                  </RoleRoute>
+                }
+              />
 
-            {/* ── Attendance ───────────────────────────── */}
-            <Route
-              path="/dashboard/attendance"
-              element={
-                <RoleRoute allow={["proprietor", "admin", "teacher"]}>
-                  <MarkAttendance />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/attendance/monthly"
-              element={
-                <RoleRoute allow={["proprietor", "admin", "teacher"]}>
-                  <ClassMonthlyReport />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/attendance/stats"
-              element={
-                <RoleRoute allow={["proprietor", "admin"]}>
-                  <AttendanceStats />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/children/attendance"
-              element={
-                <RoleRoute allow={["parent"]}>
-                  <ParentAttendance />
-                </RoleRoute>
-              }
-            />
+              {/* ── Attendance ───────────────────────────── */}
+              <Route
+                path="/dashboard/attendance"
+                element={
+                  <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+                    <MarkAttendance />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/attendance/monthly"
+                element={
+                  <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+                    <ClassMonthlyReport />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/attendance/stats"
+                element={
+                  <RoleRoute allow={["proprietor", "admin"]}>
+                    <AttendanceStats />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/children/attendance"
+                element={
+                  <RoleRoute allow={["parent"]}>
+                    <ParentAttendance />
+                  </RoleRoute>
+                }
+              />
 
-            {/* ── Results ──────────────────────────────── */}
-            <Route
-              path="/dashboard/results"
-              element={
-                <RoleRoute allow={["proprietor", "admin", "teacher"]}>
-                  <AssessmentList />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/results/scores/:id"
-              element={
-                <RoleRoute allow={["proprietor", "admin", "teacher"]}>
-                  <EnterScores />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/results/broadsheet"
-              element={
-                <RoleRoute allow={["proprietor", "admin"]}>
-                  <Broadsheet />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/results/children"
-              element={
-                <RoleRoute allow={["parent"]}>
-                  <ParentResults />
-                </RoleRoute>
-              }
-            />
+              {/* ── Results ──────────────────────────────── */}
+              <Route
+                path="/dashboard/results"
+                element={
+                  <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+                    <AssessmentList />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/results/scores/:id"
+                element={
+                  <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+                    <EnterScores />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/results/broadsheet"
+                element={
+                  <RoleRoute allow={["proprietor", "admin"]}>
+                    <Broadsheet />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/results/children"
+                element={
+                  <RoleRoute allow={["parent"]}>
+                    <ParentResults />
+                  </RoleRoute>
+                }
+              />
 
-            {/* ── Fees ─────────────────────────────────── */}
-            <Route
-              path="/dashboard/fees"
-              element={
-                <RoleRoute allow={["proprietor", "admin"]}>
-                  <BillList />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/fees/structures"
-              element={
-                <RoleRoute allow={["proprietor", "admin"]}>
-                  <FeeStructures />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/fees/bills/:id"
-              element={
-                <RoleRoute allow={["proprietor", "admin"]}>
-                  <BillDetail />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/fees/children"
-              element={
-                <RoleRoute allow={["parent"]}>
-                  <ParentFees />
-                </RoleRoute>
-              }
-            />
+              {/* ── Fees ─────────────────────────────────── */}
+              <Route
+                path="/dashboard/fees"
+                element={
+                  <RoleRoute allow={["proprietor", "admin"]}>
+                    <BillList />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/fees/structures"
+                element={
+                  <RoleRoute allow={["proprietor", "admin"]}>
+                    <FeeStructures />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/fees/bills/:id"
+                element={
+                  <RoleRoute allow={["proprietor", "admin"]}>
+                    <BillDetail />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/fees/children"
+                element={
+                  <RoleRoute allow={["parent"]}>
+                    <ParentFees />
+                  </RoleRoute>
+                }
+              />
 
-            {/* ── Parent Portal ────────────────────────── */}
-            <Route
-              path="/dashboard/children/:id"
-              element={
-                <RoleRoute allow={["parent"]}>
-                  <ChildDetail />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/link-child"
-              element={
-                <RoleRoute allow={["parent"]}>
-                  <LinkChild />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/contact"
-              element={
-                <RoleRoute allow={["parent"]}>
-                  <ParentContact />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/profile"
-              element={
-                <RoleRoute allow={["parent"]}>
-                  <ParentProfile />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/link-requests"
-              element={
-                <RoleRoute allow={["proprietor", "admin"]}>
-                  <LinkRequests />
-                </RoleRoute>
-              }
-            />
+              {/* ── Parent Portal ────────────────────────── */}
+              <Route
+                path="/dashboard/children/:id"
+                element={
+                  <RoleRoute allow={["parent"]}>
+                    <ChildDetail />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/link-child"
+                element={
+                  <RoleRoute allow={["parent"]}>
+                    <LinkChild />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/contact"
+                element={
+                  <RoleRoute allow={["parent"]}>
+                    <ParentContact />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/profile"
+                element={
+                  <RoleRoute allow={["parent"]}>
+                    <ParentProfile />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/link-requests"
+                element={
+                  <RoleRoute allow={["proprietor", "admin"]}>
+                    <LinkRequests />
+                  </RoleRoute>
+                }
+              />
 
-            {/* ── Homework ─────────────────────────────── */}
-            <Route
-              path="/dashboard/homework"
-              element={
-                <RoleRoute allow={["teacher", "admin", "proprietor"]}>
-                  <HomeworkList />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/homework/new"
-              element={
-                <RoleRoute allow={["teacher", "admin", "proprietor"]}>
-                  <CreateHomework />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/homework/:id"
-              element={
-                <RoleRoute allow={["teacher", "admin", "proprietor"]}>
-                  <HomeworkDetail />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/homework/view"
-              element={
-                <RoleRoute allow={["parent"]}>
-                  <ParentHomework />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/homework/mine"
-              element={
-                <RoleRoute allow={["pupil"]}>
-                  <PupilHomework />
-                </RoleRoute>
-              }
-            />
+              {/* ── Homework ─────────────────────────────── */}
+              <Route
+                path="/dashboard/homework"
+                element={
+                  <RoleRoute allow={["teacher", "admin", "proprietor"]}>
+                    <HomeworkList />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/homework/new"
+                element={
+                  <RoleRoute allow={["teacher", "admin", "proprietor"]}>
+                    <CreateHomework />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/homework/:id"
+                element={
+                  <RoleRoute allow={["teacher", "admin", "proprietor"]}>
+                    <HomeworkDetail />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/homework/view"
+                element={
+                  <RoleRoute allow={["parent"]}>
+                    <ParentHomework />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/homework/mine"
+                element={
+                  <RoleRoute allow={["pupil"]}>
+                    <PupilHomework />
+                  </RoleRoute>
+                }
+              />
 
-            {/* ── Announcements ────────────────────────── */}
-            <Route
-              path="/dashboard/announcements"
-              element={
-                <RoleRoute allow={["proprietor", "admin"]}>
-                  <AnnouncementList />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/announcements/new"
-              element={
-                <RoleRoute allow={["proprietor", "admin"]}>
-                  <CreateAnnouncement />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/dashboard/announcements/view"
-              element={
-                <RoleRoute allow={["parent", "pupil", "teacher"]}>
-                  <ParentAnnouncements />
-                </RoleRoute>
-              }
-            />
-          </Route>
+              {/* ── Announcements ────────────────────────── */}
+              <Route
+                path="/dashboard/announcements"
+                element={
+                  <RoleRoute allow={["proprietor", "admin"]}>
+                    <AnnouncementList />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/announcements/new"
+                element={
+                  <RoleRoute allow={["proprietor", "admin"]}>
+                    <CreateAnnouncement />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/announcements/view"
+                element={
+                  <RoleRoute allow={["parent", "pupil", "teacher"]}>
+                    <ParentAnnouncements />
+                  </RoleRoute>
+                }
+              />
+            </Route>
 
-          {/* ── Fallbacks ───────────────────────────────── */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+            {/* ── Fallbacks ───────────────────────────────── */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
