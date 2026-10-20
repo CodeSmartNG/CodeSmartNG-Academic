@@ -8,6 +8,7 @@ import schoolRoutes from "./routes/school.routes.js";
 import studentRoutes from "./routes/student.routes.js";
 import classRoutes from "./routes/class.routes.js";
 import subjectRoutes from "./routes/subject.routes.js";
+import userRoutes from "./routes/user.routes.js"; 
 
 // 👇 THESE ARE COMMENTED OUT BECAUSE THE FILES MIGHT BE MISSING
 // import attendanceRoutes from "./routes/attendance.routes.js";
@@ -26,7 +27,7 @@ app.use("/api/schools", schoolRoutes);
 app.use("/api/students", studentRoutes);
 app.use("/api/classes", classRoutes);
 app.use("/api/subjects", subjectRoutes);
-
+app.use("/api/users", userRoutes); 
 // 👇 THESE ARE COMMENTED OUT
 // app.use("/api/attendance", attendanceRoutes);
 // app.use("/api/results", resultRoutes);
