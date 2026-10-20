@@ -6,11 +6,13 @@ import mongoose from "mongoose";
 import authRoutes from "./routes/auth.routes.js";
 import schoolRoutes from "./routes/school.routes.js";
 import studentRoutes from "./routes/student.routes.js";
-import attendanceRoutes from "./routes/attendance.routes.js";
-import resultRoutes from "./routes/result.routes.js";
-import paymentRoutes from "./routes/payment.routes.js";
-import classRoutes from "./routes/class.routes.js";      // 👈 ADDED
-import subjectRoutes from "./routes/subject.routes.js";  // 👈 ADDED
+import classRoutes from "./routes/class.routes.js";
+import subjectRoutes from "./routes/subject.routes.js";
+
+// 👇 THESE ARE COMMENTED OUT BECAUSE THE FILES MIGHT BE MISSING
+// import attendanceRoutes from "./routes/attendance.routes.js";
+// import resultRoutes from "./routes/result.routes.js";
+// import paymentRoutes from "./routes/payment.routes.js";
 
 dotenv.config();
 const app = express();
@@ -22,11 +24,13 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/schools", schoolRoutes);
 app.use("/api/students", studentRoutes);
-app.use("/api/attendance", attendanceRoutes);
-app.use("/api/results", resultRoutes);
-app.use("/api/payments", paymentRoutes);
-app.use("/api/classes", classRoutes);       // 👈 ADDED
-app.use("/api/subjects", subjectRoutes);    // 👈 ADDED
+app.use("/api/classes", classRoutes);
+app.use("/api/subjects", subjectRoutes);
+
+// 👇 THESE ARE COMMENTED OUT
+// app.use("/api/attendance", attendanceRoutes);
+// app.use("/api/results", resultRoutes);
+// app.use("/api/payments", paymentRoutes);
 
 app.get("/", (_, res) =>
   res.json({
@@ -47,12 +51,12 @@ const start = async () => {
     console.log(`✅ MongoDB connected: ${conn.connection.host}`);
     console.log(`📦 Database: ${conn.connection.name}`);
 
-    // Try to seed super admin (optional — if the file exists)
+    // Try to seed super admin
     try {
       const { seedSuperAdmin } = await import("./utils/seedSuperAdmin.js");
       await seedSuperAdmin();
     } catch (seedErr) {
-      console.warn("⚠️  Super Admin seed skipped:", seedErr.message);
+      console.warn(`⚠️  Super Admin seed skipped:`, seedErr.message);
     }
 
     app.listen(PORT, "0.0.0.0", () => {
