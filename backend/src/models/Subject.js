@@ -24,7 +24,7 @@ const subjectSchema = new mongoose.Schema(
 // Unique subject name per school
 subjectSchema.index(
   { schoolId: 1, name: 1 },
-  { unique: true, collation: { locale: "en", strength: 2 } }
+  { unique: true, collation: { locale: "en", strength: 2 } } // 👈 Added collation
 );
 
 // Unique code per school (only if provided)
@@ -33,7 +33,7 @@ subjectSchema.index(
   {
     unique: true,
     sparse: true,
-    collation: { locale: "en", strength: 2 },
+    collation: { locale: "en", strength: 2 }, // 👈 Added collation
   }
 );
 
