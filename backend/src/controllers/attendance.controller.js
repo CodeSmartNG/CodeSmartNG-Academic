@@ -36,16 +36,14 @@ export const markAttendance = async (req, res) => {
     const cls = await Class.findOne({ _id: classId, schoolId: req.schoolId });
     if (!cls) return res.status(404).json({ success: false, message: "Class not found" });
 
-    // Permission: teachers can only mark their own classes
+    // ── STRICT PERMISSION: ONLY the Form Teacher (or Admin) can mark ──
     if (req.user.role === "teacher") {
       const isFormTeacher = cls.formTeacherId?.toString() === req.user._id.toString();
-      const isSubjectTeacher = cls.subjectAssignments.some(
-        (a) => a.teacherId.toString() === req.user._id.toString()
-      );
-      if (!isFormTeacher && !isSubjectTeacher) {
+      
+      if (!isFormTeacher) {
         return res.status(403).json({
           success: false,
-          message: "You are not assigned to this class",
+          message: "Access denied. Only the assigned Form Teacher can take attendance for this class.",
         });
       }
     }
@@ -123,7 +121,6 @@ export const markAttendance = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
-
 // ─────────────────────────────────────────────────────────────
 // GET /api/attendance/class/:classId?date=YYYY-MM-DD
 // Returns pupils in the class + their attendance for that date.
