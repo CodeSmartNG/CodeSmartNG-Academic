@@ -533,7 +533,38 @@ export const getChildrenResults = async (req, res) => {
   }
 
   };
-  
+
+
+
+// GET /api/results/assessment/:id/scores
+export const getAssessmentScores = async (req, res) => {
+  try {
+    const assessment = await Assessment.findOne({ _id: req.params.id, schoolId: req.schoolId });
+    if (!assessment) return res.status(404).json({ success: false, message: "Assessment not found" });
+
+    const results = await Result.find({
+      schoolId: req.schoolId,
+      subjectId: assessment.subjectId,
+      session: assessment.session,
+      term: assessment.term,
+    });
+
+    // Create a map like { "studentId": 9 }
+    const scores = {};
+    results.forEach((r) => {
+      const entry = r.scores.find(
+        (s) => s.assessmentId.toString() === assessment._id.toString()
+      );
+      if (entry) {
+        scores[r.studentId.toString()] = entry.score;
+      }
+    });
+
+    res.json({ success: true, data: { scores } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 // GET /api/results/pupil/:studentId/pdf?session=&term=
 export const downloadReportCardPDF = async (req, res) => {
   try {
