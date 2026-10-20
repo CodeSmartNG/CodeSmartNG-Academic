@@ -2,24 +2,16 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { classApi } from "../../../services/classApi";
 import { attendanceApi } from "../../../services/attendanceApi";
+import { useAuth } from "../../../context/AuthContext"; // 👈 Import Auth
 
-const STATUSES = ["present", "absent", "late", "excused"];
-
-const STATUS_COLORS = {
-  present: { bg: "bg-green-600", text: "text-white", outline: "border-green-600 text-green-700" },
-  absent: { bg: "bg-red-600", text: "text-white", outline: "border-red-600 text-red-700" },
-  late: { bg: "bg-amber-500", text: "text-white", outline: "border-amber-500 text-amber-700" },
-  excused: { bg: "bg-blue-600", text: "text-white", outline: "border-blue-600 text-blue-700" },
-};
-
-const today = () => {
-  const now = new Date(Date.now() + 60 * 60 * 1000); // Lagos
-  return now.toISOString().slice(0, 10);
-};
+// ... (keep STATUSES and STATUS_COLORS)
 
 export default function MarkAttendance() {
+  const { user } = useAuth(); // 👈 Get the logged-in user
   const [searchParams, setSearchParams] = useSearchParams();
   const [classes, setClasses] = useState([]);
+  
+  // 👈 Force classId to come from the URL parameter first
   const [classId, setClassId] = useState(searchParams.get("classId") || "");
   const [date, setDate] = useState(searchParams.get("date") || today());
   const [records, setRecords] = useState([]);
@@ -28,15 +20,24 @@ export default function MarkAttendance() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
 
-  // Load classes on mount
   useEffect(() => {
-    classApi.list().then(({ data }) => {
-      setClasses(data.data.classes);
-      if (!classId && data.data.classes[0]) {
-        setClassId(data.data.classes[0]._id);
+    // If the user is a teacher, ONLY load their assigned classes
+    const fetchClasses = user?.role === "teacher" 
+      ? classApi.myClasses() 
+      : classApi.list();
+
+    fetchClasses.then(({ data }) => {
+      const fetchedClasses = data.data.classes;
+      setClasses(fetchedClasses);
+      
+      // Auto-select the first class IF no classId is in the URL
+      if (!classId && fetchedClasses.length > 0) {
+        setClassId(fetchedClasses[0]._id);
       }
     });
-  }, []);
+  }, [user]);
+
+  // ... (keep the rest of the file exactly the same)
 
   // Load attendance when class or date changes
   useEffect(() => {
