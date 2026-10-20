@@ -7,10 +7,12 @@ export const createAssessment = async (req, res) => {
   try {
     const { classId, subjectId, session, term, name, type, maxScore, date } = req.body;
 
-    const [cls, subject] = await Promise.all([
-      Class.findOne({ _id: classId, schoolId: req.schoolId }),
-      Subject.findOne({ _id: subjectId, schoolId: req.schoolId }),
-    ]);
+    const schoolId = req.schoolId || req.user?.schoolId; // 👈 Fallback
+
+const [cls, subject] = await Promise.all([
+  Class.findOne({ _id: classId, schoolId }),
+  Subject.findOne({ _id: subjectId, schoolId }),
+]);
     if (!cls) return res.status(404).json({ success: false, message: "Class not found" });
     if (!subject) return res.status(404).json({ success: false, message: "Subject not found" });
 
