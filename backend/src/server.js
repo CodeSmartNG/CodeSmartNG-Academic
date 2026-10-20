@@ -12,7 +12,7 @@ import userRoutes from "./routes/user.routes.js";
 
 // 👇 THESE ARE COMMENTED OUT BECAUSE THE FILES MIGHT BE MISSING
 import attendanceRoutes from "./routes/attendance.routes.js";
-// import resultRoutes from "./routes/result.routes.js";
+import resultRoutes from "./routes/result.routes.js";
 // import paymentRoutes from "./routes/payment.routes.js";
 
 dotenv.config();
@@ -30,7 +30,7 @@ app.use("/api/subjects", subjectRoutes);
 app.use("/api/users", userRoutes); 
 // 👇 THESE ARE COMMENTED OUT
 app.use("/api/attendance", attendanceRoutes);
-// app.use("/api/results", resultRoutes);
+app.use("/api/results", resultRoutes);
 // app.use("/api/payments", paymentRoutes);
 
 app.get("/", (_, res) =>
