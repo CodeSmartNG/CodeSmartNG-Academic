@@ -8,11 +8,10 @@ import schoolRoutes from "./routes/school.routes.js";
 import studentRoutes from "./routes/student.routes.js";
 import classRoutes from "./routes/class.routes.js";
 import subjectRoutes from "./routes/subject.routes.js";
-import userRoutes from "./routes/user.routes.js"; 
-
-// 👇 THESE ARE COMMENTED OUT BECAUSE THE FILES MIGHT BE MISSING
+import userRoutes from "./routes/user.routes.js";
 import attendanceRoutes from "./routes/attendance.routes.js";
-import resultRoutes from "./routes/result.routes.js";
+import assessmentRoutes from "./routes/assessment.routes.js"; // 👈 ADDED
+// import resultRoutes from "./routes/result.routes.js";
 // import paymentRoutes from "./routes/payment.routes.js";
 
 dotenv.config();
@@ -27,10 +26,10 @@ app.use("/api/schools", schoolRoutes);
 app.use("/api/students", studentRoutes);
 app.use("/api/classes", classRoutes);
 app.use("/api/subjects", subjectRoutes);
-app.use("/api/users", userRoutes); 
-// 👇 THESE ARE COMMENTED OUT
+app.use("/api/users", userRoutes);
 app.use("/api/attendance", attendanceRoutes);
-app.use("/api/results", resultRoutes);
+app.use("/api/assessments", assessmentRoutes); // 👈 ADDED
+// app.use("/api/results", resultRoutes);
 // app.use("/api/payments", paymentRoutes);
 
 app.get("/", (_, res) =>
@@ -52,7 +51,6 @@ const start = async () => {
     console.log(`✅ MongoDB connected: ${conn.connection.host}`);
     console.log(`📦 Database: ${conn.connection.name}`);
 
-    // Try to seed super admin
     try {
       const { seedSuperAdmin } = await import("./utils/seedSuperAdmin.js");
       await seedSuperAdmin();
