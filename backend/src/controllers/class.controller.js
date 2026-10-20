@@ -8,48 +8,49 @@ import User from "../models/User.js";
 // ─────────────────────────────────────────────────────────────
 export const createClass = async (req, res) => {
   try {
-    // 1. Log exactly what the backend receives so you can see it in Render Logs
-    console.log("👉 CREATE CLASS - BODY:", req.body);
-    console.log("👉 CREATE CLASS - SCHOOL ID:", req.schoolId);
-    console.log("👉 CREATE CLASS - USER:", req.user ? req.user._id : "NO USER");
+    // 1. Fallback: If tenantScope failed, get the schoolId directly from the logged-in user
+    const schoolId = req.schoolId || req.user?.schoolId;
 
-    const { name, level, section, capacity, academicSession } = req.body;
-
-    // 2. Validate required fields
-    if (!name || !level || !academicSession) {
+    if (!schoolId) {
       return res.status(400).json({ 
         success: false, 
-        message: "Missing required fields (name, level, academicSession)" 
+        message: "Your account is not linked to a school. Please log out and log back in." 
       });
     }
 
-    // 3. Create the class safely
+    const { name, level, section, capacity, academicSession } = req.body;
+
+    // 2. Validate
+    if (!name || !level || !academicSession) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Missing required fields" 
+      });
+    }
+
+    // 3. Create
     const cls = await Class.create({
-      schoolId: req.schoolId,
+      schoolId, // 👈 Now safely uses the schoolId
       name,
       level,
       section: section || "",
       capacity: capacity || 30,
       academicSession,
-      createdBy: req.user ? req.user._id : null, // 👈 SAFE CHECK
+      createdBy: req.user._id,
     });
 
     res.status(201).json({ success: true, message: "Class created", data: { class: cls } });
   } catch (err) {
     console.error("❌ ERROR CREATING CLASS:", err);
-    
     if (err.code === 11000) {
       return res.status(400).json({
         success: false,
         message: "A class with this name already exists for this session",
       });
     }
-    
-    // Return the exact database error message to the frontend
     res.status(400).json({ success: false, message: err.message });
   }
 };
-
 // ─────────────────────────────────────────────────────────────
 // GET /api/classes?level=primary&search=
 // ─────────────────────────────────────────────────────────────
