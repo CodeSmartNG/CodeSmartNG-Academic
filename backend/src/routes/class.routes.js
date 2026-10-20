@@ -28,18 +28,21 @@ router.get("/", authorize("proprietor", "admin", "teacher"), listClasses);
 router.get("/:id", authorize("proprietor", "admin", "teacher"), getClass);
 
 // Write (admin/proprietor)
+
+// Write (admin/proprietor) - TEMPORARILY DISABLED VALIDATION
 router.post(
   "/",
   authorize("proprietor", "admin"),
+  /*
   [
     body("name").trim().notEmpty().withMessage("Class name required"),
     body("level").isIn(["nursery", "primary"]).withMessage("Level must be nursery or primary"),
     body("academicSession").trim().notEmpty().withMessage("Session required"),
   ],
   validate,
+  */
   createClass
 );
-
 router.patch("/:id", authorize("proprietor", "admin"), updateClass);
 
 router.post(
