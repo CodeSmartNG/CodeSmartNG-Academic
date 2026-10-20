@@ -31,7 +31,7 @@ const NAV_BY_ROLE = {
     { to: "/dashboard/students", label: "My Pupils", icon: "fa-user-graduate" },
     { to: "/dashboard/attendance", label: "Attendance", icon: "fa-calendar-check" },
     { to: "/dashboard/results", label: "Results", icon: "fa-award" },
-    { to: "/dashboard/assignments", label: "Assignments", icon: "fa-book" },
+    //{ to: "/dashboard/assignments", label: "Assignments", icon: "fa-book" },
     { to: "/dashboard/homework", label: "Homework", icon: "fa-book" },
     { to: "/dashboard/announcements/view", label: "Announcements", icon: "fa-bullhorn" },
   ],
