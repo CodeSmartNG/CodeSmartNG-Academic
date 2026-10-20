@@ -42,11 +42,11 @@ export default function TeacherDashboard() {
 
               <div className="grid grid-cols-2 gap-3">
                 <Link
-                  to={`/dashboard/attendance?classId=${cls._id}`}
-                  className="bg-blue-700 text-white text-center py-2 rounded-lg font-medium hover:bg-blue-800 transition"
-                >
-                  Take Attendance
-                </Link>
+  to={`/dashboard/attendance?classId=${cls._id}`}
+  className="bg-blue-700 text-white text-center py-2 rounded-lg font-medium hover:bg-blue-800 transition"
+>
+  Take Attendance
+</Link>
                 <Link
                   to={`/dashboard/classes/${cls._id}`}
                   className="bg-slate-100 text-slate-700 text-center py-2 rounded-lg font-medium hover:bg-slate-200 transition"
