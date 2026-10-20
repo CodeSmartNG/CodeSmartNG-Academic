@@ -22,38 +22,24 @@ export const createHomework = async (req, res) => {
       allowTextSubmission,
     } = req.body;
 
+    const schoolId = req.schoolId || req.user?.schoolId;
+
     const [cls, subject] = await Promise.all([
-      Class.findOne({ _id: classId, schoolId: req.schoolId }),
-      Subject.findOne({ _id: subjectId, schoolId: req.schoolId }),
+      Class.findOne({ _id: classId, schoolId }),
+      Subject.findOne({ _id: subjectId, schoolId }),
     ]);
     if (!cls) return res.status(404).json({ success: false, message: "Class not found" });
     if (!subject) return res.status(404).json({ success: false, message: "Subject not found" });
 
-    // Teachers can only assign to their own classes
-    if (req.user.role === "teacher") {
-      const isFormTeacher = cls.formTeacherId?.toString() === req.user._id.toString();
-      const isSubjectTeacher = cls.subjectAssignments.some(
-        (a) =>
-          a.teacherId.toString() === req.user._id.toString() &&
-          a.subjectId.toString() === subjectId
-      );
-      if (!isFormTeacher && !isSubjectTeacher) {
-        return res.status(403).json({
-          success: false,
-          message: "You are not assigned to teach this subject in this class",
-        });
-      }
-    }
-
     // Snapshot of active pupils in the class
     const pupils = await Student.find({
-      schoolId: req.schoolId,
+      schoolId,
       className: cls.name,
       admissionStatus: "active",
     }).select("_id");
 
     const homework = await Homework.create({
-      schoolId: req.schoolId,
+      schoolId,
       classId,
       subjectId,
       teacherId: req.user._id,
@@ -70,9 +56,13 @@ export const createHomework = async (req, res) => {
 
     res.status(201).json({ success: true, message: "Homework published", data: { homework } });
   } catch (err) {
+    console.error("❌ Create Homework Error:", err); // This will show in Render Logs
     res.status(400).json({ success: false, message: err.message });
   }
 };
+
+    
+    
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/homework
