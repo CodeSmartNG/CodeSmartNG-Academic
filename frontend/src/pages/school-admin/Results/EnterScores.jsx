@@ -9,12 +9,13 @@ export default function EnterScores() {
   const [assessment, setAssessment] = useState(null);
   const [pupils, setPupils] = useState([]);
   const [scores, setScores] = useState({});
+  const [hasSavedScores, setHasSavedScores] = useState(false); // 👈 Lock state
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
-    // Load the specific assessment
+    // 1. Load the specific assessment
     assessmentApi.list({}).then(({ data }) => {
       const a = data.data.assessments.find((x) => x._id === id);
       setAssessment(a);
@@ -37,7 +38,13 @@ export default function EnterScores() {
       
       // 2. Fetch the EXACT saved scores for this assessment
       api.get(`/results/assessment/${assessment._id}/scores`).then(({ data: scoreRes }) => {
-        setScores(scoreRes.data.scores || {});
+        const savedScores = scoreRes.data.scores || {};
+        setScores(savedScores);
+        
+        // 👈 If there are saved scores, lock the form
+        if (Object.keys(savedScores).length > 0) {
+          setHasSavedScores(true);
+        }
       }).catch(err => console.error("Failed to load scores", err));
 
     }).catch((err) => console.error(err))
@@ -46,6 +53,7 @@ export default function EnterScores() {
   }, [assessment]);
 
   const setScore = (studentId, value) => {
+    if (hasSavedScores) return; // 👈 Prevent editing if locked
     setScores((prev) => ({ ...prev, [studentId]: value }));
   };
 
@@ -60,6 +68,7 @@ export default function EnterScores() {
       };
       const { data } = await resultApi.enterScores(assessment._id, payload.scores);
       setToast({ type: "success", message: data.message });
+      setHasSavedScores(true); // 👈 Lock immediately after saving
       setTimeout(() => setToast(null), 3000);
     } catch (err) {
       setToast({ type: "error", message: err.response?.data?.message || "Failed" });
@@ -75,12 +84,19 @@ export default function EnterScores() {
     <div className="p-6 max-w-4xl mx-auto">
       <button onClick={() => navigate(-1)} className="text-sm text-slate-500 mb-4">← Back</button>
 
-      <div className="bg-white rounded-xl shadow-sm p-5 mb-4">
-        <h1 className="text-xl font-bold text-slate-800">{assessment.name}</h1>
-        <p className="text-sm text-slate-500">
-          {assessment.classId?.name} · {assessment.subjectId?.name} ·{" "}
-          {assessment.session} · {assessment.term} · Max: {assessment.maxScore}
-        </p>
+      <div className="bg-white rounded-xl shadow-sm p-5 mb-4 flex justify-between items-center">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">{assessment.name}</h1>
+          <p className="text-sm text-slate-500">
+            {assessment.classId?.name} · {assessment.subjectId?.name} ·{" "}
+            {assessment.session} · {assessment.term} · Max: {assessment.maxScore}
+          </p>
+        </div>
+        {hasSavedScores && (
+          <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium">
+            Scores Locked
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -107,9 +123,10 @@ export default function EnterScores() {
                     type="number"
                     min="0"
                     max={assessment.maxScore}
-                    className="border rounded-lg p-2 w-24"
+                    className={`border rounded-lg p-2 w-24 ${hasSavedScores ? "bg-slate-100 text-slate-500 cursor-not-allowed" : ""}`}
                     value={scores[p._id] ?? ""}
                     onChange={(e) => setScore(p._id, e.target.value)}
+                    disabled={hasSavedScores} // 👈 Disable input if locked
                   />
                 </td>
               </tr>
@@ -119,10 +136,16 @@ export default function EnterScores() {
       </div>
 
       <div className="sticky bottom-0 mt-6 bg-white border-t px-4 py-3 flex justify-end shadow-lg">
-        <button onClick={save} disabled={saving}
-          className="bg-blue-700 text-white px-6 py-2 rounded-lg disabled:opacity-50">
-          {saving ? "Saving…" : "Save Scores"}
-        </button>
+        {hasSavedScores ? (
+          <div className="text-sm text-slate-500 py-2">
+            These scores have already been saved and cannot be edited.
+          </div>
+        ) : (
+          <button onClick={save} disabled={saving}
+            className="bg-blue-700 text-white px-6 py-2 rounded-lg disabled:opacity-50">
+            {saving ? "Saving…" : "Save Scores"}
+          </button>
+        )}
       </div>
 
       {toast && (
