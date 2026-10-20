@@ -11,7 +11,7 @@ import subjectRoutes from "./routes/subject.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import attendanceRoutes from "./routes/attendance.routes.js";
 import assessmentRoutes from "./routes/assessment.routes.js"; // 👈 ADDED
-// import resultRoutes from "./routes/result.routes.js";
+import resultRoutes from "./routes/result.routes.js";
 // import paymentRoutes from "./routes/payment.routes.js";
 
 dotenv.config();
@@ -29,7 +29,7 @@ app.use("/api/subjects", subjectRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/assessments", assessmentRoutes); // 👈 ADDED
-// app.use("/api/results", resultRoutes);
+app.use("/api/results", resultRoutes);
 // app.use("/api/payments", paymentRoutes);
 
 app.get("/", (_, res) =>
