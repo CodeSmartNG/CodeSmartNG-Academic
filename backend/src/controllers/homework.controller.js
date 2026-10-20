@@ -8,6 +8,7 @@ import Student from "../models/Student.js";
 // Body: { classId, subjectId, title, description, dueDate,
 //         attachments?, session, term, allowTextSubmission? }
 // ─────────────────────────────────────────────────────────────
+
 export const createHomework = async (req, res) => {
   try {
     const {
@@ -24,6 +25,10 @@ export const createHomework = async (req, res) => {
 
     const schoolId = req.schoolId || req.user?.schoolId;
 
+    if (!schoolId) {
+      return res.status(400).json({ success: false, message: "School ID missing. Please log out and log back in." });
+    }
+
     const [cls, subject] = await Promise.all([
       Class.findOne({ _id: classId, schoolId }),
       Subject.findOne({ _id: subjectId, schoolId }),
@@ -38,6 +43,11 @@ export const createHomework = async (req, res) => {
       admissionStatus: "active",
     }).select("_id");
 
+    // Make sure we only pass valid ObjectIds
+    const validPupilIds = pupils
+      .filter((p) => p && p._id)
+      .map((p) => p._id);
+
     const homework = await Homework.create({
       schoolId,
       classId,
@@ -49,7 +59,7 @@ export const createHomework = async (req, res) => {
       attachments: attachments || [],
       session,
       term,
-      assignedTo: pupils.map((p) => p._id),
+      assignedTo: validPupilIds,
       allowTextSubmission: allowTextSubmission !== false,
       createdBy: req.user._id,
     });
@@ -60,7 +70,6 @@ export const createHomework = async (req, res) => {
     res.status(400).json({ success: false, message: err.message });
   }
 };
-
     
     
 
