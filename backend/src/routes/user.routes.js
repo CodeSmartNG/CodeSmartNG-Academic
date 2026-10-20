@@ -1,10 +1,24 @@
+import express from "express";
 import {
-  listLinkRequests,
-  approveLinkRequest,
-  rejectLinkRequest,
-} from "../controllers/admin/parentLink.controller.js";
+  createUser,
+  listUsers,
+  getUser,
+  updateUser,
+  deactivateUser,
+  adminResetPassword,
+} from "../controllers/user.controller.js";
+import { protect, authorize, tenantScope } from "../middleware/auth.js";
 
-// ...existing routes...
-router.get("/link-requests", authorize("proprietor", "admin"), listLinkRequests);
-router.patch("/link-requests/:id/approve", authorize("proprietor", "admin"), approveLinkRequest);
-router.patch("/link-requests/:id/reject", authorize("proprietor", "admin"), rejectLinkRequest);
+const router = express.Router();
+
+// All routes here require tenant scope + admin/proprietor
+router.use(protect, tenantScope, authorize("proprietor", "admin"));
+
+router.post("/", createUser);
+router.get("/", listUsers);
+router.get("/:id", getUser);
+router.patch("/:id", updateUser);
+router.delete("/:id", deactivateUser);
+router.post("/:id/reset-password", adminResetPassword);
+
+export default router;
