@@ -17,25 +17,38 @@ export default function ClassDetail() {
   const [subjectForm, setSubjectForm] = useState({ subjectId: "", teacherId: "" });
 
   const load = async () => {
-    setLoading(true);
+  setLoading(true);
+  try {
+    // 1. Fetch the class (If this fails, we kick them back)
+    const classRes = await classApi.get(id);
+    setCls(classRes.data.data.class);
+    setPupils(classRes.data.data.pupils || []);
+    setFormTeacherId(classRes.data.data.class.formTeacherId?._id || "");
+
+    // 2. Fetch subjects (If this fails, just use an empty array)
     try {
-      const [classRes, subjectsRes, teachersRes] = await Promise.all([
-        classApi.get(id),
-        subjectApi.list(),
-        api.get("/users?role=teacher&limit=200"),
-      ]);
-      setCls(classRes.data.data.class);
-      setPupils(classRes.data.data.pupils);
-      setSubjects(subjectsRes.data.data.subjects);
-      setTeachers(teachersRes.data.data.users);
-      setFormTeacherId(classRes.data.data.class.formTeacherId?._id || "");
-    } catch (err) {
-      console.error(err);
-      navigate("/dashboard/classes");
-    } finally {
-      setLoading(false);
+      const subjectsRes = await subjectApi.list();
+      setSubjects(subjectsRes.data.data.subjects || []);
+    } catch (e) {
+      console.warn("Could not load subjects", e);
     }
-  };
+
+    // 3. Fetch teachers (If this fails, just use an empty array)
+    try {
+      const teachersRes = await api.get("/users?role=teacher&limit=200");
+      setTeachers(teachersRes.data.data.users || []);
+    } catch (e) {
+      console.warn("Could not load teachers", e);
+    }
+
+  } catch (err) {
+    console.error("Failed to load class:", err);
+    // Only navigate away if the class itself is missing
+    navigate("/dashboard/classes"); 
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     load();
