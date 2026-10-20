@@ -331,12 +331,10 @@ export const backfillStudentClassIds = async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 export const getMyClasses = async (req, res) => {
   try {
+    // A teacher ONLY sees the class where they are the Form Teacher
     const classes = await Class.find({
       schoolId: req.schoolId,
-      $or: [
-        { formTeacherId: req.user._id },
-        { "subjectAssignments.teacherId": req.user._id },
-      ],
+      formTeacherId: req.user._id, // 👈 Strictly restrict
       isActive: true,
     })
       .populate("subjectAssignments.subjectId", "name code")
