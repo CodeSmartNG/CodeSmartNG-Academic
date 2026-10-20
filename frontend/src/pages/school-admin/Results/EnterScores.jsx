@@ -14,13 +14,14 @@ export default function EnterScores() {
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
-    // Load assessment + class pupils
+    // Load the specific assessment
     assessmentApi.list({}).then(({ data }) => {
       const a = data.data.assessments.find((x) => x._id === id);
       setAssessment(a);
+    }).catch((err) => {
+      console.error(err);
+      setLoading(false);
     });
-    // Fetch assessment → its class → pupils
-    api.get(`/assessments`).then(() => {}); // noop warmup
   }, [id]);
 
   // Once assessment is known, load its pupils + existing scores
@@ -28,25 +29,20 @@ export default function EnterScores() {
     if (!assessment) return;
     setLoading(true);
     const classId = assessment.classId?._id;
-    // Fetch pupils via attendance endpoint (already returns pupils + attendance)
-    // But we want raw pupils: use classApi.get
+    
+    // 1. Fetch pupils in the class
     api.get(`/classes/${classId}`).then(({ data }) => {
       const pupils = data.data.pupils || [];
       setPupils(pupils);
-      // Pre-fill scores from existing results
-      api.get(`/results/class/${classId}/broadsheet`, {
-        params: { session: assessment.session, term: assessment.term },
-      }).then(({ data: bs }) => {
-        const subjectId = assessment.subjectId?._id;
-        const prefill = {};
-        bs.data.rows.forEach((row) => {
-          // Broadsheet returns percentage, not raw score. For prefill, we
-          // need the raw scores — the backend returns them if you add a
-          // dedicated endpoint. For MVP, leave blank.
-        });
-        setScores(prefill);
-      });
-    }).finally(() => setLoading(false));
+      
+      // 2. Fetch the EXACT saved scores for this assessment
+      api.get(`/results/assessment/${assessment._id}/scores`).then(({ data: scoreRes }) => {
+        setScores(scoreRes.data.scores || {});
+      }).catch(err => console.error("Failed to load scores", err));
+
+    }).catch((err) => console.error(err))
+      .finally(() => setLoading(false));
+      
   }, [assessment]);
 
   const setScore = (studentId, value) => {
