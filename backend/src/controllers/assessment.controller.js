@@ -10,15 +10,20 @@ export const createAssessment = async (req, res) => {
 
     const schoolId = req.schoolId || req.user?.schoolId; // 👈 Fallback
 
-const [cls, subject] = await Promise.all([
-  Class.findOne({ _id: classId, schoolId }),
-  Subject.findOne({ _id: subjectId, schoolId }),
-]);
+    if (!schoolId) {
+      return res.status(400).json({ success: false, message: "School ID not found. Please log out and log back in." });
+    }
+
+    const [cls, subject] = await Promise.all([
+      Class.findOne({ _id: classId, schoolId }),
+      Subject.findOne({ _id: subjectId, schoolId }),
+    ]);
+    
     if (!cls) return res.status(404).json({ success: false, message: "Class not found" });
     if (!subject) return res.status(404).json({ success: false, message: "Subject not found" });
 
     const assessment = await Assessment.create({
-      schoolId: req.schoolId,
+      schoolId, // 👈 FIXED: Using the safe variable instead of req.schoolId
       classId,
       subjectId,
       teacherId: req.user._id,
@@ -34,10 +39,12 @@ const [cls, subject] = await Promise.all([
 
     res.status(201).json({ success: true, message: "Assessment created", data: { assessment } });
   } catch (err) {
+    console.error("❌ Create Assessment Error:", err);
+    
     if (err.code === 11000) {
       return res.status(400).json({
         success: false,
-        message: "An assessment with this name already exists for this class-subject-term",
+        message: "An assessment with this name already exists for this class, subject, and term.",
       });
     }
     res.status(400).json({ success: false, message: err.message });
