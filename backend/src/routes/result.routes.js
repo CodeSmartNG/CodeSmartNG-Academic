@@ -1,6 +1,7 @@
 import express from "express";
 import {
   enterAssessmentScores,
+  getAssessmentScores, // 👈 ADDED THIS
   computeClassResults,
   getPupilReportCard,
   getClassBroadsheet,
@@ -37,6 +38,13 @@ router.get(
   "/class/:classId/broadsheet",
   authorize("proprietor", "admin", "teacher"),
   getClassBroadsheet
+);
+
+// 👇 ADDED THIS LINE: Fetch scores
+router.get(
+  "/assessment/:id/scores",
+  authorize("teacher", "admin", "proprietor"),
+  getAssessmentScores
 );
 
 // Score entry (teacher)
