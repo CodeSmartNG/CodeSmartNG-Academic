@@ -363,23 +363,24 @@ export const getClassBroadsheet = async (req, res) => {
     const subjects = [...subjectsMap.values()].sort((a, b) => a.name.localeCompare(b.name));
 
     const rows = students.map((s) => {
-      const studentResults = results.filter((r) => r.studentId.toString() === s._id.toString());
-      const scores = {};
-      subjects.forEach((sub) => {
-        const r = studentResults.find((x) => x.subjectId?._id.toString() === sub._id.toString());
-        scores[sub._id] = r ? r.percentage : null;
-      });
+  const studentResults = results.filter((r) => r.studentId.toString() === s._id.toString());
+  const scores = {};
+  subjects.forEach((sub) => {
+    const r = studentResults.find((x) => x.subjectId?._id.toString() === sub._id.toString());
+    scores[sub._id] = r ? r.percentage : null;
+  });
 
-      const anchor = studentResults.find((r) => r.isAnchor);
-      return {
-        student: { _id: s._id, fullName: s.fullName, admissionNumber: s.admissionNumber },
-        scores,
-        overallTotal: anchor?.overallTotal ?? 0,
-        overallAverage: anchor?.overallAverage ?? 0,
-        overallGrade: anchor?.overallGrade ?? "—",
-        position: anchor?.positionInClass ?? null,
-      };
-    });
+  const anchor = studentResults.find((r) => r.isAnchor);
+  return {
+    student: { _id: s._id, fullName: s.fullName, admissionNumber: s.admissionNumber },
+    scores,
+    overallTotal: anchor?.overallTotal ?? 0,
+    overallAverage: anchor?.overallAverage ?? 0,
+    overallGrade: anchor?.overallGrade ?? "—",
+    position: anchor?.positionInClass ?? null,
+    isPublished: anchor?.isPublished ?? false, // 👈 ADDED
+  };
+});
 
     // Sort rows by position
     rows.sort((a, b) => (a.position ?? 999) - (b.position ?? 999));
