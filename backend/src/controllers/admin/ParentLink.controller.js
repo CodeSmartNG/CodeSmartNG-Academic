@@ -1,6 +1,6 @@
-import LinkRequest from "../models/LinkRequest.js";
-import User from "../models/User.js";
-import Student from "../models/Student.js";
+import LinkRequest from "../../models/LinkRequest.js"; // 👈 Two dots (../../) instead of one
+import User from "../../models/User.js";
+import Student from "../../models/Student.js";
 
 // GET /api/users/link-requests?status=pending
 export const listLinkRequests = async (req, res) => {
