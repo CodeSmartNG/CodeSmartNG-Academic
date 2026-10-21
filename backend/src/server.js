@@ -14,6 +14,7 @@ import assessmentRoutes from "./routes/assessment.routes.js";
 import resultRoutes from "./routes/result.routes.js";
 import homeworkRoutes from "./routes/homework.routes.js";
 import announcementRoutes from "./routes/announcement.routes.js"; // 👈 ADDED
+import parentRoutes from "./routes/parent.routes.js"; // 👈 Add at the top
 
 dotenv.config();
 const app = express();
@@ -33,6 +34,7 @@ app.use("/api/assessments", assessmentRoutes);
 app.use("/api/results", resultRoutes);
 app.use("/api/homework", homeworkRoutes);
 app.use("/api/announcements", announcementRoutes); // 👈 ADDED
+app.use("/api/parent", parentRoutes); // 👈 Add with the other app.use() lines
 
 app.get("/", (_, res) =>
   res.json({
