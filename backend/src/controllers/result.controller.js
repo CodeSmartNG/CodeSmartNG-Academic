@@ -459,6 +459,11 @@ export const publishClassResults = async (req, res) => {
     const { classId } = req.params;
     const { session, term } = req.body;
 
+    if (!classId || !session || !term) {
+      return res.status(400).json({ success: false, message: "classId, session, and term are required" });
+    }
+
+    // 1. Mark all results as published
     const result = await Result.updateMany(
       { schoolId: req.schoolId, classId, session, term },
       {
@@ -468,12 +473,35 @@ export const publishClassResults = async (req, res) => {
       }
     );
 
+    // 👇 2. SAFETY NET: Make sure every pupil has an anchor doc
+    // If Admin clicks Publish without computing first, create a basic anchor.
+    const allResults = await Result.find({ schoolId: req.schoolId, classId, session, term });
+    const pupilsWithAnchor = new Set();
+    allResults.forEach(r => { if (r.isAnchor) pupilsWithAnchor.add(r.studentId.toString()); });
+
+    // Find pupils who have results but no anchor
+    const pupilsWithoutAnchor = [...new Set(allResults.map(r => r.studentId.toString()))]
+      .filter(id => !pupilsWithAnchor.has(id));
+
+    for (const studentId of pupilsWithoutAnchor) {
+      // Find the first result doc for this pupil and make it the anchor
+      const firstResult = await Result.findOne({ 
+        schoolId: req.schoolId, classId, studentId, session, term 
+      }).sort({ "scores.assessmentName": 1 });
+      
+      if (firstResult) {
+        firstResult.isAnchor = true;
+        await firstResult.save();
+      }
+    }
+
     res.json({
       success: true,
       message: `Published ${result.modifiedCount} result(s) to parents`,
-      data: { modified: result.modifiedCount },
+      data: { modified: result.modifiedCount, anchorsCreated: pupilsWithoutAnchor.length },
     });
   } catch (err) {
+    console.error("publishClassResults error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
