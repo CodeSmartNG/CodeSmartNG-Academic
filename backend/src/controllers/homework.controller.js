@@ -57,6 +57,16 @@ if (dueDate) {
   }
 }
 
+
+// Validate dueDate safely
+let safeDueDate = new Date();
+if (dueDate) {
+  const parsed = new Date(dueDate);
+  if (!isNaN(parsed.getTime())) {
+    safeDueDate = parsed;
+  }
+}
+
 const homework = await Homework.create({
   schoolId,
   classId,
@@ -72,7 +82,7 @@ const homework = await Homework.create({
   allowTextSubmission: allowTextSubmission !== false,
   createdBy: req.user._id,
 });
-
+    
     res.status(201).json({ success: true, message: "Homework published", data: { homework } });
   } catch (err) {
     console.error("❌ Create Homework Error:", err); // This will show in Render Logs
