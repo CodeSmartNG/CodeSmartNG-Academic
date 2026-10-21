@@ -12,7 +12,8 @@ import userRoutes from "./routes/user.routes.js";
 import attendanceRoutes from "./routes/attendance.routes.js";
 import assessmentRoutes from "./routes/assessment.routes.js";
 import resultRoutes from "./routes/result.routes.js";
-import homeworkRoutes from "./routes/homework.routes.js"; // 👈 ADDED
+import homeworkRoutes from "./routes/homework.routes.js";
+import announcementRoutes from "./routes/announcement.routes.js"; // 👈 ADDED
 
 dotenv.config();
 const app = express();
@@ -30,7 +31,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/assessments", assessmentRoutes);
 app.use("/api/results", resultRoutes);
-app.use("/api/homework", homeworkRoutes); // 👈 ADDED
+app.use("/api/homework", homeworkRoutes);
+app.use("/api/announcements", announcementRoutes); // 👈 ADDED
 
 app.get("/", (_, res) =>
   res.json({
