@@ -48,21 +48,30 @@ export const createHomework = async (req, res) => {
       .filter((p) => p && p._id)
       .map((p) => p._id);
 
-    const homework = await Homework.create({
-      schoolId,
-      classId,
-      subjectId,
-      teacherId: req.user._id,
-      title,
-      description,
-      dueDate: new Date(dueDate),
-      attachments: attachments || [],
-      session,
-      term,
-      assignedTo: validPupilIds,
-      allowTextSubmission: allowTextSubmission !== false,
-      createdBy: req.user._id,
-    });
+    // Validate dueDate safely
+let safeDueDate = new Date();
+if (dueDate) {
+  const parsed = new Date(dueDate);
+  if (!isNaN(parsed.getTime())) {
+    safeDueDate = parsed;
+  }
+}
+
+const homework = await Homework.create({
+  schoolId,
+  classId,
+  subjectId,
+  teacherId: req.user._id,
+  title,
+  description,
+  dueDate: safeDueDate, // 👈 Uses the safe date
+  attachments: attachments || [],
+  session,
+  term,
+  assignedTo: validPupilIds,
+  allowTextSubmission: allowTextSubmission !== false,
+  createdBy: req.user._id,
+});
 
     res.status(201).json({ success: true, message: "Homework published", data: { homework } });
   } catch (err) {
