@@ -170,8 +170,6 @@ export const computeClassResults = async (req, res) => {
     const cls = await Class.findOne({ _id: classId, schoolId: req.schoolId });
     if (!cls) return res.status(404).json({ success: false, message: "Class not found" });
 
-    const school = await User.findById(req.user._id).populate("schoolId");
-    // gradingScale lives on the School doc — fetch it
     const schoolDoc = await (await import("../models/School.js")).default.findById(req.schoolId);
     const gradingScale = schoolDoc?.settings?.gradingScale?.length
       ? schoolDoc.settings.gradingScale
@@ -188,7 +186,7 @@ export const computeClassResults = async (req, res) => {
       return res.json({ success: true, message: "No results to compute", data: { updated: 0 } });
     }
 
-    // 1. Recalc totals + grades
+    // 1. Recalc totals + grades for every single result
     for (const r of results) {
       await recalcResult(r, gradingScale);
     }
@@ -216,13 +214,13 @@ export const computeClassResults = async (req, res) => {
       const avg = agg.count ? agg.total / agg.count : 0;
       const { grade } = gradeFromPercentage(avg, gradingScale);
 
-      // Clear anchors for this pupil-term
+      // Clear anchors for this pupil-term (make sure we only have one)
       await Result.updateMany(
-        { schoolId: req.schoolId, studentId, session, term, isAnchor: true },
+        { schoolId: req.schoolId, studentId, session, term },
         { $set: { isAnchor: false } }
       );
 
-      // Set new anchor (first subject alphabetically)
+      // Find the first result to be the anchor
       const anchor = await Result.findOne({
         schoolId: req.schoolId,
         studentId,
