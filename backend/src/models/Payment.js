@@ -49,6 +49,10 @@ const paymentSchema = new mongoose.Schema(
       index: true,
     },
 
+//payments approved 
+    isApproved: { type: Boolean, default: false },
+approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+approvedAt: Date,
     // Payment date (may differ from record creation date)
     paidAt: { type: Date, required: true, default: Date.now },
 
