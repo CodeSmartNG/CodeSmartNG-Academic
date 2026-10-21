@@ -1,19 +1,19 @@
 import { useEffect, useState } from "react";
-import { classApi } from "../../../services/classApi";
+import { classApi } from "../../../services/classApi"; // 👈 Import classApi
 import { feeApi, formatNaira } from "../../../services/feeApi";
 
 export default function FeeStructures() {
   const [structures, setStructures] = useState([]);
-  const [classes, setClasses] = useState([]);
+  const [classes, setClasses] = useState([]); // 👈 Store classes here
   const [showCreate, setShowCreate] = useState(false);
 
   const load = async () => {
     const [sRes, cRes] = await Promise.all([
       feeApi.listStructures({ includeInactive: true }),
-      classApi.list(),
+      classApi.list(), // 👈 Fetch classes from backend
     ]);
     setStructures(sRes.data.data.feeStructures);
-    setClasses(cRes.data.data.classes);
+    setClasses(cRes.data.data.classes); // 👈 Set classes
   };
 
   useEffect(() => { load(); }, []);
@@ -57,10 +57,7 @@ export default function FeeStructures() {
             <ul className="text-sm divide-y mb-3">
               {s.items.map((i, idx) => (
                 <li key={idx} className="py-1 flex justify-between">
-                  <span>
-                    {i.name}
-                    {i.isOptional && <span className="text-xs text-slate-400 ml-1">(optional)</span>}
-                  </span>
+                  <span>{i.name}</span>
                   <span className="font-medium">{formatNaira(i.amountKobo)}</span>
                 </li>
               ))}
@@ -140,6 +137,7 @@ function CreateStructureModal({ classes, onClose, onCreated }) {
               value={form.classId}
               onChange={(e) => setForm({ ...form, classId: e.target.value })}>
               <option value="">Select…</option>
+              {/* 👈 Now rendering the classes passed as props */}
               {classes.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
             </select>
           </label>
