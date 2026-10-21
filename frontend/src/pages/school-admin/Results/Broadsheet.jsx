@@ -51,14 +51,20 @@ export default function Broadsheet() {
           <h1 className="text-2xl font-bold text-slate-800">Broadsheet</h1>
           <p className="text-sm text-slate-500">Class-wide subject scores</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={compute} className="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm">
-            Compute
-          </button>
-          <button onClick={publish} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">
-            Publish
-          </button>
-        </div>
+        <div className="flex gap-2 items-center">
+  <button onClick={compute} className="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm">
+    Compute
+  </button>
+  <button onClick={publish} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">
+    Publish
+  </button>
+  {/* 👇 Show the badge if any row is published */}
+  {data?.rows?.[0]?.isPublished && (
+    <span className="bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium">
+      ✓ Published
+    </span>
+  )}
+</div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-end">
