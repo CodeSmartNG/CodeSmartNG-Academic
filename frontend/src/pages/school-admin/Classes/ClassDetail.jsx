@@ -249,11 +249,19 @@ export default function ClassDetail() {
             Pupils ({pupils.length})
           </h3>
           <button
-            onClick={() => classApi.backfillStudents().then(load)}
-            className="text-xs text-blue-600 hover:underline"
-          >
-            Link unlinked pupils
-          </button>
+  onClick={async () => {
+    try {
+      const { data } = await classApi.backfillStudents();
+      alert(data.message || "Pupils linked successfully");
+      load();
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to link pupils");
+    }
+  }}
+  className="text-xs text-blue-600 hover:underline"
+>
+  Link unlinked pupils
+</button>
         </div>
         {pupils.length === 0 ? (
           <p className="text-sm text-slate-400">No pupils in this class yet.</p>
