@@ -36,7 +36,7 @@ router.get("/structures", authorize("proprietor", "admin"), listFeeStructures);
 router.post("/structures", authorize("proprietor", "admin"), createFeeStructure);
 router.patch("/structures/:id", authorize("proprietor", "admin"), updateFeeStructure);
 router.delete("/structures/:id", authorize("proprietor", "admin"), deleteFeeStructure);
-
+router.post("/payments/manual", authorize("parent"), manualPaymentRequest);
 // ── Bills ──────────────────────────────────────────────────
 router.post("/generate-bills", authorize("proprietor", "admin"), generateBills);
 router.get("/bills", authorize("proprietor", "admin", "parent", "pupil"), listBills);
