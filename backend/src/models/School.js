@@ -65,6 +65,15 @@ const schoolSchema = new mongoose.Schema(
       },
       currentSession: { type: String, default: "2025/2026" },
       currentTerm: { type: String, default: "First Term" },
+
+      bankDetails: {
+    bankName: { type: String, trim: true },
+    accountName: { type: String, trim: true },
+    accountNumber: { type: String, trim: true },
+  },
+  
+  
+  
       // Assessment structure — used by Results module (Module 5)
       assessmentStructure: {
         type: [
