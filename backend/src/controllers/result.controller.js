@@ -525,6 +525,7 @@ export const getMyResults = async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 // GET /api/results/children?session=&term= (parent)
 // ─────────────────────────────────────────────────────────────
+
 export const getChildrenResults = async (req, res) => {
   try {
     const childIds = req.user.children || [];
@@ -544,6 +545,7 @@ export const getChildrenResults = async (req, res) => {
 
     const out = await Promise.all(
       children.map(async (c) => {
+        // 👇 Find the anchor (should exist after compute or publish)
         const anchor = await Result.findOne({
           schoolId: req.schoolId,
           studentId: c._id,
@@ -560,10 +562,7 @@ export const getChildrenResults = async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
-
-  };
-
-
+};
 
 // GET /api/results/assessment/:id/scores
 export const getAssessmentScores = async (req, res) => {
