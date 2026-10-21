@@ -18,7 +18,8 @@ import {
 // Bulk-save scores for one assessment.
 // Auto-creates or updates the Result document per pupil.
 // ─────────────────────────────────────────────────────────────
-export const enterAssessmentScores = async (req, res) => {
+
+        export const enterAssessmentScores = async (req, res) => {
   try {
     const assessment = await Assessment.findOne({
       _id: req.params.id,
@@ -29,20 +30,12 @@ export const enterAssessmentScores = async (req, res) => {
       return res.status(404).json({ success: false, message: "Assessment not found" });
     }
 
-    // Teachers can only enter scores for their own assessments
-    if (
-      req.user.role === "teacher" &&
-      assessment.teacherId.toString() !== req.user._id.toString()
-    ) {
-      return res.status(403).json({ success: false, message: "Not your assessment" });
-    }
-
     const { scores } = req.body;
     if (!Array.isArray(scores)) {
       return res.status(400).json({ success: false, message: "scores[] required" });
     }
 
-    // Validate
+    // Validate scores
     for (const s of scores) {
       if (s.score != null && (s.score < 0 || s.score > assessment.maxScore)) {
         return res.status(400).json({
@@ -52,22 +45,28 @@ export const enterAssessmentScores = async (req, res) => {
       }
     }
 
-    // Ensure every student belongs to the assessment's class
     const studentIds = scores.map((s) => s.studentId);
-    const cls = await Class.findById(assessment.classId);
+
+    // Just verify the students exist in the school (don't check className match)
     const validStudents = await Student.find({
       _id: { $in: studentIds },
       schoolId: req.schoolId,
-      className: cls.name,
       admissionStatus: "active",
     }).select("_id");
+
     const validSet = new Set(validStudents.map((s) => s._id.toString()));
 
-    const now = new Date();
+    console.log(`📝 Saving scores for assessment ${assessment.name}`);
+    console.log(`   Class: ${assessment.classId} | Session: ${assessment.session} | Term: ${assessment.term}`);
+    console.log(`   Students: ${studentIds.length}, Valid: ${validSet.size}`);
+
     const bulkOps = [];
 
     for (const s of scores) {
-      if (!validSet.has(s.studentId.toString())) continue;
+      if (!validSet.has(s.studentId.toString())) {
+        console.warn(`   ⚠️  Skipping ${s.studentId}: not a valid student`);
+        continue;
+      }
 
       bulkOps.push({
         updateOne: {
@@ -82,12 +81,12 @@ export const enterAssessmentScores = async (req, res) => {
             $setOnInsert: {
               schoolId: req.schoolId,
               studentId: s.studentId,
-              classId: assessment.classId,
               subjectId: assessment.subjectId._id,
               session: assessment.session,
               term: assessment.term,
             },
             $set: {
+              classId: assessment.classId,
               teacherId: assessment.teacherId,
             },
           },
@@ -96,9 +95,11 @@ export const enterAssessmentScores = async (req, res) => {
       });
     }
 
-    await Result.bulkWrite(bulkOps);
+    if (bulkOps.length > 0) {
+      await Result.bulkWrite(bulkOps);
+    }
 
-    // Now update the scores[] array on each result (needs the _id)
+    // Now update the scores[] array
     const results = await Result.find({
       schoolId: req.schoolId,
       studentId: { $in: studentIds },
@@ -125,8 +126,13 @@ export const enterAssessmentScores = async (req, res) => {
       if (idx >= 0) result.scores[idx] = entry;
       else result.scores.push(entry);
 
+      // Make sure classId is always set
+      if (!result.classId) result.classId = assessment.classId;
+
       await result.save();
     }
+
+    console.log(`   ✅ Saved ${results.length} result(s)`);
 
     res.json({
       success: true,
