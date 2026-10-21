@@ -43,53 +43,41 @@ export const createHomework = async (req, res) => {
       admissionStatus: "active",
     }).select("_id");
 
-    // Make sure we only pass valid ObjectIds
     const validPupilIds = pupils
       .filter((p) => p && p._id)
       .map((p) => p._id);
 
     // Validate dueDate safely
-let safeDueDate = new Date();
-if (dueDate) {
-  const parsed = new Date(dueDate);
-  if (!isNaN(parsed.getTime())) {
-    safeDueDate = parsed;
-  }
-}
+    let safeDueDate = new Date();
+    if (dueDate) {
+      const parsed = new Date(dueDate);
+      if (!isNaN(parsed.getTime())) {
+        safeDueDate = parsed;
+      }
+    }
 
+    const homework = await Homework.create({
+      schoolId,
+      classId,
+      subjectId,
+      teacherId: req.user._id,
+      title,
+      description,
+      dueDate: safeDueDate,
+      attachments: attachments || [],
+      session,
+      term,
+      assignedTo: validPupilIds,
+      allowTextSubmission: allowTextSubmission !== false,
+      createdBy: req.user._id,
+    });
 
-// Validate dueDate safely
-let safeDueDate = new Date();
-if (dueDate) {
-  const parsed = new Date(dueDate);
-  if (!isNaN(parsed.getTime())) {
-    safeDueDate = parsed;
-  }
-}
-
-const homework = await Homework.create({
-  schoolId,
-  classId,
-  subjectId,
-  teacherId: req.user._id,
-  title,
-  description,
-  dueDate: safeDueDate, // 👈 Uses the safe date
-  attachments: attachments || [],
-  session,
-  term,
-  assignedTo: validPupilIds,
-  allowTextSubmission: allowTextSubmission !== false,
-  createdBy: req.user._id,
-});
-    
     res.status(201).json({ success: true, message: "Homework published", data: { homework } });
   } catch (err) {
-    console.error("❌ Create Homework Error:", err); // This will show in Render Logs
+    console.error("❌ Create Homework Error:", err);
     res.status(400).json({ success: false, message: err.message });
   }
 };
-    
     
 
 // ─────────────────────────────────────────────────────────────
