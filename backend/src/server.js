@@ -10,9 +10,9 @@ import classRoutes from "./routes/class.routes.js";
 import subjectRoutes from "./routes/subject.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import attendanceRoutes from "./routes/attendance.routes.js";
-import assessmentRoutes from "./routes/assessment.routes.js"; // 👈 ADDED
+import assessmentRoutes from "./routes/assessment.routes.js";
 import resultRoutes from "./routes/result.routes.js";
-// import paymentRoutes from "./routes/payment.routes.js";
+import homeworkRoutes from "./routes/homework.routes.js"; // 👈 ADDED
 
 dotenv.config();
 const app = express();
@@ -28,9 +28,9 @@ app.use("/api/classes", classRoutes);
 app.use("/api/subjects", subjectRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/attendance", attendanceRoutes);
-app.use("/api/assessments", assessmentRoutes); // 👈 ADDED
+app.use("/api/assessments", assessmentRoutes);
 app.use("/api/results", resultRoutes);
-// app.use("/api/payments", paymentRoutes);
+app.use("/api/homework", homeworkRoutes); // 👈 ADDED
 
 app.get("/", (_, res) =>
   res.json({
