@@ -1,27 +1,45 @@
 import { useEffect, useState } from "react";
-import { classApi } from "../../../services/classApi"; // 👈 Import classApi
+import { classApi } from "../../../services/classApi"; // 👈 Make sure this import is correct
 import { feeApi, formatNaira } from "../../../services/feeApi";
 
 export default function FeeStructures() {
   const [structures, setStructures] = useState([]);
-  const [classes, setClasses] = useState([]); // 👈 Store classes here
+  const [classes, setClasses] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    const [sRes, cRes] = await Promise.all([
-      feeApi.listStructures({ includeInactive: true }),
-      classApi.list(), // 👈 Fetch classes from backend
-    ]);
-    setStructures(sRes.data.data.feeStructures);
-    setClasses(cRes.data.data.classes); // 👈 Set classes
+    setLoading(true);
+    try {
+      const [sRes, cRes] = await Promise.all([
+        feeApi.listStructures({ includeInactive: true }),
+        classApi.list(),
+      ]);
+      
+      setStructures(sRes.data?.data?.feeStructures || []);
+      
+      // 👇 Safely extract the classes array
+      const fetchedClasses = cRes.data?.data?.classes || [];
+      console.log("Fetched classes for dropdown:", fetchedClasses);
+      setClasses(fetchedClasses);
+      
+    } catch (err) {
+      console.error("Failed to load data:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { load(); }, []);
 
   const generate = async (feeStructureId) => {
     if (!confirm("Generate bills for all active pupils in this class?")) return;
-    const { data } = await feeApi.generateBills(feeStructureId);
-    alert(data.message);
+    try {
+      const { data } = await feeApi.generateBills(feeStructureId);
+      alert(data.message);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to generate");
+    }
   };
 
   return (
@@ -39,43 +57,47 @@ export default function FeeStructures() {
         </button>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
-        {structures.length === 0 ? (
-          <p className="text-slate-400">No fee structures yet.</p>
-        ) : structures.map((s) => (
-          <div key={s._id} className="bg-white rounded-xl shadow-sm p-5">
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <h3 className="font-bold text-lg">{s.classId?.name}</h3>
-                <p className="text-xs text-slate-500">{s.session} · {s.term}</p>
+      {loading ? (
+        <p className="text-slate-400">Loading…</p>
+      ) : structures.length === 0 ? (
+        <p className="text-slate-400">No fee structures yet.</p>
+      ) : (
+        <div className="grid md:grid-cols-2 gap-4">
+          {structures.map((s) => (
+            <div key={s._id} className="bg-white rounded-xl shadow-sm p-5">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h3 className="font-bold text-lg">{s.classId?.name}</h3>
+                  <p className="text-xs text-slate-500">{s.session} · {s.term}</p>
+                </div>
+                <span className={`px-2 py-0.5 text-xs rounded-full ${s.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
+                  {s.isActive ? "Active" : "Inactive"}
+                </span>
               </div>
-              <span className={`px-2 py-0.5 text-xs rounded-full ${s.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
-                {s.isActive ? "Active" : "Inactive"}
-              </span>
-            </div>
 
-            <ul className="text-sm divide-y mb-3">
-              {s.items.map((i, idx) => (
-                <li key={idx} className="py-1 flex justify-between">
-                  <span>{i.name}</span>
-                  <span className="font-medium">{formatNaira(i.amountKobo)}</span>
+              <ul className="text-sm divide-y mb-3">
+                {s.items.map((i, idx) => (
+                  <li key={idx} className="py-1 flex justify-between">
+                    <span>{i.name}</span>
+                    <span className="font-medium">{formatNaira(i.amountKobo)}</span>
+                  </li>
+                ))}
+                <li className="py-1 flex justify-between font-bold border-t-2">
+                  <span>Total</span>
+                  <span>{formatNaira(s.totalKobo)}</span>
                 </li>
-              ))}
-              <li className="py-1 flex justify-between font-bold border-t-2">
-                <span>Total</span>
-                <span>{formatNaira(s.totalKobo)}</span>
-              </li>
-            </ul>
+              </ul>
 
-            <button
-              onClick={() => generate(s._id)}
-              className="w-full bg-amber-600 text-white px-3 py-1.5 rounded-lg text-sm"
-            >
-              Generate Bills
-            </button>
-          </div>
-        ))}
-      </div>
+              <button
+                onClick={() => generate(s._id)}
+                className="w-full bg-amber-600 text-white px-3 py-1.5 rounded-lg text-sm"
+              >
+                Generate Bills
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {showCreate && (
         <CreateStructureModal
@@ -96,11 +118,11 @@ function CreateStructureModal({ classes, onClose, onCreated }) {
     items: [
       { name: "Tuition", amount: 20000, isOptional: false },
       { name: "Books", amount: 5000, isOptional: false },
-      { name: "Other Charges", amount: 5000, isOptional: false },
     ],
     notes: "",
   });
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const updateItem = (idx, patch) => {
     const next = [...form.items];
@@ -116,11 +138,15 @@ function CreateStructureModal({ classes, onClose, onCreated }) {
     .reduce((s, i) => s + Number(i.amount || 0), 0);
 
   const submit = async () => {
+    setSaving(true);
+    setError("");
     try {
       await feeApi.createStructure(form);
       onCreated();
     } catch (err) {
-      setError(err.response?.data?.message || "Failed");
+      setError(err.response?.data?.message || "Failed to create");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -136,8 +162,8 @@ function CreateStructureModal({ classes, onClose, onCreated }) {
             <select className="mt-1 w-full border rounded-lg p-2"
               value={form.classId}
               onChange={(e) => setForm({ ...form, classId: e.target.value })}>
-              <option value="">Select…</option>
-              {/* 👈 Now rendering the classes passed as props */}
+              <option value="">Select class…</option>
+              {/* 👇 Make sure we render the class _id as the value and name as the label */}
               {classes.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
             </select>
           </label>
@@ -165,11 +191,6 @@ function CreateStructureModal({ classes, onClose, onCreated }) {
               <input type="number" className="w-32 border rounded-lg p-2 text-sm"
                 value={item.amount}
                 onChange={(e) => updateItem(idx, { amount: Number(e.target.value) })} />
-              <label className="text-xs flex items-center gap-1">
-                <input type="checkbox" checked={item.isOptional}
-                  onChange={(e) => updateItem(idx, { isOptional: e.target.checked })} />
-                Opt
-              </label>
               <button onClick={() => removeItem(idx)} className="text-red-500 text-sm">✕</button>
             </div>
           ))}
@@ -181,18 +202,11 @@ function CreateStructureModal({ classes, onClose, onCreated }) {
           <span>₦{total.toLocaleString()}</span>
         </div>
 
-        <label className="block mb-4">
-          <span className="text-sm text-slate-600">Notes for parents (optional)</span>
-          <textarea className="mt-1 w-full border rounded-lg p-2" rows="2"
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-        </label>
-
         <div className="flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 border rounded-lg">Cancel</button>
-          <button onClick={submit} disabled={!form.classId}
+          <button onClick={submit} disabled={!form.classId || saving}
             className="bg-blue-700 text-white px-4 py-2 rounded-lg disabled:opacity-50">
-            Create
+            {saving ? "Creating…" : "Create"}
           </button>
         </div>
       </div>
