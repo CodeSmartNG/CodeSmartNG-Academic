@@ -298,34 +298,61 @@ export const removeSubjectTeacher = async (req, res) => {
 export const backfillStudentClassIds = async (req, res) => {
   try {
     const classes = await Class.find({ schoolId: req.schoolId, isActive: true });
-    const classMap = Object.fromEntries(classes.map((c) => [c.name, c._id]));
-
-    const students = await Student.find({
-      schoolId: req.schoolId,
-      $or: [{ classId: { $exists: false } }, { classId: null }],
+    
+    // Create a map of lowercase class names to their IDs
+    const classMap = {};
+    classes.forEach((c) => {
+      // Store both "Nursery 1 A" and "nursery 1 a" to match any casing
+      classMap[c.name.toLowerCase().trim()] = c._id;
     });
 
-    const bulkOps = students
-      .filter((s) => classMap[s.className])
-      .map((s) => ({
-        updateOne: {
-          filter: { _id: s._id },
-          update: { $set: { classId: classMap[s.className] } },
-        },
-      }));
+    // Find ALL students, not just those with no classId
+    const students = await Student.find({ schoolId: req.schoolId });
+
+    const bulkOps = [];
+    let alreadyLinked = 0;
+    let linkedNow = 0;
+    let noMatch = 0;
+
+    for (const s of students) {
+      const studentClassName = (s.className || "").toLowerCase().trim();
+      const matchedClassId = classMap[studentClassName];
+
+      if (matchedClassId) {
+        if (!s.classId || s.classId.toString() !== matchedClassId.toString()) {
+          // If they have a class name but no ID, or the wrong ID, update it
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: s._id },
+              update: { $set: { classId: matchedClassId } },
+            },
+          });
+          linkedNow++;
+        } else {
+          alreadyLinked++;
+        }
+      } else {
+        noMatch++;
+      }
+    }
 
     const result = bulkOps.length ? await Student.bulkWrite(bulkOps) : { modifiedCount: 0 };
 
     res.json({
       success: true,
-      message: `${result.modifiedCount} pupil(s) linked to their class`,
-      data: { modified: result.modifiedCount, skipped: students.length - result.modifiedCount },
+      message: `${linkedNow} pupil(s) linked, ${alreadyLinked} already linked, ${noMatch} have unknown class names.`,
+      data: { 
+        linkedNow, 
+        alreadyLinked, 
+        noMatch,
+        modified: result.modifiedCount 
+      },
     });
   } catch (err) {
+    console.error("Backfill error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
-
 // ─────────────────────────────────────────────────────────────
 // GET /api/classes/my-classes (teacher only)
 // ─────────────────────────────────────────────────────────────
