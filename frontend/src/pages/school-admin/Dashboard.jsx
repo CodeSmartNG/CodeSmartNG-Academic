@@ -10,13 +10,25 @@ export default function SchoolAdminDashboard() {
   const [subjectForm, setSubjectForm] = useState({ name: "", code: "" });
   const [parentForm, setParentForm] = useState({ fullName: "", email: "", password: "" });
   
+  // Bank Details
+  const [bankForm, setBankForm] = useState({ bankName: "", accountName: "", accountNumber: "" });
+  const [bankMsg, setBankMsg] = useState(null);
+  
   const [msg, setMsg] = useState(null);
 
-  // Load data
+  // Load data on mount
   const loadData = () => {
     api.get("/users?role=teacher").then(({ data }) => setTeachers(data.data.users || [])).catch(console.error);
     api.get("/subjects").then(({ data }) => setSubjects(data.data.subjects || [])).catch(console.error);
     api.get("/users?role=parent").then(({ data }) => setParents(data.data.users || [])).catch(console.error);
+    
+    // 👇 Load existing bank details
+    api.get("/schools/mine").then(({ data }) => {
+      const school = data.data.school;
+      if (school?.settings?.bankDetails) {
+        setBankForm(school.settings.bankDetails);
+      }
+    }).catch(console.error);
   };
 
   useEffect(() => {
@@ -64,22 +76,22 @@ export default function SchoolAdminDashboard() {
       setMsg({ type: "error", text: err.response?.data?.message || "Failed to add parent" });
     }
   };
-// bank detail
-   
-const [bankForm, setBankForm] = useState({ bankName: "", accountName: "", accountNumber: "" });
-const [bankMsg, setBankMsg] = useState(null);
 
-const handleSaveBank = async (e) => {
-  e.preventDefault();
-  try {
-    await api.patch("/schools/mine", {
-      settings: { bankDetails: bankForm }
-    });
-    setBankMsg({ type: "success", text: "Bank details saved! Parents will now see these when paying." });
-  } catch (err) {
-    setBankMsg({ type: "error", text: "Failed to save bank details" });
-  }
-};
+  // Save bank details
+  const handleSaveBank = async (e) => {
+    e.preventDefault();
+    setBankMsg(null);
+    try {
+      await api.patch("/schools/mine", {
+        settings: { bankDetails: bankForm }
+      });
+      setBankMsg({ type: "success", text: "Bank details saved! Parents will now see these when paying." });
+      loadData(); // Reload to verify
+    } catch (err) {
+      setBankMsg({ type: "error", text: err.response?.data?.message || "Failed to save bank details" });
+    }
+  };
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <h1 className="text-2xl font-bold text-slate-800 mb-2">School Admin Dashboard</h1>
@@ -133,23 +145,21 @@ const handleSaveBank = async (e) => {
         </div>
       </div>
 
+      {/* School Bank Account */}
+      <div className="bg-white rounded-xl shadow-sm p-6 mt-6 mb-8">
+        <h2 className="font-semibold text-slate-700 mb-4">School Bank Account (for Fees)</h2>
+        {bankMsg && <div className={`p-3 rounded mb-3 text-sm ${bankMsg.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>{bankMsg.text}</div>}
+        <form onSubmit={handleSaveBank} className="grid grid-cols-3 gap-4">
+          <input required placeholder="Bank Name (e.g. GTBank)" className="border rounded-lg p-2" 
+            value={bankForm.bankName} onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })} />
+          <input required placeholder="Account Name" className="border rounded-lg p-2" 
+            value={bankForm.accountName} onChange={(e) => setBankForm({ ...bankForm, accountName: e.target.value })} />
+          <input required placeholder="Account Number" className="border rounded-lg p-2" 
+            value={bankForm.accountNumber} onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })} />
+          <button type="submit" className="bg-blue-700 text-white px-4 py-2 rounded-lg col-span-3">Save Bank Details</button>
+        </form>
+      </div>
 
-
-
-      {/*bank pay*/}
-      <div className="bg-white rounded-xl shadow-sm p-6 mt-6">
-  <h2 className="font-semibold text-slate-700 mb-4">School Bank Account (for Fees)</h2>
-  {bankMsg && <div className={`p-3 rounded mb-3 text-sm ${bankMsg.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>{bankMsg.text}</div>}
-  <form onSubmit={handleSaveBank} className="grid grid-cols-3 gap-4">
-    <input required placeholder="Bank Name (e.g. GTBank)" className="border rounded-lg p-2" 
-      value={bankForm.bankName} onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })} />
-    <input required placeholder="Account Name" className="border rounded-lg p-2" 
-      value={bankForm.accountName} onChange={(e) => setBankForm({ ...bankForm, accountName: e.target.value })} />
-    <input required placeholder="Account Number" className="border rounded-lg p-2" 
-      value={bankForm.accountNumber} onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })} />
-    <button type="submit" className="bg-blue-700 text-white px-4 py-2 rounded-lg col-span-3">Save Bank Details</button>
-  </form>
-</div>
       {/* Lists */}
       <div className="grid md:grid-cols-3 gap-6">
         <div className="bg-white rounded-xl shadow-sm p-6">
