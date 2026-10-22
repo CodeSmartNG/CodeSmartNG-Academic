@@ -245,10 +245,16 @@ export const getChildrenBills = async (req, res) => {
   try {
     const childIds = req.user.children || [];
     if (childIds.length === 0) {
-      return res.json({ success: true, data: { children: [] } });
+      return res.json({ success: true, data: { children: [], bankDetails: null } });
     }
 
     const Student = (await import("../models/Student.js")).default;
+    const School = (await import("../models/School.js")).default;
+
+    // Fetch the school's bank details
+    const school = await School.findById(req.schoolId).select("settings.bankDetails");
+    const bankDetails = school?.settings?.bankDetails || null;
+
     const children = await Student.find({
       _id: { $in: childIds },
       schoolId: req.schoolId,
@@ -273,7 +279,8 @@ export const getChildrenBills = async (req, res) => {
       })
     );
 
-    res.json({ success: true, data: { children: out } });
+    // 👇 Add bankDetails to the response
+    res.json({ success: true, data: { children: out, bankDetails } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
