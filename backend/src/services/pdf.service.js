@@ -1,11 +1,5 @@
 import PDFDocument from "pdfkit";
-import fs from "fs";
-import path from "path";
 
-/**
- * Generates a report card PDF and returns it as a Buffer.
- * Supports both primary (numeric) and nursery (developmental).
- */
 export const generateReportCardPDF = (data) => {
   return new Promise((resolve, reject) => {
     try {
@@ -16,98 +10,83 @@ export const generateReportCardPDF = (data) => {
       doc.on("error", reject);
 
       const { school, student, class: cls, session, term, results, summary } = data;
-
       const isNursery = cls?.level === "nursery";
 
-      // ── Header ───────────────────────────────────────────
-      doc.fontSize(20).font("Helvetica-Bold")
-        .text(school.name.toUpperCase(), { align: "center" });
-      doc.fontSize(10).font("Helvetica")
-        .text(`${term} Report Card — ${session}`, { align: "center" });
-      doc.moveDown(0.5);
+      // ── Header Box ──────────────────────────────────────────
+      doc.rect(40, 40, 515, 90).fill("#0b2b4f");
+      doc.fillColor("#ffffff").fontSize(22).font("Helvetica-Bold")
+        .text(school.name.toUpperCase(), 50, 55, { align: "center", width: 495 });
+      doc.fontSize(10).font("Helvetica").fillColor("#cbd5e1")
+        .text(school.address || "School Address", { align: "center", width: 495 });
+      doc.fontSize(13).font("Helvetica-Bold").fillColor("#ffb347")
+        .text(`${term} Report Card · ${session}`, { align: "center", width: 495 });
 
-      // ── Pupil info ──────────────────────────────────────
-      doc.fontSize(11).font("Helvetica-Bold").text("Pupil Information", { underline: true });
-      doc.moveDown(0.3);
-      doc.fontSize(10).font("Helvetica");
-      doc.text(`Name: ${student.fullName}`);
-      doc.text(`Admission No: ${student.admissionNumber}`);
-      doc.text(`Class: ${cls?.name || student.className}`);
-      doc.text(`Gender: ${student.gender}`);
-      if (student.dateOfBirth) {
-        const age = Math.floor((Date.now() - new Date(student.dateOfBirth).getTime())
-          / (365.25 * 24 * 60 * 60 * 1000));
-        doc.text(`Age: ${age} years`);
-      }
-      doc.moveDown(0.7);
+      // ── Pupil Info Box ───────────────────────────────────────
+      doc.rect(40, 145, 515, 55).stroke("#cbd5e1");
+      doc.fillColor("#0b2b4f").fontSize(10).font("Helvetica-Bold");
+      
+      doc.text("Pupil:", 55, 155);
+      doc.font("Helvetica").fillColor("#334155").text(student.fullName, 100, 155);
+      
+      doc.font("Helvetica-Bold").fillColor("#0b2b4f").text("Admission No:", 300, 155);
+      doc.font("Helvetica").fillColor("#334155").text(student.admissionNumber, 400, 155);
 
-      if (isNursery) {
-        // ── Nursery developmental table ────────────────
-        doc.fontSize(11).font("Helvetica-Bold").text("Developmental Assessment", { underline: true });
-        doc.moveDown(0.3);
-        doc.fontSize(10).font("Helvetica");
+      doc.font("Helvetica-Bold").fillColor("#0b2b4f").text("Class:", 55, 175);
+      doc.font("Helvetica").fillColor("#334155").text(cls?.name || student.className, 100, 175);
+      
+      doc.font("Helvetica-Bold").fillColor("#0b2b4f").text("Gender:", 300, 175);
+      doc.font("Helvetica").fillColor("#334155").text(student.gender, 400, 175);
 
-        const headerY = doc.y;
-        doc.text("Skill Area", 40, headerY, { width: 200 });
-        doc.text("Rating", 250, headerY, { width: 120 });
-        doc.text("Teacher's Note", 380, headerY, { width: 180 });
-        doc.moveTo(40, doc.y + 2).lineTo(555, doc.y + 2).stroke();
+      // ── Table Header ─────────────────────────────────────────
+      const tableTop = 215;
+      doc.rect(40, tableTop, 515, 20).fill("#f1f5f9");
+      doc.fillColor("#0b2b4f").fontSize(9).font("Helvetica-Bold");
+      doc.text("SUBJECT", 50, tableTop + 6);
+      doc.text("SCORE", 270, tableTop + 6);
+      doc.text("GRADE", 350, tableTop + 6);
+      doc.text("REMARK", 410, tableTop + 6);
 
-        results.forEach((r) => {
-          const y = doc.y + 5;
-          doc.text(r.subjectId?.name || "—", 40, y, { width: 200 });
-          const rating = r.developmental?.rating || "—";
-          doc.text(rating.charAt(0).toUpperCase() + rating.slice(1), 250, y, { width: 120 });
-          doc.text(r.developmental?.notes || "—", 380, y, { width: 180 });
-          doc.moveDown(0.6);
-        });
-      } else {
-        // ── Primary numeric table ──────────────────────
-        doc.fontSize(11).font("Helvetica-Bold").text("Academic Performance", { underline: true });
-        doc.moveDown(0.3);
-        doc.fontSize(10).font("Helvetica");
+      // ── Table Body ───────────────────────────────────────────
+      let rowY = tableTop + 20;
+      results.forEach((r, i) => {
+        // Zebra stripes
+        if (i % 2 === 0) doc.rect(40, rowY, 515, 18).fill("#fafafa");
+        
+        doc.fillColor("#334155").font("Helvetica").fontSize(9);
+        doc.text(r.subjectId?.name || "—", 50, rowY + 4);
+        
+        // Fixed: handle undefined percentage
+        const score = r.totalScore != null ? `${r.totalScore}/${r.maxPossible}` : "—";
+        doc.text(score, 270, rowY + 4);
+        
+        doc.font("Helvetica-Bold").text(r.grade || "—", 350, rowY + 4);
+        doc.font("Helvetica").text(r.remark || "—", 410, rowY + 4);
 
-        const headerY = doc.y;
-        doc.text("Subject", 40, headerY, { width: 180 });
-        doc.text("Score", 220, headerY, { width: 60 });
-        doc.text("Grade", 280, headerY, { width: 50 });
-        doc.text("Remark", 330, headerY, { width: 200 });
-        doc.moveTo(40, doc.y + 2).lineTo(555, doc.y + 2).stroke();
+        rowY += 18;
+      });
 
-        results.forEach((r) => {
-          const y = doc.y + 5;
-          doc.text(r.subjectId?.name || "—", 40, y, { width: 180 });
-          doc.text(`${r.percentage.toFixed(1)}%`, 220, y, { width: 60 });
-          doc.text(r.grade, 280, y, { width: 50 });
-          doc.text(r.remark, 330, y, { width: 200 });
-          doc.moveDown(0.6);
-        });
+      // ── Summary Box ──────────────────────────────────────────
+      const summaryY = rowY + 10;
+      doc.rect(40, summaryY, 515, 50).stroke("#ffb347");
+      doc.fillColor("#0b2b4f").font("Helvetica-Bold").fontSize(10);
+      doc.text(`Total: ${summary?.overallTotal ?? 0}`, 55, summaryY + 10);
+      doc.text(`Average: ${summary?.overallAverage != null ? summary.overallAverage.toFixed(1) + '%' : '—'}`, 170, summaryY + 10);
+      doc.text(`Grade: ${summary?.overallGrade ?? "—"}`, 320, summaryY + 10);
+      doc.text(`Position: ${summary?.positionInClass ?? "—"} of ${summary?.totalPupilsInClass ?? "—"}`, 55, summaryY + 28);
 
-        doc.moveDown(0.5);
-        doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
-        doc.moveDown(0.5);
-        doc.font("Helvetica-Bold");
-        doc.text(`Total: ${summary?.overallTotal ?? 0}`, { continued: true });
-        doc.text(`   Average: ${summary?.overallAverage?.toFixed(1) ?? 0}%`, { continued: true });
-        doc.text(`   Grade: ${summary?.overallGrade ?? "—"}`);
-        if (summary?.positionInClass) {
-          doc.text(`Position: ${summary.positionInClass} of ${summary.totalPupilsInClass}`);
-        }
-      }
-
-      // ── Comments ─────────────────────────────────────
+      // ── Comments ─────────────────────────────────────────────
+      doc.moveDown(3);
+      doc.fillColor("#0b2b4f").font("Helvetica-Bold").fontSize(10).text("Form Teacher's Comment:", 50);
+      doc.font("Helvetica").fillColor("#334155").text(summary?.formTeacherComment || "Keep up the good work!", 50, doc.y + 3);
+      
       doc.moveDown(1);
-      doc.font("Helvetica-Bold").text("Form Teacher's Comment:", { underline: true });
-      doc.font("Helvetica").text(summary?.formTeacherComment || "—");
-      doc.moveDown(0.6);
-      doc.font("Helvetica-Bold").text("Head Teacher's Comment:", { underline: true });
-      doc.font("Helvetica").text(summary?.headTeacherComment || "—");
+      doc.fillColor("#0b2b4f").font("Helvetica-Bold").text("Head Teacher's Comment:", 50);
+      doc.font("Helvetica").fillColor("#334155").text(summary?.headTeacherComment || "Keep up the good work!", 50, doc.y + 3);
 
-      // ── Footer ───────────────────────────────────────
-      doc.moveDown(2);
-      doc.fontSize(8).fillColor("gray")
+      // ── Footer ───────────────────────────────────────────────
+      doc.fontSize(8).fillColor("#94a3b8")
         .text(`Generated by CodeSmartNG Academic on ${new Date().toLocaleDateString()}`,
-          { align: "center" });
+          50, 780, { align: "center", width: 515 });
 
       doc.end();
     } catch (err) {
