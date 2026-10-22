@@ -3,26 +3,18 @@ import { feeApi, formatNaira } from "../../services/feeApi";
 
 export default function ParentFees() {
   const [children, setChildren] = useState([]);
+  const [bankDetails, setBankDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null);
 
   useEffect(() => {
     feeApi.children()
-      .then(({ data }) => setChildren(data.data.children))
+      .then(({ data }) => {
+        setChildren(data.data.children || []);
+        setBankDetails(data.data.bankDetails || null);
+      })
       .finally(() => setLoading(false));
   }, []);
-
-  const downloadReceipt = async (paymentId, receiptNumber) => {
-    const token = localStorage.getItem("csn_token");
-    const res = await fetch(`/api/fees/payments/${paymentId}/receipt.pdf`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const blob = await res.blob();
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `${receiptNumber.replace(/\//g, "-")}.pdf`;
-    link.click();
-  };
 
   if (loading) return <div className="p-6 text-slate-400">Loading…</div>;
 
@@ -30,6 +22,35 @@ export default function ParentFees() {
     <div className="p-6 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">School Fees</h1>
 
+      {/* 👇 Bank Details Card */}
+      {bankDetails?.accountNumber ? (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-6">
+          <h2 className="font-semibold text-blue-900 mb-2">💳 School Bank Account</h2>
+          <p className="text-sm text-blue-800 mb-2">
+            Transfer fees to this account and show the receipt to the school to approve your payment.
+          </p>
+          <div className="bg-white rounded-lg p-3 grid grid-cols-3 gap-2 text-sm">
+            <div>
+              <div className="text-xs text-slate-500 uppercase">Bank</div>
+              <div className="font-semibold">{bankDetails.bankName}</div>
+            </div>
+            <div>
+              <div className="text-xs text-slate-500 uppercase">Account Name</div>
+              <div className="font-semibold">{bankDetails.accountName}</div>
+            </div>
+            <div>
+              <div className="text-xs text-slate-500 uppercase">Account Number</div>
+              <div className="font-mono font-bold text-blue-700">{bankDetails.accountNumber}</div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-800">
+          ⏳ The school has not set up their bank details yet. Please contact the school directly.
+        </div>
+      )}
+
+      {/* Children Fee Cards */}
       {children.length === 0 ? (
         <p className="text-slate-500">No children linked.</p>
       ) : (
