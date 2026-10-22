@@ -44,6 +44,26 @@ export default function Broadsheet() {
     load();
   };
 
+  // 👇 PDF Download function
+  const downloadPDF = async (studentId) => {
+    const token = localStorage.getItem("csn_token");
+    const url = `https://codesmartng-academic.onrender.com/api/results/pupil/${studentId}/pdf?session=${encodeURIComponent(filters.session)}&term=${encodeURIComponent(filters.term)}`;
+    
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `report-card-${studentId}.pdf`;
+      link.click();
+    } catch (err) {
+      alert("Failed to download PDF. Make sure the results are computed first.");
+    }
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
@@ -52,19 +72,19 @@ export default function Broadsheet() {
           <p className="text-sm text-slate-500">Class-wide subject scores</p>
         </div>
         <div className="flex gap-2 items-center">
-  <button onClick={compute} className="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm">
-    Compute
-  </button>
-  <button onClick={publish} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">
-    Publish
-  </button>
-  {/* 👇 Show the badge if any row is published */}
-  {data?.rows?.[0]?.isPublished && (
-    <span className="bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium">
-      ✓ Published
-    </span>
-  )}
-</div>
+          <button onClick={compute} className="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm">
+            Compute
+          </button>
+          <button onClick={publish} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">
+            Publish
+          </button>
+          {/* Published badge */}
+          {data?.rows?.[0]?.isPublished && (
+            <span className="bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium">
+              ✓ Published
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-end">
@@ -103,6 +123,7 @@ export default function Broadsheet() {
                 <th className="p-2 text-center">Avg</th>
                 <th className="p-2 text-center">Grade</th>
                 <th className="p-2 text-center">Pos</th>
+                <th className="p-2 text-center">PDF</th>
               </tr>
             </thead>
             <tbody>
@@ -133,6 +154,15 @@ export default function Broadsheet() {
                     }`}>{r.overallGrade}</span>
                   </td>
                   <td className="p-2 text-center">{r.position ?? "—"}</td>
+                  {/* 👇 PDF download button */}
+                  <td className="p-2 text-center">
+                    <button
+                      onClick={() => downloadPDF(r.student._id)}
+                      className="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700"
+                    >
+                      ⬇ PDF
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
