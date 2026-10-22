@@ -22,6 +22,7 @@ import CreateAnnouncement from "./pages/school-admin/Announcements/CreateAnnounc
 
 // ── School Admin ────────────────────────────────────────────
 import SchoolAdminDashboard from "./pages/school-admin/Dashboard";
+import AdminMessages from "./pages/school-admin/Messages";
 
 // ── Students (Module 2) ─────────────────────────────────────
 import StudentList from "./pages/school-admin/Students/StudentList";
@@ -120,6 +121,15 @@ export default function App() {
               {/* Change password (all roles) */}
               <Route path="/dashboard/change-password" element={<ChangePassword />} />
 
+
+              <Route
+  path="/dashboard/messages"
+  element={
+    <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+      <AdminMessages />
+    </RoleRoute>
+  }
+/>
               {/* ── Super Admin only ─────────────────────── */}
               <Route
                 path="/dashboard/schools"
