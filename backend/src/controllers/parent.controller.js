@@ -252,6 +252,66 @@ export const createLinkRequest = async (req, res) => {
   }
 };
 
+
+// ─────────────────────────────────────────────────────────────
+// GET /api/parent/admin/messages (Admin/Teacher sees all)
+// ─────────────────────────────────────────────────────────────
+export const listSchoolMessages = async (req, res) => {
+  try {
+    const schoolId = req.schoolId || req.user?.schoolId;
+    const query = { schoolId };
+
+    // If a teacher is logged in, only show messages addressed to them
+    if (req.user.role === "teacher") {
+      query.addressedTo = { $in: ["form_teacher", "admin"] };
+    }
+
+    const messages = await ContactMessage.find(query)
+      .populate("parentId", "fullName email phone")
+      .populate("studentId", "fullName admissionNumber")
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    res.json({ success: true, data: { messages } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// PATCH /api/parent/admin/messages/:id/reply (Admin replies)
+// Body: { replyBody }
+// ─────────────────────────────────────────────────────────────
+export const replyToMessage = async (req, res) => {
+  try {
+    const { replyBody } = req.body;
+    const schoolId = req.schoolId || req.user?.schoolId;
+
+    if (!replyBody || replyBody.trim() === "") {
+      return res.status(400).json({ success: false, message: "Reply body required" });
+    }
+
+    const message = await ContactMessage.findOne({
+      _id: req.params.id,
+      schoolId,
+    });
+
+    if (!message) return res.status(404).json({ success: false, message: "Message not found" });
+
+    message.reply = {
+      body: replyBody,
+      repliedBy: req.user._id,
+      repliedAt: new Date(),
+    };
+    message.status = "resolved";
+
+    await message.save();
+
+    res.json({ success: true, message: "Reply sent", data: { message } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 // ─────────────────────────────────────────────────────────────
 // GET /api/parent/link-requests
 // ─────────────────────────────────────────────────────────────
