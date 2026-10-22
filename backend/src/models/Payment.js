@@ -64,7 +64,9 @@ approvedAt: Date,
       ref: "User",
       required: true,
     },
-
+     isApproved: { type: Boolean, default: false, index: true },
+approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+approvedAt: Date,
     // If later voided (wrong amount, bounced cheque, etc.)
     isVoided: { type: Boolean, default: false, index: true },
     voidedAt: Date,
