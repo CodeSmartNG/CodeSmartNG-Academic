@@ -73,7 +73,18 @@ export const suspendSchool = async (req, res) => {
 
 // Dummy exports to prevent route errors if they are imported
 export const getPlatformStats = async (req, res) => res.json({ success: true, data: {} });
-export const getMySchool = async (req, res) => res.json({ success: true, data: {} });
+
+export const getMySchool = async (req, res) => {
+  try {
+    const school = await School.findById(req.user.schoolId);
+    if (!school) return res.status(404).json({ success: false, message: "School not found" });
+    res.json({ success: true, data: { school } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
 export const updateMySchool = async (req, res) => {
   try {
     const school = await School.findById(req.user.schoolId);
