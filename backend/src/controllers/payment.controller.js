@@ -165,6 +165,73 @@ export const getPayment = async (req, res) => {
   }
 };
 
+
+// POST /api/fees/payments/manual (parent initiates payment)
+export const manualPaymentRequest = async (req, res) => {
+  try {
+    const { billId, amount, method, reference } = req.body;
+    
+    const bill = await Bill.findOne({ _id: billId, schoolId: req.schoolId });
+    if (!bill) return res.status(404).json({ success: false, message: "Bill not found" });
+
+    // Ensure the bill belongs to the parent's child
+    const hasChild = req.user.children?.some((c) => c.toString() === bill.studentId.toString());
+    if (!hasChild) return res.status(403).json({ success: false, message: "Not your child's bill" });
+
+    const amountKobo = Math.round(amount * 100);
+    if (amountKobo <= 0) return res.status(400).json({ success: false, message: "Invalid amount" });
+
+    const receiptNumber = await generateReceiptNumber(req.schoolId);
+
+    const payment = await Payment.create({
+      schoolId: req.schoolId,
+      studentId: bill.studentId,
+      billId: bill._id,
+      session: bill.session,
+      term: bill.term,
+      amountKobo,
+      method: method || "bank_transfer",
+      reference,
+      receiptNumber,
+      recordedBy: req.user._id,
+      isApproved: false, // 👈 Pending admin approval
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Payment submitted. Awaiting school approval.",
+      data: { payment },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// PATCH /api/fees/payments/:id/approve (admin approves)
+export const approvePayment = async (req, res) => {
+  try {
+    const payment = await Payment.findOne({ _id: req.params.id, schoolId: req.schoolId });
+    if (!payment) return res.status(404).json({ success: false, message: "Payment not found" });
+    if (payment.isApproved) return res.status(400).json({ success: false, message: "Already approved" });
+
+    // Mark as approved
+    payment.isApproved = true;
+    payment.approvedBy = req.user._id;
+    payment.approvedAt = new Date();
+    await payment.save();
+
+    // Update bill balance
+    const bill = await Bill.findById(payment.billId);
+    if (bill) {
+      bill.paidKobo += payment.amountKobo;
+      await bill.save();
+    }
+
+    res.json({ success: true, message: "Payment approved", data: { payment, bill } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 // ─────────────────────────────────────────────────────────────
 // GET /api/fees/payments/:id/receipt.pdf
 // ─────────────────────────────────────────────────────────────
