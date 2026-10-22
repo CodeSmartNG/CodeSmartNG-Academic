@@ -7,9 +7,6 @@ import Class from "../models/Class.js";
 import ContactMessage from "../models/ContactMessage.js";
 import LinkRequest from "../models/LinkRequest.js";
 
-// ─────────────────────────────────────────────────────────────
-// Helper: today in Africa/Lagos
-// ─────────────────────────────────────────────────────────────
 const lagosToday = () => {
   const lagos = new Date(Date.now() + 60 * 60 * 1000);
   return lagos.toISOString().slice(0, 10);
@@ -17,12 +14,16 @@ const lagosToday = () => {
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/parent/dashboard
-// Aggregated summary for all children of the logged-in parent.
 // ─────────────────────────────────────────────────────────────
 export const getDashboard = async (req, res) => {
   try {
     const { session, term } = req.query;
     const childIds = req.user.children || [];
+    const schoolId = req.schoolId || req.user?.schoolId; // 👈 FIX
+
+    if (!schoolId) {
+      return res.status(400).json({ success: false, message: "School ID missing. Please log out and log back in." });
+    }
 
     if (childIds.length === 0) {
       return res.json({
@@ -30,26 +31,19 @@ export const getDashboard = async (req, res) => {
         data: {
           parent: { fullName: req.user.fullName, email: req.user.email },
           children: [],
-          pendingLinkRequests: await LinkRequest.countDocuments({
-            parentId: req.user._id,
-            status: "pending",
-          }),
-          unreadMessages: await ContactMessage.countDocuments({
-            parentId: req.user._id,
-            status: "open",
-          }),
+          pendingLinkRequests: await LinkRequest.countDocuments({ parentId: req.user._id, status: "pending" }),
+          unreadMessages: await ContactMessage.countDocuments({ parentId: req.user._id, status: "open" }),
         },
       });
     }
 
     const children = await Student.find({
       _id: { $in: childIds },
-      schoolId: req.schoolId,
+      schoolId, // 👈 FIXED
     })
       .select("fullName admissionNumber className gender photoUrl dateOfBirth")
       .populate("classId", "name level");
 
-    // For each child, compute the summary in parallel
     const summaries = await Promise.all(
       children.map(async (child) => {
         const [
@@ -58,15 +52,11 @@ export const getDashboard = async (req, res) => {
           feeSummary,
           recentAttendance,
         ] = await Promise.all([
-          // Attendance — last 30 days
-          getAttendanceSummary(req.schoolId, child._id),
-          // Result — for requested session/term
-          getResultSummary(req.schoolId, child._id, session, term),
-          // Fees — all time
-          getFeeSummary(req.schoolId, child._id),
-          // Recent attendance records (last 5)
+          getAttendanceSummary(schoolId, child._id), // 👈 FIXED
+          getResultSummary(schoolId, child._id, session, term), // 👈 FIXED
+          getFeeSummary(schoolId, child._id), // 👈 FIXED
           Attendance.find({
-            schoolId: req.schoolId,
+            schoolId, // 👈 FIXED
             studentId: child._id,
           })
             .sort({ date: -1 })
@@ -89,14 +79,8 @@ export const getDashboard = async (req, res) => {
       data: {
         parent: { fullName: req.user.fullName, email: req.user.email },
         children: summaries,
-        pendingLinkRequests: await LinkRequest.countDocuments({
-          parentId: req.user._id,
-          status: "pending",
-        }),
-        unreadMessages: await ContactMessage.countDocuments({
-          parentId: req.user._id,
-          status: "open",
-        }),
+        pendingLinkRequests: await LinkRequest.countDocuments({ parentId: req.user._id, status: "pending" }),
+        unreadMessages: await ContactMessage.countDocuments({ parentId: req.user._id, status: "open" }),
       },
     });
   } catch (err) {
@@ -106,15 +90,18 @@ export const getDashboard = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// GET /api/parent/child/:studentId?session=&term=
-// Deep-dive into one child (attendance + results + fees + class)
+// GET /api/parent/child/:studentId
 // ─────────────────────────────────────────────────────────────
 export const getChildDetail = async (req, res) => {
   try {
     const { studentId } = req.params;
     const { session, term } = req.query;
+    const schoolId = req.schoolId || req.user?.schoolId; // 👈 FIX
 
-    // Ensure the pupil is one of this parent's children
+    if (!schoolId) {
+      return res.status(400).json({ success: false, message: "School ID missing" });
+    }
+
     const hasChild = req.user.children?.some((c) => c.toString() === studentId);
     if (!hasChild) {
       return res.status(403).json({ success: false, message: "Not your child" });
@@ -122,12 +109,9 @@ export const getChildDetail = async (req, res) => {
 
     const child = await Student.findOne({
       _id: studentId,
-      schoolId: req.schoolId,
+      schoolId, // 👈 FIXED
     }).populate("classId", "name level formTeacherId")
-      .populate({
-        path: "classId",
-        populate: { path: "formTeacherId", select: "fullName email phone" },
-      });
+      .populate({ path: "classId", populate: { path: "formTeacherId", select: "fullName email phone" } });
 
     if (!child) return res.status(404).json({ success: false, message: "Pupil not found" });
 
@@ -139,28 +123,17 @@ export const getChildDetail = async (req, res) => {
       results,
       bills,
     ] = await Promise.all([
-      getAttendanceSummary(req.schoolId, child._id),
-      getResultSummary(req.schoolId, child._id, session, term),
-      getFeeSummary(req.schoolId, child._id),
-      Attendance.find({
-        schoolId: req.schoolId,
-        studentId: child._id,
-      })
-        .sort({ date: -1 })
-        .limit(60)
-        .lean(),
+      getAttendanceSummary(schoolId, child._id), // 👈 FIXED
+      getResultSummary(schoolId, child._id, session, term), // 👈 FIXED
+      getFeeSummary(schoolId, child._id), // 👈 FIXED
+      Attendance.find({ schoolId, studentId: child._id }).sort({ date: -1 }).limit(60).lean(), // 👈 FIXED
       Result.find({
-        schoolId: req.schoolId,
+        schoolId, // 👈 FIXED
         studentId: child._id,
         ...(session ? { session } : {}),
         ...(term ? { term } : {}),
-      })
-        .populate("subjectId", "name code isDevelopmental")
-        .sort({ "subjectId.name": 1 }),
-      Bill.find({ schoolId: req.schoolId, studentId: child._id }).sort({
-        session: -1,
-        term: -1,
-      }),
+      }).populate("subjectId", "name code isDevelopmental").sort({ "subjectId.name": 1 }),
+      Bill.find({ schoolId, studentId: child._id }).sort({ session: -1, term: -1 }), // 👈 FIXED
     ]);
 
     res.json({
@@ -181,7 +154,6 @@ export const getChildDetail = async (req, res) => {
 // Internal helpers
 // ─────────────────────────────────────────────────────────────
 const getAttendanceSummary = async (schoolId, studentId) => {
-  // Last 30 attendance records for a rolling percentage
   const records = await Attendance.find({ schoolId, studentId })
     .sort({ date: -1 })
     .limit(30)
@@ -207,9 +179,7 @@ const getResultSummary = async (schoolId, studentId, session, term) => {
     session,
     term,
     isAnchor: true,
-  }).select(
-    "overallTotal overallAverage overallGrade positionInClass totalPupilsInClass isPublished formTeacherComment headTeacherComment"
-  );
+  }).select("overallTotal overallAverage overallGrade positionInClass totalPupilsInClass isPublished formTeacherComment headTeacherComment");
 
   return anchor
     ? {
@@ -237,40 +207,32 @@ const getFeeSummary = async (schoolId, studentId) => {
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/parent/link-request
-// Body: { admissionNumber, relationship, note? }
-// Parent requests to be linked to a pupil already in the system.
 // ─────────────────────────────────────────────────────────────
 export const createLinkRequest = async (req, res) => {
   try {
     const { admissionNumber, relationship, note } = req.body;
+    const schoolId = req.schoolId || req.user?.schoolId;
 
     if (!admissionNumber) {
       return res.status(400).json({ success: false, message: "Admission number required" });
     }
 
     const student = await Student.findOne({
-      schoolId: req.schoolId,
+      schoolId,
       admissionNumber: admissionNumber.trim().toUpperCase(),
       admissionStatus: { $in: ["active", "promoted"] },
     });
 
     if (!student) {
-      return res.status(404).json({
-        success: false,
-        message: "No active pupil found with that admission number",
-      });
+      return res.status(404).json({ success: false, message: "No active pupil found with that admission number" });
     }
 
-    // Already linked?
     if (req.user.children?.some((c) => c.toString() === student._id.toString())) {
-      return res.status(400).json({
-        success: false,
-        message: "This pupil is already linked to your account",
-      });
+      return res.status(400).json({ success: false, message: "This pupil is already linked to your account" });
     }
 
     const request = await LinkRequest.create({
-      schoolId: req.schoolId,
+      schoolId,
       parentId: req.user._id,
       studentId: student._id,
       relationship,
@@ -284,10 +246,7 @@ export const createLinkRequest = async (req, res) => {
     });
   } catch (err) {
     if (err.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: "You already have a pending request for this pupil",
-      });
+      return res.status(400).json({ success: false, message: "You already have a pending request for this pupil" });
     }
     res.status(400).json({ success: false, message: err.message });
   }
@@ -298,10 +257,8 @@ export const createLinkRequest = async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 export const listMyLinkRequests = async (req, res) => {
   try {
-    const requests = await LinkRequest.find({
-      schoolId: req.schoolId,
-      parentId: req.user._id,
-    })
+    const schoolId = req.schoolId || req.user?.schoolId;
+    const requests = await LinkRequest.find({ schoolId, parentId: req.user._id })
       .populate("studentId", "fullName admissionNumber className")
       .populate("reviewedBy", "fullName")
       .sort({ createdAt: -1 });
@@ -314,22 +271,19 @@ export const listMyLinkRequests = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/parent/contact
-// Body: { studentId?, subject, body, priority?, addressedTo? }
 // ─────────────────────────────────────────────────────────────
 export const sendContactMessage = async (req, res) => {
   try {
     const { studentId, subject, body, priority, addressedTo } = req.body;
+    const schoolId = req.schoolId || req.user?.schoolId;
 
-    // If a studentId is provided, ensure it's their child
     if (studentId) {
       const hasChild = req.user.children?.some((c) => c.toString() === studentId);
-      if (!hasChild) {
-        return res.status(403).json({ success: false, message: "Not your child" });
-      }
+      if (!hasChild) return res.status(403).json({ success: false, message: "Not your child" });
     }
 
     const message = await ContactMessage.create({
-      schoolId: req.schoolId,
+      schoolId,
       parentId: req.user._id,
       studentId: studentId || undefined,
       subject,
@@ -338,11 +292,7 @@ export const sendContactMessage = async (req, res) => {
       addressedTo: addressedTo || "admin",
     });
 
-    res.status(201).json({
-      success: true,
-      message: "Message sent. The school will respond soon.",
-      data: { message },
-    });
+    res.status(201).json({ success: true, message: "Message sent.", data: { message } });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
   }
@@ -353,10 +303,8 @@ export const sendContactMessage = async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 export const listMyMessages = async (req, res) => {
   try {
-    const messages = await ContactMessage.find({
-      schoolId: req.schoolId,
-      parentId: req.user._id,
-    })
+    const schoolId = req.schoolId || req.user?.schoolId;
+    const messages = await ContactMessage.find({ schoolId, parentId: req.user._id })
       .populate("studentId", "fullName admissionNumber")
       .populate("reply.repliedBy", "fullName role")
       .sort({ createdAt: -1 })
@@ -370,7 +318,6 @@ export const listMyMessages = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // PATCH /api/parent/profile
-// Body: { fullName, phone }
 // ─────────────────────────────────────────────────────────────
 export const updateMyProfile = async (req, res) => {
   try {
