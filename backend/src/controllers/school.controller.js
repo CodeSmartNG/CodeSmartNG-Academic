@@ -74,4 +74,34 @@ export const suspendSchool = async (req, res) => {
 // Dummy exports to prevent route errors if they are imported
 export const getPlatformStats = async (req, res) => res.json({ success: true, data: {} });
 export const getMySchool = async (req, res) => res.json({ success: true, data: {} });
-export const updateMySchool = async (req, res) => res.json({ success: true, data: {} });
+export const updateMySchool = async (req, res) => {
+  try {
+    const school = await School.findById(req.user.schoolId);
+    if (!school) return res.status(404).json({ success: false, message: "School not found" });
+
+    // Update allowed top-level fields
+    if (req.body.name) school.name = req.body.name;
+    if (req.body.phone) school.phone = req.body.phone;
+    if (req.body.address) school.address = req.body.address;
+    if (req.body.logoUrl) school.logoUrl = req.body.logoUrl;
+
+    // 👇 Merge settings (don't overwrite the whole object)
+    if (req.body.settings) {
+      if (req.body.settings.bankDetails) {
+        school.settings.bankDetails = req.body.settings.bankDetails;
+      }
+      if (req.body.settings.currentTerm) {
+        school.settings.currentTerm = req.body.settings.currentTerm;
+      }
+      if (req.body.settings.currentSession) {
+        school.settings.currentSession = req.body.settings.currentSession;
+      }
+      // Add more if needed (classes, terms, etc.)
+    }
+
+    await school.save();
+    res.json({ success: true, message: "School updated", data: { school } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
