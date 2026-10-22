@@ -44,38 +44,22 @@ export default function Broadsheet() {
     load();
   };
 
-  // 👇 PDF Download function
   const downloadPDF = async (studentId) => {
-  const token = localStorage.getItem("csn_token");
-  console.log("🔑 Token:", token ? "Exists" : "MISSING");
-  
-  const url = `https://codesmartng-academic.onrender.com/api/results/pupil/${studentId}/pdf?session=${encodeURIComponent(filters.session)}&term=${encodeURIComponent(filters.term)}`;
-  console.log("📎 URL:", url);
-
-  try {
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    
-    console.log("📡 Response status:", res.status);
-    console.log("📡 Response headers:", res.headers.get("content-type"));
-    
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error("❌ Backend error:", errText);
-      throw new Error(`HTTP ${res.status}: ${errText}`);
+    const token = localStorage.getItem("csn_token");
+    const url = `https://codesmartng-academic.onrender.com/api/results/pupil/${studentId}/pdf?session=${encodeURIComponent(filters.session)}&term=${encodeURIComponent(filters.term)}`;
+    try {
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `report-card-${studentId}.pdf`;
+      link.click();
+    } catch (err) {
+      alert("Failed to download PDF. Make sure the results are computed first.");
     }
-    
-    const blob = await res.blob();
-    console.log("📦 Blob size:", blob.size, "bytes");
-    
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `report-card-${studentId}.pdf`;
-    link.click();
-  } catch (err) {
-    console.error("❌ Download error:", err);
-    alert(`Failed to download PDF: ${err.message}`);
-  }
-};
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
@@ -90,7 +74,6 @@ export default function Broadsheet() {
           <button onClick={publish} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">
             Publish
           </button>
-          {/* Published badge */}
           {data?.rows?.[0]?.isPublished && (
             <span className="bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium">
               ✓ Published
@@ -125,60 +108,58 @@ export default function Broadsheet() {
         <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
           <table className="text-xs">
             <thead className="bg-slate-50 text-slate-600">
-  <tr>
-    <th className="p-2 text-left">#</th>
-    <th className="p-2 text-left">Pupil</th>
-    {data.subjects.map((sub) => (
-      <th key={sub._id} className="p-2 text-center">{sub.code || sub.name}</th>
-    ))}
-    <th className="p-2 text-center">Total</th>
-    <th className="p-2 text-center">Avg</th>
-    <th className="p-2 text-center">Grade</th>
-    <th className="p-2 text-center">Pos</th>
-    <th className="p-2 text-center">PDF</th> {/* 👈 ADD THIS */}
-  </tr>
-</thead>
+              <tr>
+                <th className="p-2 text-left">#</th>
+                <th className="p-2 text-left">Pupil</th>
+                {data.subjects.map((sub) => (
+                  <th key={sub._id} className="p-2 text-center">{sub.code || sub.name}</th>
+                ))}
+                <th className="p-2 text-center">Total</th>
+                <th className="p-2 text-center">Avg</th>
+                <th className="p-2 text-center">Grade</th>
+                <th className="p-2 text-center">Pos</th>
+                <th className="p-2 text-center">PDF</th>
+              </tr>
+            </thead>
             <tbody>
-  {data.rows.map((r, i) => (
-    <tr key={r.student._id} className="border-t">
-      <td className="p-2 text-slate-400">{i + 1}</td>
-      <td className="p-2">
-        <div className="font-medium">{r.student.fullName}</div>
-        <div className="text-slate-400 font-mono">{r.student.admissionNumber}</div>
-      </td>
-      {data.subjects.map((sub) => {
-        const score = r.scores[sub._id];
-        return (
-          <td key={sub._id} className="p-2 text-center">
-            {score == null ? "—" : `${Number(score).toFixed(0)}`}
-          </td>
-        );
-      })}
-      <td className="p-2 text-center font-medium">{r.overallTotal}</td>
-      <td className="p-2 text-center font-bold">{r.overallAverage?.toFixed(1)}</td>
-      <td className="p-2 text-center">
-        <span className={`px-2 py-0.5 rounded-full ${
-          r.overallGrade === "A" ? "bg-green-100 text-green-700" :
-          r.overallGrade === "B" ? "bg-blue-100 text-blue-700" :
-          r.overallGrade === "C" ? "bg-amber-100 text-amber-700" :
-          r.overallGrade === "F" ? "bg-red-100 text-red-700" :
-          "bg-slate-100"
-        }`}>{r.overallGrade}</span>
-      </td>
-      <td className="p-2 text-center">{r.position ?? "—"}</td>
-      
-      {/* 👇 ADD THIS BUTTON */}
-      <td className="p-2 text-center">
-        <button
-          onClick={() => downloadPDF(r.student._id)}
-          className="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700"
-        >
-          ⬇ PDF
-        </button>
-      </td>
-    </tr>
-  ))}
-</tbody>
+              {data.rows.map((r, i) => (
+                <tr key={r.student._id} className="border-t">
+                  <td className="p-2 text-slate-400">{i + 1}</td>
+                  <td className="p-2">
+                    <div className="font-medium">{r.student.fullName}</div>
+                    <div className="text-slate-400 font-mono">{r.student.admissionNumber}</div>
+                  </td>
+                  {data.subjects.map((sub) => {
+                    const score = r.scores[sub._id];
+                    return (
+                      <td key={sub._id} className="p-2 text-center">
+                        {score == null ? "—" : `${Number(score).toFixed(0)}`}
+                      </td>
+                    );
+                  })}
+                  <td className="p-2 text-center font-medium">{r.overallTotal}</td>
+                  <td className="p-2 text-center font-bold">{r.overallAverage?.toFixed(1)}</td>
+                  <td className="p-2 text-center">
+                    <span className={`px-2 py-0.5 rounded-full ${
+                      r.overallGrade === "A" ? "bg-green-100 text-green-700" :
+                      r.overallGrade === "B" ? "bg-blue-100 text-blue-700" :
+                      r.overallGrade === "C" ? "bg-amber-100 text-amber-700" :
+                      r.overallGrade === "F" ? "bg-red-100 text-red-700" :
+                      "bg-slate-100"
+                    }`}>{r.overallGrade}</span>
+                  </td>
+                  <td className="p-2 text-center">{r.position ?? "—"}</td>
+                  <td className="p-2 text-center">
+                    <button
+                      onClick={() => downloadPDF(r.student._id)}
+                      className="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700"
+                    >
+                      ⬇ PDF
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         </div>
       )}
