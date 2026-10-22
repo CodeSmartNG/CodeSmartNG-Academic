@@ -8,12 +8,32 @@ import {
   sendContactMessage,
   listMyMessages,
   updateMyProfile,
+  listSchoolMessages,     // 👈 ADDED
+  replyToMessage,         // 👈 ADDED
 } from "../controllers/parent.controller.js";
 import { protect, authorize, tenantScope } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 
 const router = express.Router();
 
+// ── Admin / Teacher Routes (must go BEFORE authorize("parent")) ──
+router.get(
+  "/admin/messages",
+  protect,
+  tenantScope,
+  authorize("proprietor", "admin", "teacher"),
+  listSchoolMessages
+);
+
+router.patch(
+  "/admin/messages/:id/reply",
+  protect,
+  tenantScope,
+  authorize("proprietor", "admin", "teacher"),
+  replyToMessage
+);
+
+// ── Parent Routes ──
 router.use(protect, tenantScope, authorize("parent"));
 
 router.get("/dashboard", getDashboard);
