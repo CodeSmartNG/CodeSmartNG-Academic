@@ -49,7 +49,7 @@ const NAV_BY_ROLE = {
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
     { to: "/dashboard/children/attendance", label: "Attendance", icon: "fa-calendar-check" },
     { to: "/dashboard/results/children", label: "Results", icon: "fa-award" },
-    { to: "/dashboard/fees/children", label: "Fees", icon: "fa-naira-sign" },
+  
     { to: "/dashboard/homework/view", label: "Homework", icon: "fa-book" },
     { to: "/dashboard/announcements/view", label: "Announcements", icon: "fa-bullhorn" },
     { to: "/dashboard/link-child", label: "Link a Child", icon: "fa-link" },
