@@ -19,6 +19,8 @@ import {
   getPayment,
   downloadReceiptPDF,
   voidPayment,
+  manualPaymentRequest, // 👈 ADD THIS
+  approvePayment,       // 👈 ADD THIS
 } from "../controllers/payment.controller.js";
 import { protect, authorize, tenantScope } from "../middleware/auth.js";
 
@@ -49,5 +51,17 @@ router.get("/payments", authorize("proprietor", "admin", "parent", "pupil"), lis
 router.get("/payments/:id", authorize("proprietor", "admin", "parent", "pupil"), getPayment);
 router.get("/payments/:id/receipt.pdf", authorize("proprietor", "admin", "parent", "pupil"), downloadReceiptPDF);
 router.post("/payments/:id/void", authorize("proprietor", "admin"), voidPayment);
+// ── Manual Payments (Parents) ──────────────────────────────
+router.post(
+  "/payments/manual", 
+  authorize("parent"), 
+  manualPaymentRequest
+);
 
+// ── Approve Payments (Admin) ───────────────────────────────
+router.patch(
+  "/payments/:id/approve", 
+  authorize("proprietor", "admin"), 
+  approvePayment
+);
 export default router;
