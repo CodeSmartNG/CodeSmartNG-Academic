@@ -1,7 +1,7 @@
 import express from "express";
 import {
   enterAssessmentScores,
-  getAssessmentScores, // 👈 ADDED THIS
+  getAssessmentScores,
   computeClassResults,
   getPupilReportCard,
   getClassBroadsheet,
@@ -17,44 +17,45 @@ import { protect, authorize, tenantScope } from "../middleware/auth.js";
 const router = express.Router();
 router.use(protect, tenantScope);
 
-// Pupil / Parent
+// ── Pupil / Parent ─────────────────────────────────────────
 router.get("/me", authorize("pupil"), getMyResults);
 router.get("/children", authorize("parent"), getChildrenResults);
 
-// Public report (parents / pupils / teachers / admin)
-router.get(
-  "/pupil/:studentId",
-  authorize("proprietor", "admin", "teacher", "parent", "pupil"),
-  getPupilReportCard
-);
+// ── PDF Downloads (must come before /pupil/:studentId) ─────
 router.get(
   "/pupil/:studentId/pdf",
   authorize("proprietor", "admin", "teacher", "parent", "pupil"),
   downloadReportCardPDF
 );
 
-// Class broadsheet
+// ── Specific Pupil Report (must come before generic /:id) ──
+router.get(
+  "/pupil/:studentId",
+  authorize("proprietor", "admin", "teacher", "parent", "pupil"),
+  getPupilReportCard
+);
+
+// ── Class Broadsheet ───────────────────────────────────────
 router.get(
   "/class/:classId/broadsheet",
   authorize("proprietor", "admin", "teacher"),
   getClassBroadsheet
 );
 
-// 👇 ADDED THIS LINE: Fetch scores
+// ── Assessment Scores ──────────────────────────────────────
 router.get(
   "/assessment/:id/scores",
   authorize("teacher", "admin", "proprietor"),
   getAssessmentScores
 );
 
-// Score entry (teacher)
 router.post(
   "/assessment/:id/scores",
   authorize("teacher", "admin", "proprietor"),
   enterAssessmentScores
 );
 
-// Compute + publish (admin / proprietor)
+// ── Compute + Publish ──────────────────────────────────────
 router.post("/compute", authorize("proprietor", "admin"), computeClassResults);
 router.post(
   "/class/:classId/publish",
@@ -62,16 +63,18 @@ router.post(
   publishClassResults
 );
 
-// Comments
-router.patch(
-  "/:id/comment",
-  authorize("teacher", "admin", "proprietor"),
-  updateResultComment
-);
+// ── Head Teacher Comment (must come before /:id/comment) ───
 router.patch(
   "/pupil/:studentId/head-comment",
   authorize("proprietor", "admin"),
   setHeadComment
+);
+
+// ── Subject Comment (generic :id, must come last) ──────────
+router.patch(
+  "/:id/comment",
+  authorize("teacher", "admin", "proprietor"),
+  updateResultComment
 );
 
 export default router;
