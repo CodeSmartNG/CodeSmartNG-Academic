@@ -46,33 +46,17 @@ export default function Broadsheet() {
 
   const downloadPDF = async (studentId) => {
   try {
-    const token = localStorage.getItem("csn_token");
-    if (!token) {
-      alert("You are not logged in. Please log in again.");
-      return;
-    }
-
-    const url = `https://codesmartng-academic.onrender.com/api/results/pupil/${studentId}/pdf?session=${encodeURIComponent(filters.session)}&term=${encodeURIComponent(filters.term)}`;
+    console.log("🎯 Downloading PDF for:", studentId);
+    const response = await resultApi.downloadPdf(studentId, filters.session, filters.term);
     
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-
-    // 👇 CRITICAL: Verify response is actually a PDF
-    const contentType = res.headers.get("content-type");
+    console.log("✅ Status:", response.status);
+    console.log("✅ Content-Type:", response.headers["content-type"]);
     
-    if (!res.ok || !contentType?.includes("application/pdf")) {
-      // Backend returned an error (not a PDF)
-      const errBody = await res.json().catch(() => ({ message: "Unknown error" }));
-      alert(`Cannot download PDF:\n\n${errBody.message || "Server error"}`);
-      return;
-    }
+    const blob = new Blob([response.data], { type: "application/pdf" });
+    console.log("📦 Blob size:", blob.size, "bytes");
 
-    const blob = await res.blob();
-    
-    // 👇 Another safety check
     if (blob.size < 100) {
-      alert("Generated PDF is empty. Make sure results are computed first.");
+      alert("Generated PDF is empty. Check the backend logs for errors.");
       return;
     }
 
@@ -82,9 +66,20 @@ export default function Broadsheet() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    console.log("✅ PDF downloaded successfully");
   } catch (err) {
-    console.error("PDF download error:", err);
-    alert(`Download error: ${err.message}`);
+    console.error("❌ PDF Download Error:", err);
+    console.error("Response data:", err.response?.data);
+    
+    // Handle error response (backend might return JSON error)
+    if (err.response?.data instanceof Blob) {
+      const text = await err.response.data.text();
+      console.error("Server response:", text);
+      alert(`Server error: ${text.substring(0, 300)}`);
+    } else {
+      alert(`Download failed: ${err.message}`);
+    }
   }
 };
 
