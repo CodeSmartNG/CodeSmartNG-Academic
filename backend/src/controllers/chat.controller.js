@@ -87,24 +87,7 @@ export const sendMessage = async (req, res) => {
       return res.status(404).json({ success: false, message: "Recipient not found" });
     }
 
-
-    export const sendMessage = async (req, res) => {
-  try {
-    const schoolId = req.schoolId || req.user?.schoolId;
-    const { text } = req.body;
-    const receiverId = req.params.userId;
-
-    if (!text || text.trim() === "") {
-      return res.status(400).json({ success: false, message: "Message cannot be empty" });
-    }
-
-    // Verify receiver exists in the same school
-    const receiver = await User.findOne({ _id: receiverId, schoolId });
-    if (!receiver) {
-      return res.status(404).json({ success: false, message: "Recipient not found" });
-    }
-
-    // 👇 NEW: Teachers cannot message other teachers
+    // Teachers cannot message other teachers
     if (req.user.role === "teacher" && receiver.role === "teacher") {
       return res.status(403).json({
         success: false,
@@ -112,7 +95,7 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // 👇 NEW: Prevent messaging yourself
+    // Prevent messaging yourself
     if (receiverId === req.user._id.toString()) {
       return res.status(400).json({ success: false, message: "Cannot message yourself" });
     }
@@ -124,21 +107,6 @@ export const sendMessage = async (req, res) => {
       text: text.trim(),
     });
 
-    await message.populate("senderId", "fullName role");
-
-    res.status(201).json({ success: true, data: { message } });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
-    const message = await ChatMessage.create({
-      schoolId,
-      senderId: req.user._id,
-      receiverId,
-      text: text.trim(),
-    });
-
-    // Populate for the response
     await message.populate("senderId", "fullName role");
 
     res.status(201).json({ success: true, data: { message } });
