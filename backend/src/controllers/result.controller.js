@@ -604,24 +604,19 @@ export const downloadReportCardPDF = async (req, res) => {
   try {
     const { studentId } = req.params;
     const { session, term } = req.query;
-    
-    // 👇 ADD THESE LOGS
-    console.log("🎯 PDF DOWNLOAD REQUESTED");
-    console.log("   Student ID:", studentId);
-    console.log("   Session:", session);
-    console.log("   Term:", term);
-    console.log("   User Role:", req.user?.role);
 
-    // Permission (reuse parent/pupil check)
+    console.log("🎯 === PDF DOWNLOAD STARTED ===");
+    console.log("🎯 Student:", studentId, "Session:", session, "Term:", term);
+
+    // Permission check
     if (req.user.role === "parent") {
       const hasChild = req.user.children?.some((c) => c.toString() === studentId);
       if (!hasChild) {
-        console.log("   ❌ Access denied (not parent's child)");
+        console.log("❌ Access denied");
         return res.status(403).json({ success: false, message: "Access denied" });
       }
     }
     if (req.user.role === "pupil" && req.user.studentRecord?.toString() !== studentId) {
-      console.log("   ❌ Access denied (not pupil's record)");
       return res.status(403).json({ success: false, message: "Access denied" });
     }
 
@@ -629,22 +624,21 @@ export const downloadReportCardPDF = async (req, res) => {
       .populate("classId");
     
     if (!student) {
-      console.log("   ❌ Student not found");
+      console.log("❌ Student not found");
       return res.status(404).json({ success: false, message: "Pupil not found" });
     }
-    
-    console.log("   ✅ Student found:", student.fullName);
+    console.log("✅ Student:", student.fullName);
 
     const results = await Result.find({
       schoolId: req.schoolId, studentId, session, term,
     }).populate("subjectId", "name code isDevelopmental").sort({ "subjectId.name": 1 });
 
-    console.log(`   📊 Results found: ${results.length}`);
+    console.log("✅ Results count:", results.length);
 
     const anchor = results.find((r) => r.isAnchor);
     const school = await (await import("../models/School.js")).default.findById(req.schoolId);
 
-    console.log("   🎨 Generating PDF...");
+    console.log("🎨 Calling PDF service...");
 
     const buffer = await generateReportCardPDF({
       school,
@@ -664,16 +658,17 @@ export const downloadReportCardPDF = async (req, res) => {
       } : null,
     });
 
-    console.log(`   ✅ PDF generated: ${buffer.length} bytes`);
+    console.log("✅ PDF buffer size:", buffer.length, "bytes");
 
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${student.admissionNumber}-${term}.pdf"`
-    );
+    res.setHeader("Content-Disposition", `attachment; filename="report-${student.admissionNumber}.pdf"`);
     res.send(buffer);
+
+    console.log("✅ === PDF SENT TO CLIENT ===");
   } catch (err) {
-    console.error("❌ PDF error:", err);
+    console.error("❌ === PDF FATAL ERROR ===");
+    console.error(err.message);
+    console.error(err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 };
