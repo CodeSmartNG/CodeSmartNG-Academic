@@ -1,4 +1,5 @@
 import School from "../models/School.js";
+import User from "../models/User.js"; // 👈 ADD THIS at the top
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/schools
@@ -71,9 +72,53 @@ export const suspendSchool = async (req, res) => {
   }
 };
 
-// Dummy exports to prevent route errors if they are imported
-export const getPlatformStats = async (req, res) => res.json({ success: true, data: {} });
 
+
+// ─────────────────────────────────────────────────────────────
+// GET /api/schools/stats
+// Super Admin: Platform-wide statistics
+// ─────────────────────────────────────────────────────────────
+export const getPlatformStats = async (req, res) => {
+  try {
+    const [
+      totalSchools,
+      approvedSchools,
+      pendingSchools,
+      suspendedSchools,
+      totalUsers,
+      totalPupils,
+      totalTeachers,
+    ] = await Promise.all([
+      School.countDocuments(),
+      School.countDocuments({ status: "approved" }),
+      School.countDocuments({ status: "pending" }),
+      School.countDocuments({ status: "suspended" }),
+      User.countDocuments(),
+      User.countDocuments({ role: "pupil" }),
+      User.countDocuments({ role: "teacher" }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        schools: {
+          total: totalSchools,
+          approved: approvedSchools,
+          pending: pendingSchools,
+          suspended: suspendedSchools,
+        },
+        users: {
+          total: totalUsers,
+          pupils: totalPupils,
+          teachers: totalTeachers,
+        },
+      },
+    });
+  } catch (err) {
+    console.error("❌ getPlatformStats error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 export const getMySchool = async (req, res) => {
   try {
     const school = await School.findById(req.user.schoolId);
