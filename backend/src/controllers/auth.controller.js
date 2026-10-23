@@ -64,3 +64,59 @@ export const login = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email, schoolSlug } = req.body;
+    
+    const query = { email: email.toLowerCase() };
+    if (schoolSlug) {
+      const school = await School.findOne({ slug: schoolSlug.toLowerCase() });
+      if (school) query.schoolId = school._id;
+    }
+
+    const user = await User.findOne(query);
+    
+    // ⚠️ Security: Always return the same message whether user exists or not
+    const successMessage = "If that email exists, a password reset link has been sent.";
+    
+    if (!user) {
+      return res.json({ success: true, message: successMessage });
+    }
+
+    // Generate a random reset token
+    const crypto = await import("crypto");
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    
+    // Hash the token for database storage
+    user.passwordResetToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+    user.passwordResetExpires = Date.now() + 30 * 60 * 1000; // 30 minutes
+    
+    await user.save({ validateBeforeSave: false });
+
+    // Build the reset URL
+    const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+    
+    // 👇 In production, you'd send this via email
+    // 👇 In development, log it to console
+    console.log("\n🔐 ========================================");
+    console.log("🔐 PASSWORD RESET REQUEST");
+    console.log("🔐 User:", user.email);
+    console.log("🔐 Reset URL:", resetUrl);
+    console.log("🔐 Expires: 30 minutes");
+    console.log("🔐 ========================================\n");
+
+    res.json({
+      success: true,
+      message: successMessage,
+      // 👇 Only include in development for testing
+      ...(process.env.NODE_ENV === "development" && { resetUrl }),
+    });
+  } catch (err) {
+    console.error("forgotPassword error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
