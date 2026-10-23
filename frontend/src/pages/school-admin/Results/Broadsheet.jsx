@@ -45,20 +45,48 @@ export default function Broadsheet() {
   };
 
   const downloadPDF = async (studentId) => {
+  try {
     const token = localStorage.getItem("csn_token");
-    const url = `https://codesmartng-academic.onrender.com/api/results/pupil/${studentId}/pdf?session=${encodeURIComponent(filters.session)}&term=${encodeURIComponent(filters.term)}`;
-    try {
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error("Download failed");
-      const blob = await res.blob();
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = `report-card-${studentId}.pdf`;
-      link.click();
-    } catch (err) {
-      alert("Failed to download PDF. Make sure the results are computed first.");
+    if (!token) {
+      alert("You are not logged in. Please log in again.");
+      return;
     }
-  };
+
+    const url = `https://codesmartng-academic.onrender.com/api/results/pupil/${studentId}/pdf?session=${encodeURIComponent(filters.session)}&term=${encodeURIComponent(filters.term)}`;
+    
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    // 👇 CRITICAL: Verify response is actually a PDF
+    const contentType = res.headers.get("content-type");
+    
+    if (!res.ok || !contentType?.includes("application/pdf")) {
+      // Backend returned an error (not a PDF)
+      const errBody = await res.json().catch(() => ({ message: "Unknown error" }));
+      alert(`Cannot download PDF:\n\n${errBody.message || "Server error"}`);
+      return;
+    }
+
+    const blob = await res.blob();
+    
+    // 👇 Another safety check
+    if (blob.size < 100) {
+      alert("Generated PDF is empty. Make sure results are computed first.");
+      return;
+    }
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `report-card-${studentId}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (err) {
+    console.error("PDF download error:", err);
+    alert(`Download error: ${err.message}`);
+  }
+};
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
