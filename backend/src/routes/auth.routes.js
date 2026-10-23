@@ -87,5 +87,6 @@ router.post("/login", async (req, res) => {
 });
 
 router.get("/me", protect, (req, res) => res.json({ success: true, data: { user: req.user } }));
-
+router.post("/forgot-password", [body("email").isEmail()], validate, forgotPassword);
+router.post("/reset-password/:token", [body("password").isLength({ min: 6 })], validate, resetPassword);
 export default router;
