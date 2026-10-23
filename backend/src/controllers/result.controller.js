@@ -604,26 +604,47 @@ export const downloadReportCardPDF = async (req, res) => {
   try {
     const { studentId } = req.params;
     const { session, term } = req.query;
+    
+    // 👇 ADD THESE LOGS
+    console.log("🎯 PDF DOWNLOAD REQUESTED");
+    console.log("   Student ID:", studentId);
+    console.log("   Session:", session);
+    console.log("   Term:", term);
+    console.log("   User Role:", req.user?.role);
 
     // Permission (reuse parent/pupil check)
     if (req.user.role === "parent") {
       const hasChild = req.user.children?.some((c) => c.toString() === studentId);
-      if (!hasChild) return res.status(403).json({ success: false, message: "Access denied" });
+      if (!hasChild) {
+        console.log("   ❌ Access denied (not parent's child)");
+        return res.status(403).json({ success: false, message: "Access denied" });
+      }
     }
     if (req.user.role === "pupil" && req.user.studentRecord?.toString() !== studentId) {
+      console.log("   ❌ Access denied (not pupil's record)");
       return res.status(403).json({ success: false, message: "Access denied" });
     }
 
     const student = await Student.findOne({ _id: studentId, schoolId: req.schoolId })
       .populate("classId");
-    if (!student) return res.status(404).json({ success: false, message: "Pupil not found" });
+    
+    if (!student) {
+      console.log("   ❌ Student not found");
+      return res.status(404).json({ success: false, message: "Pupil not found" });
+    }
+    
+    console.log("   ✅ Student found:", student.fullName);
 
     const results = await Result.find({
       schoolId: req.schoolId, studentId, session, term,
     }).populate("subjectId", "name code isDevelopmental").sort({ "subjectId.name": 1 });
 
+    console.log(`   📊 Results found: ${results.length}`);
+
     const anchor = results.find((r) => r.isAnchor);
     const school = await (await import("../models/School.js")).default.findById(req.schoolId);
+
+    console.log("   🎨 Generating PDF...");
 
     const buffer = await generateReportCardPDF({
       school,
@@ -643,6 +664,8 @@ export const downloadReportCardPDF = async (req, res) => {
       } : null,
     });
 
+    console.log(`   ✅ PDF generated: ${buffer.length} bytes`);
+
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
@@ -650,8 +673,7 @@ export const downloadReportCardPDF = async (req, res) => {
     );
     res.send(buffer);
   } catch (err) {
-    console.error("PDF error:", err);
+    console.error("❌ PDF error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
-
