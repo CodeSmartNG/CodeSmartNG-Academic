@@ -7,14 +7,21 @@ export default function ForgotPassword() {
   const [schoolSlug, setSchoolSlug] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState(null);
+  const [resetUrl, setResetUrl] = useState(null);
 
   const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMsg(null);
+    setResetUrl(null);
     try {
       const { data } = await api.post("/auth/forgot-password", { email, schoolSlug });
       setMsg({ type: "success", text: data.message });
+      
+      // 👇 If backend returns the reset URL (dev mode), show it
+      if (data.resetUrl) {
+        setResetUrl(data.resetUrl);
+      }
     } catch (err) {
       setMsg({ type: "error", text: err.response?.data?.message || "Something went wrong" });
     } finally {
@@ -24,6 +31,7 @@ export default function ForgotPassword() {
 
   return (
     <div className="min-h-screen flex bg-slate-50">
+      {/* Left Panel */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900">
         <div className="absolute inset-0">
           <div className="absolute -top-32 -left-32 w-96 h-96 bg-blue-600/30 rounded-full blur-3xl animate-pulse"></div>
@@ -43,17 +51,27 @@ export default function ForgotPassword() {
             <h1 className="text-4xl font-bold text-white leading-tight mb-4">
               Forgot Your<br /><span className="text-amber-400">Password?</span>
             </h1>
-            <p className="text-blue-100">No worries. Enter your email and we'll send you a link to reset it.</p>
+            <p className="text-blue-100">
+              Don't worry. Enter your email and we'll send you a link to reset your password.
+            </p>
           </div>
           <p className="text-blue-200 text-xs">© {new Date().getFullYear()} CodeSmartNG</p>
         </div>
       </div>
 
+      {/* Right Panel */}
       <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
         <div className="w-full max-w-md">
           <div className="bg-white rounded-2xl shadow-xl p-8">
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">Reset Password</h2>
-            <p className="text-sm text-slate-500 mb-6">We'll email you a reset link.</p>
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
+                <i className="fas fa-key text-blue-700 text-2xl"></i>
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900">Reset Password</h2>
+              <p className="text-sm text-slate-500 mt-1">
+                We'll email you a reset link
+              </p>
+            </div>
 
             {msg && (
               <div className={`mb-4 p-3 rounded-xl text-sm ${
@@ -65,9 +83,27 @@ export default function ForgotPassword() {
               </div>
             )}
 
+            {/* 👇 If reset URL is returned, show it as a clickable link */}
+            {resetUrl && (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm">
+                <p className="font-semibold text-amber-800 mb-2">
+                  <i className="fas fa-info-circle mr-1"></i>
+                  Development mode: Click to reset
+                </p>
+                <Link
+                  to={resetUrl.replace(window.location.origin, "")}
+                  className="text-blue-700 hover:underline break-all text-xs"
+                >
+                  {resetUrl}
+                </Link>
+              </div>
+            )}
+
             <form onSubmit={submit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">School Slug (optional)</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  School Slug <span className="text-slate-400 font-normal">(optional)</span>
+                </label>
                 <div className="relative">
                   <i className="fas fa-school absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
                   <input
@@ -79,8 +115,11 @@ export default function ForgotPassword() {
                   />
                 </div>
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Email Address
+                </label>
                 <div className="relative">
                   <i className="fas fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
                   <input
@@ -93,12 +132,17 @@ export default function ForgotPassword() {
                   />
                 </div>
               </div>
+
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-blue-700 to-blue-900 text-white py-3 rounded-xl font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-r from-blue-700 to-blue-900 hover:from-blue-800 hover:to-blue-950 text-white py-3 rounded-xl font-semibold shadow-lg shadow-blue-700/30 disabled:opacity-60 flex items-center justify-center gap-2"
               >
-                {loading ? <><i className="fas fa-spinner fa-spin"></i> Sending…</> : <>Send Reset Link <i className="fas fa-arrow-right text-sm"></i></>}
+                {loading ? (
+                  <><i className="fas fa-spinner fa-spin"></i> Sending…</>
+                ) : (
+                  <>Send Reset Link <i className="fas fa-arrow-right text-sm"></i></>
+                )}
               </button>
             </form>
 
