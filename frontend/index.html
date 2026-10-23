@@ -2,16 +2,176 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CodeSmartNG Academic · Nursery & Primary Portal</title>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+
+    <!-- ── SEO & Social Sharing ────────────────────────────── -->
+    <title>CodeSmartNG Academic · Smart School Management for Nigerian Schools</title>
+    <meta name="description" content="CodeSmartNG Academic is a complete school management portal for Nigerian nursery and primary schools. Manage pupils, teachers, attendance, results, fees, and parent communication — all in one place." />
+    <meta name="keywords" content="Nigerian school management, school portal, nursery school software, primary school app, school management Nigeria, results management, fees management" />
+    <meta name="author" content="CodeSmartNG" />
+    <meta name="theme-color" content="#0b2b4f" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="CodeSmartNG" />
+
+    <!-- Open Graph (WhatsApp, Facebook, Twitter) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="CodeSmartNG Academic · Nursery & Primary Portal" />
+    <meta property="og:description" content="Smart School Management, Better Learning. Built for Nigerian schools." />
+    <meta property="og:site_name" content="CodeSmartNG Academic" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="CodeSmartNG Academic" />
+    <meta name="twitter:description" content="Smart School Management, Better Learning." />
+
+    <!-- ── Custom CodeSmartNG Favicon (SVG Graduation Cap) ── -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230b2b4f'/%3E%3Cpath d='M50 30 L85 45 L85 55 L50 70 L15 55 L15 45 Z' fill='%23ffb347'/%3E%3Cpath d='M30 58 L30 72 Q50 80 70 72 L70 58' fill='none' stroke='%23ffb347' stroke-width='4'/%3E%3Ccircle cx='85' cy='60' r='3' fill='%23ffb347'/%3E%3C/svg%3E" />
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230b2b4f'/%3E%3Cpath d='M50 30 L85 45 L85 55 L50 70 L15 55 L15 45 Z' fill='%23ffb347'/%3E%3Cpath d='M30 58 L30 72 Q50 80 70 72 L70 58' fill='none' stroke='%23ffb347' stroke-width='4'/%3E%3C/svg%3E" />
+
+    <!-- ── Preconnect to Backend for Faster API Calls ──────── -->
+    <link rel="preconnect" href="https://codesmartng-academic.onrender.com" crossorigin />
+    <link rel="dns-prefetch" href="https://codesmartng-academic.onrender.com" />
+
+    <!-- ── Preconnect to Font Awesome CDN ──────────────────── -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+
+    <!-- ── Font Awesome Icons ──────────────────────────────── -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+
+    <!-- ── System font stack (fastest load, no Google Fonts needed) ── -->
+    <style>
+      /* ── Boot Loader ──────────────────────────────────────── */
+      #boot-loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #0b2b4f 0%, #1b4a7a 100%);
+        z-index: 9999;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        transition: opacity 0.4s ease;
+      }
+
+      #boot-loader.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      #boot-loader .logo-circle {
+        width: 90px;
+        height: 90px;
+        border-radius: 24px;
+        background: #ffb347;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 44px;
+        color: #0b2b4f;
+        box-shadow: 0 12px 40px rgba(255, 179, 71, 0.4);
+        animation: boot-pulse 1.4s ease-in-out infinite;
+      }
+
+      #boot-loader h1 {
+        color: white;
+        font-size: 22px;
+        font-weight: 700;
+        margin: 24px 0 6px;
+        letter-spacing: 0.3px;
+      }
+
+      #boot-loader p {
+        color: #94a3b8;
+        font-size: 13px;
+        margin: 0;
+      }
+
+      #boot-loader .spinner {
+        margin-top: 32px;
+        width: 32px;
+        height: 32px;
+        border: 3px solid rgba(255, 255, 255, 0.2);
+        border-top-color: #ffb347;
+        border-radius: 50%;
+        animation: boot-spin 0.8s linear infinite;
+      }
+
+      @keyframes boot-pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.06); }
+      }
+
+      @keyframes boot-spin {
+        to { transform: rotate(360deg); }
+      }
+
+      /* ── Fade out loader when React mounts ───────────────── */
+      #root:not(:empty) + #boot-loader,
+      body.app-ready #boot-loader {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      /* ── Base reset ──────────────────────────────────────── */
+      * {
+        box-sizing: border-box;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        background: #f5f9fc;
+      }
+
+      /* ── Prevent zoom on input focus (iOS) ───────────────── */
+      input, select, textarea {
+        font-size: 16px;
+      }
+    </style>
   </head>
   <body>
+    <!-- ── Boot Loader (shows before React mounts) ────────── -->
+    <div id="boot-loader">
+      <div class="logo-circle">
+        <i class="fas fa-graduation-cap"></i>
+      </div>
+      <h1>CodeSmartNG</h1>
+      <p>Smart School Management, Better Learning</p>
+      <div class="spinner"></div>
+    </div>
+
+    <!-- ── React Root ────────────────────────────────────── -->
     <div id="root"></div>
+
+    <!-- ── Auto-hide loader when React is mounted ─────────── -->
+    <script>
+      // Watch the #root for React content, then hide the loader
+      const root = document.getElementById("root");
+      const loader = document.getElementById("boot-loader");
+
+      const observer = new MutationObserver(() => {
+        if (root.children.length > 0) {
+          document.body.classList.add("app-ready");
+          setTimeout(() => loader.remove(), 500);
+          observer.disconnect();
+        }
+      });
+
+      observer.observe(root, { childList: true, subtree: false });
+
+      // Failsafe: hide loader after 10 seconds regardless
+      setTimeout(() => {
+        if (document.body.contains(loader)) {
+          document.body.classList.add("app-ready");
+          loader.remove();
+        }
+      }, 10000);
+    </script>
+
+    <!-- ── Vite entry point ──────────────────────────────── -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
