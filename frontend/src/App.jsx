@@ -105,7 +105,8 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password/:token" element={<ResetPassword />} />
             <Route path="/register-school" element={<RegisterSchool />} />
-
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            
             {/* ── Protected + layout ──────────────────────── */}
             <Route
               element={
