@@ -23,4 +23,11 @@ export const resultApi = {
     `/api/results/pupil/${studentId}/pdf?session=${encodeURIComponent(session)}&term=${encodeURIComponent(term)}`,
   me: (session, term) => api.get("/results/me", { params: { session, term } }),
   children: (session, term) => api.get("/results/children", { params: { session, term } }),
+
+  // 👇 THE MISSING METHOD
+  downloadPdf: (studentId, session, term) =>
+    api.get(`/results/pupil/${studentId}/pdf`, {
+      params: { session, term },
+      responseType: "blob", // 👈 Tells Axios to expect binary PDF
+    }),
 };
