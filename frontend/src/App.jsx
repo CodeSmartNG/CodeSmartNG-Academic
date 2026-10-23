@@ -429,7 +429,7 @@ export default function App() {
             </Route>
 
             {/* ── Fallbacks ───────────────────────────────── */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Landing />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
