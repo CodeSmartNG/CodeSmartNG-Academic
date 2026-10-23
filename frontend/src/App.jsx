@@ -3,9 +3,10 @@ import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import RoleRoute from "./routes/RoleRoute";
 import DashboardLayout from "./layouts/DashboardLayout";
-import ErrorBoundary from "./pages/ErrorBoundary"; // 👈 Added ErrorBoundary
+import ErrorBoundary from "./pages/ErrorBoundary";
 
-// ── Auth ────────────────────────────────────────────────────
+// ── Public ──────────────────────────────────────────────────
+import Landing from "./pages/Landing";
 import Login from "./pages/auth/Login";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
@@ -15,46 +16,45 @@ import ChangePassword from "./pages/auth/ChangePassword";
 // ── Super Admin ─────────────────────────────────────────────
 import SuperAdminDashboard from "./pages/super-admin/Dashboard";
 import SchoolsList from "./pages/super-admin/SchoolsList";
-import Landing from "./pages/Landing";
-
-// ── Announcements ───────────────────────────────────────────
-import AnnouncementList from "./pages/school-admin/Announcements/AnnouncementList";
-import CreateAnnouncement from "./pages/school-admin/Announcements/CreateAnnouncement";
 
 // ── School Admin ────────────────────────────────────────────
 import SchoolAdminDashboard from "./pages/school-admin/Dashboard";
 import AdminMessages from "./pages/school-admin/Messages";
 
-// ── Students (Module 2) ─────────────────────────────────────
+// ── Announcements ───────────────────────────────────────────
+import AnnouncementList from "./pages/school-admin/Announcements/AnnouncementList";
+import CreateAnnouncement from "./pages/school-admin/Announcements/CreateAnnouncement";
+
+// ── Students ────────────────────────────────────────────────
 import StudentList from "./pages/school-admin/Students/StudentList";
 import AdmissionForm from "./pages/school-admin/Students/AdmissionForm";
 import StudentDetail from "./pages/school-admin/Students/StudentDetail";
 import PromotePupils from "./pages/school-admin/Students/PromotePupils";
 
-// ── Classes & Subjects (Module 3) ───────────────────────────
+// ── Classes & Subjects ──────────────────────────────────────
 import ClassList from "./pages/school-admin/Classes/ClassList";
 import ClassDetail from "./pages/school-admin/Classes/ClassDetail";
 import SubjectList from "./pages/school-admin/Subjects/SubjectList";
 
-// ── Attendance (Module 4) ───────────────────────────────────
+// ── Attendance ──────────────────────────────────────────────
 import MarkAttendance from "./pages/school-admin/Attendance/MarkAttendance";
 import ClassMonthlyReport from "./pages/school-admin/Attendance/ClassMonthlyReport";
 import AttendanceStats from "./pages/school-admin/Attendance/AttendanceStats";
 import ParentAttendance from "./pages/parent/Attendance";
 
-// ── Results (Module 5) ──────────────────────────────────────
+// ── Results ─────────────────────────────────────────────────
 import AssessmentList from "./pages/school-admin/Results/AssessmentList";
 import EnterScores from "./pages/school-admin/Results/EnterScores";
 import Broadsheet from "./pages/school-admin/Results/Broadsheet";
 import ParentResults from "./pages/parent/Results";
 
-// ── Fees (Module 6) ─────────────────────────────────────────
+// ── Fees ────────────────────────────────────────────────────
 import FeeStructures from "./pages/school-admin/Fees/FeeStructures";
 import BillList from "./pages/school-admin/Fees/BillList";
 import BillDetail from "./pages/school-admin/Fees/BillDetail";
 import ParentFees from "./pages/parent/Fees";
 
-// ── Parent Portal (Module 7) ────────────────────────────────
+// ── Parent Portal ───────────────────────────────────────────
 import ParentDashboard from "./pages/parent/Dashboard";
 import ChildDetail from "./pages/parent/ChildDetail";
 import LinkChild from "./pages/parent/LinkChild";
@@ -62,15 +62,17 @@ import ParentContact from "./pages/parent/Contact";
 import ParentProfile from "./pages/parent/Profile";
 import LinkRequests from "./pages/school-admin/LinkRequests";
 
-// ── Homework & Announcements (Module 8) ─────────────────────
+// ── Homework ────────────────────────────────────────────────
 import CreateHomework from "./pages/teacher/Homework/CreateHomework";
 import HomeworkList from "./pages/teacher/Homework/HomeworkList";
 import HomeworkDetail from "./pages/teacher/Homework/HomeworkDetail";
 import ParentAnnouncements from "./pages/parent/Announcements";
 import ParentHomework from "./pages/parent/Homework";
 import PupilHomework from "./pages/pupil/Homework";
-//live chat
+
+// ── Chat ────────────────────────────────────────────────────
 import ChatPage from "./pages/chat/ChatPage";
+
 // ── Other Roles ─────────────────────────────────────────────
 import TeacherDashboard from "./pages/teacher/Dashboard";
 import PupilDashboard from "./pages/pupil/Dashboard";
@@ -97,24 +99,22 @@ const DashboardHome = () => {
 
 export default function App() {
   return (
-    <ErrorBoundary> {/* 👈 Wrapped the entire app as a safety net */}
+    <ErrorBoundary>
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            {/* ── Public ──────────────────────────────────── */}
+            {/* ── Public Routes ───────────────────────────── */}
+            <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password/:token" element={<ResetPassword />} />
             <Route path="/register-school" element={<RegisterSchool />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-            <Route path="/" element={<Landing />} />
-            
-            {/* ── Protected + layout ──────────────────────── */}
+            {/* ── Protected Routes (with layout) ──────────── */}
             <Route
               element={
                 <ProtectedRoute>
-                  <ErrorBoundary> {/* 👈 Added here so the Sidebar stays visible if a page crashes */}
+                  <ErrorBoundary>
                     <DashboardLayout />
                   </ErrorBoundary>
                 </ProtectedRoute>
@@ -126,26 +126,25 @@ export default function App() {
               {/* Change password (all roles) */}
               <Route path="/dashboard/change-password" element={<ChangePassword />} />
 
-
+              {/* ── Chat & Messages ────────────────────── */}
               <Route
-  path="/dashboard/messages"
-  element={
-    <RoleRoute allow={["proprietor", "admin", "teacher"]}>
-      <AdminMessages />
-    </RoleRoute>
-  }
-/>
-              {/*____live chat____*/}
+                path="/dashboard/messages"
+                element={
+                  <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+                    <AdminMessages />
+                  </RoleRoute>
+                }
+              />
               <Route
-  path="/dashboard/chat"
-  element={
-    <RoleRoute allow={["proprietor", "admin", "teacher"]}>
-      <ChatPage />
-    </RoleRoute>
-  }
-/>
+                path="/dashboard/chat"
+                element={
+                  <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+                    <ChatPage />
+                  </RoleRoute>
+                }
+              />
 
-              {/* ── Super Admin only ─────────────────────── */}
+              {/* ── Super Admin only ───────────────────── */}
               <Route
                 path="/dashboard/schools"
                 element={
@@ -155,7 +154,7 @@ export default function App() {
                 }
               />
 
-              {/* ── Students ─────────────────────────────── */}
+              {/* ── Students ───────────────────────────── */}
               <Route
                 path="/dashboard/students"
                 element={
@@ -189,7 +188,7 @@ export default function App() {
                 }
               />
 
-              {/* ── Classes & Subjects ───────────────────── */}
+              {/* ── Classes & Subjects ─────────────────── */}
               <Route
                 path="/dashboard/classes"
                 element={
@@ -215,7 +214,7 @@ export default function App() {
                 }
               />
 
-              {/* ── Attendance ───────────────────────────── */}
+              {/* ── Attendance ─────────────────────────── */}
               <Route
                 path="/dashboard/attendance"
                 element={
@@ -249,7 +248,7 @@ export default function App() {
                 }
               />
 
-              {/* ── Results ──────────────────────────────── */}
+              {/* ── Results ────────────────────────────── */}
               <Route
                 path="/dashboard/results"
                 element={
@@ -283,7 +282,7 @@ export default function App() {
                 }
               />
 
-              {/* ── Fees ─────────────────────────────────── */}
+              {/* ── Fees ───────────────────────────────── */}
               <Route
                 path="/dashboard/fees"
                 element={
@@ -317,7 +316,7 @@ export default function App() {
                 }
               />
 
-              {/* ── Parent Portal ────────────────────────── */}
+              {/* ── Parent Portal ──────────────────────── */}
               <Route
                 path="/dashboard/children/:id"
                 element={
@@ -359,7 +358,7 @@ export default function App() {
                 }
               />
 
-              {/* ── Homework ─────────────────────────────── */}
+              {/* ── Homework ───────────────────────────── */}
               <Route
                 path="/dashboard/homework"
                 element={
@@ -401,7 +400,7 @@ export default function App() {
                 }
               />
 
-              {/* ── Announcements ────────────────────────── */}
+              {/* ── Announcements ──────────────────────── */}
               <Route
                 path="/dashboard/announcements"
                 element={
@@ -428,8 +427,7 @@ export default function App() {
               />
             </Route>
 
-            {/* ── Fallbacks ───────────────────────────────── */}
-            <Route path="/" element={<Landing />} />
+            {/* ── Fallback 404 ──────────────────────────────── */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
