@@ -15,6 +15,7 @@ import ChangePassword from "./pages/auth/ChangePassword";
 // ── Super Admin ─────────────────────────────────────────────
 import SuperAdminDashboard from "./pages/super-admin/Dashboard";
 import SchoolsList from "./pages/super-admin/SchoolsList";
+import Landing from "./pages/Landing";
 
 // ── Announcements ───────────────────────────────────────────
 import AnnouncementList from "./pages/school-admin/Announcements/AnnouncementList";
@@ -106,6 +107,8 @@ export default function App() {
             <Route path="/reset-password/:token" element={<ResetPassword />} />
             <Route path="/register-school" element={<RegisterSchool />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+
+            <Route path="/" element={<Landing />} />
             
             {/* ── Protected + layout ──────────────────────── */}
             <Route
