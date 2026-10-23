@@ -20,6 +20,7 @@ const NAV_BY_ROLE = {
     { to: "/dashboard/announcements", label: "Announcements", icon: "fa-bullhorn" },
     { to: "/dashboard/link-requests", label: "Link Requests", icon: "fa-link" },
     { to: "/dashboard/messages", label: "Messages", icon: "fa-envelope" },
+    { to: "/dashboard/chat", label: "Chat", icon: "fa-comments" },
   ],
   admin: [
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
@@ -35,6 +36,7 @@ const NAV_BY_ROLE = {
     { to: "/dashboard/announcements", label: "Announcements", icon: "fa-bullhorn" },
     { to: "/dashboard/link-requests", label: "Link Requests", icon: "fa-link" },
     { to: "/dashboard/messages", label: "Messages", icon: "fa-envelope" },
+    { to: "/dashboard/chat", label: "Chat", icon: "fa-comments" },
   ],
   teacher: [
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
@@ -44,6 +46,7 @@ const NAV_BY_ROLE = {
     { to: "/dashboard/homework", label: "Homework", icon: "fa-book" },
     { to: "/dashboard/announcements/view", label: "Announcements", icon: "fa-bullhorn" },
     { to: "/dashboard/messages", label: "Messages", icon: "fa-envelope" },
+    { to: "/dashboard/chat", label: "Chat", icon: "fa-comments" },
   ],
   parent: [
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
