@@ -3,90 +3,95 @@ import PDFDocument from "pdfkit";
 export const generateReportCardPDF = (data) => {
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({ size: "A4", margin: 40 });
+      const doc = new PDFDocument({ size: "A4", margin: 50 });
       const chunks = [];
       doc.on("data", (c) => chunks.push(c));
       doc.on("end", () => resolve(Buffer.concat(chunks)));
       doc.on("error", reject);
 
       const { school, student, class: cls, session, term, results, summary } = data;
-      const isNursery = cls?.level === "nursery";
 
-      // ── Header Box ──────────────────────────────────────────
-      doc.rect(40, 40, 515, 90).fill("#0b2b4f");
-      doc.fillColor("#ffffff").fontSize(22).font("Helvetica-Bold")
-        .text(school.name.toUpperCase(), 50, 55, { align: "center", width: 495 });
-      doc.fontSize(10).font("Helvetica").fillColor("#cbd5e1")
-        .text(school.address || "School Address", { align: "center", width: 495 });
-      doc.fontSize(13).font("Helvetica-Bold").fillColor("#ffb347")
-        .text(`${term} Report Card · ${session}`, { align: "center", width: 495 });
+      // ── Header ─────────────────────────────────────────
+      doc.fillColor("#0b2b4f")
+        .font("Helvetica-Bold")
+        .fontSize(20)
+        .text(school.name.toUpperCase(), { align: "center" });
 
-      // ── Pupil Info Box ───────────────────────────────────────
-      doc.rect(40, 145, 515, 55).stroke("#cbd5e1");
-      doc.fillColor("#0b2b4f").fontSize(10).font("Helvetica-Bold");
+      doc.fillColor("#64748b")
+        .font("Helvetica")
+        .fontSize(10)
+        .text(school.address || "School Address", { align: "center" });
+
+      doc.fillColor("#ffb347")
+        .font("Helvetica-Bold")
+        .fontSize(12)
+        .text(`${term} Report Card · ${session}`, { align: "center" });
+
+      doc.moveDown(1.5);
+
+      // ── Pupil Info ────────────────────────────────────
+      doc.fillColor("#0b2b4f")
+        .font("Helvetica-Bold")
+        .fontSize(11)
+        .text(`Pupil: ${student.fullName}`, { continued: false });
+
+      doc.fillColor("#334155").font("Helvetica").fontSize(10);
+      doc.text(`Admission No: ${student.admissionNumber}`);
+      doc.text(`Class: ${cls?.name || student.className}`);
+      doc.text(`Gender: ${student.gender}`);
+
+      doc.moveDown(1.5);
+
+      // ── Table Header ──────────────────────────────────
+      doc.fillColor("#0b2b4f").font("Helvetica-Bold").fontSize(10);
+      const tableTop = doc.y;
       
-      doc.text("Pupil:", 55, 155);
-      doc.font("Helvetica").fillColor("#334155").text(student.fullName, 100, 155);
+      doc.text("SUBJECT", 50, tableTop);
+      doc.text("SCORE", 250, tableTop);
+      doc.text("GRADE", 350, tableTop);
+      doc.text("REMARK", 420, tableTop);
       
-      doc.font("Helvetica-Bold").fillColor("#0b2b4f").text("Admission No:", 300, 155);
-      doc.font("Helvetica").fillColor("#334155").text(student.admissionNumber, 400, 155);
+      doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).stroke("#cbd5e1");
 
-      doc.font("Helvetica-Bold").fillColor("#0b2b4f").text("Class:", 55, 175);
-      doc.font("Helvetica").fillColor("#334155").text(cls?.name || student.className, 100, 175);
-      
-      doc.font("Helvetica-Bold").fillColor("#0b2b4f").text("Gender:", 300, 175);
-      doc.font("Helvetica").fillColor("#334155").text(student.gender, 400, 175);
-
-      // ── Table Header ─────────────────────────────────────────
-      const tableTop = 215;
-      doc.rect(40, tableTop, 515, 20).fill("#f1f5f9");
-      doc.fillColor("#0b2b4f").fontSize(9).font("Helvetica-Bold");
-      doc.text("SUBJECT", 50, tableTop + 6);
-      doc.text("SCORE", 270, tableTop + 6);
-      doc.text("GRADE", 350, tableTop + 6);
-      doc.text("REMARK", 410, tableTop + 6);
-
-      // ── Table Body ───────────────────────────────────────────
+      // ── Table Rows ────────────────────────────────────
+      doc.font("Helvetica").fontSize(10).fillColor("#334155");
       let rowY = tableTop + 20;
-      results.forEach((r, i) => {
-        // Zebra stripes
-        if (i % 2 === 0) doc.rect(40, rowY, 515, 18).fill("#fafafa");
-        
-        doc.fillColor("#334155").font("Helvetica").fontSize(9);
-        doc.text(r.subjectId?.name || "—", 50, rowY + 4);
-        
-        // Fixed: handle undefined percentage
-        const score = r.totalScore != null ? `${r.totalScore}/${r.maxPossible}` : "—";
-        doc.text(score, 270, rowY + 4);
-        
-        doc.font("Helvetica-Bold").text(r.grade || "—", 350, rowY + 4);
-        doc.font("Helvetica").text(r.remark || "—", 410, rowY + 4);
 
+      results.forEach((r) => {
+        doc.text(r.subjectId?.name || "—", 50, rowY);
+        doc.text(`${r.totalScore ?? 0}/${r.maxPossible ?? 100}`, 250, rowY);
+        doc.text(r.grade || "—", 350, rowY);
+        doc.text(r.remark || "—", 420, rowY);
         rowY += 18;
       });
 
-      // ── Summary Box ──────────────────────────────────────────
-      const summaryY = rowY + 10;
-      doc.rect(40, summaryY, 515, 50).stroke("#ffb347");
-      doc.fillColor("#0b2b4f").font("Helvetica-Bold").fontSize(10);
-      doc.text(`Total: ${summary?.overallTotal ?? 0}`, 55, summaryY + 10);
-      doc.text(`Average: ${summary?.overallAverage != null ? summary.overallAverage.toFixed(1) + '%' : '—'}`, 170, summaryY + 10);
-      doc.text(`Grade: ${summary?.overallGrade ?? "—"}`, 320, summaryY + 10);
-      doc.text(`Position: ${summary?.positionInClass ?? "—"} of ${summary?.totalPupilsInClass ?? "—"}`, 55, summaryY + 28);
+      doc.moveTo(50, rowY).lineTo(550, rowY).stroke("#cbd5e1");
+      doc.moveDown(2);
 
-      // ── Comments ─────────────────────────────────────────────
-      doc.moveDown(3);
-      doc.fillColor("#0b2b4f").font("Helvetica-Bold").fontSize(10).text("Form Teacher's Comment:", 50);
-      doc.font("Helvetica").fillColor("#334155").text(summary?.formTeacherComment || "Keep up the good work!", 50, doc.y + 3);
+      // ── Summary ───────────────────────────────────────
+      doc.fillColor("#0b2b4f").font("Helvetica-Bold").fontSize(11);
+      doc.text(`Total Score: ${summary?.overallTotal ?? 0}`);
+      doc.text(`Average: ${summary?.overallAverage != null ? summary.overallAverage.toFixed(1) + '%' : '—'}`);
+      doc.text(`Grade: ${summary?.overallGrade ?? "—"}`);
+      doc.text(`Position: ${summary?.positionInClass ?? "—"} of ${summary?.totalPupilsInClass ?? "—"}`);
+
+      doc.moveDown(2);
+
+      // ── Comments ──────────────────────────────────────
+      doc.fontSize(10);
+      doc.text("Form Teacher's Comment:");
+      doc.font("Helvetica").text(summary?.formTeacherComment || "Keep up the good work!");
+      doc.moveDown(0.5);
       
-      doc.moveDown(1);
-      doc.fillColor("#0b2b4f").font("Helvetica-Bold").text("Head Teacher's Comment:", 50);
-      doc.font("Helvetica").fillColor("#334155").text(summary?.headTeacherComment || "Keep up the good work!", 50, doc.y + 3);
+      doc.font("Helvetica-Bold").text("Head Teacher's Comment:");
+      doc.font("Helvetica").text(summary?.headTeacherComment || "Keep up the good work!");
 
-      // ── Footer ───────────────────────────────────────────────
-      doc.fontSize(8).fillColor("#94a3b8")
-        .text(`Generated by CodeSmartNG Academic on ${new Date().toLocaleDateString()}`,
-          50, 780, { align: "center", width: 515 });
+      // ── Footer ───────────────────────────────────────
+      doc.fontSize(8).fillColor("#94a3b8").text(
+        `Generated by CodeSmartNG Academic on ${new Date().toLocaleDateString()}`,
+        50, doc.page.height - 50,
+        { align: "center", width: 500 }
+      );
 
       doc.end();
     } catch (err) {
