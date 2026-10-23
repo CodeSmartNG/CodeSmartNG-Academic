@@ -1,8 +1,14 @@
 import express from "express";
 import jwt from "jsonwebtoken";
+import { body } from "express-validator"; // 👈 ADDED
 import School from "../models/School.js";
 import User from "../models/User.js";
 import { protect } from "../middleware/auth.js";
+import { validate } from "../middleware/validate.js"; // 👈 ADDED
+import {
+  forgotPassword, // 👈 ADDED
+  resetPassword,  // 👈 ADDED
+} from "../controllers/auth.controller.js"; // 👈 ADDED
 
 const router = express.Router();
 
@@ -27,20 +33,20 @@ router.post("/register-school", async (req, res) => {
     });
     
     res.status(201).json({
-  success: true,
-  message: "School registered. Awaiting CodeSmartNG approval.",
-  data: {
-    schoolId: school._id,
-    token: signToken(user._id),
-    user: { 
-      id: user._id, 
-      fullName: user.fullName, 
-      email: user.email, 
-      role: user.role,
-      schoolId: user.schoolId 
-    }
-  }
-});
+      success: true,
+      message: "School registered. Awaiting CodeSmartNG approval.",
+      data: {
+        schoolId: school._id,
+        token: signToken(user._id),
+        user: { 
+          id: user._id, 
+          fullName: user.fullName, 
+          email: user.email, 
+          role: user.role,
+          schoolId: user.schoolId 
+        }
+      }
+    });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
   }
@@ -69,7 +75,6 @@ router.post("/login", async (req, res) => {
     user.lastLogin = new Date();
     await user.save({ validateBeforeSave: false });
 
-    // 👇 STANDARDIZED RESPONSE
     res.json({
       success: true,
       message: "Login successful",
@@ -87,6 +92,20 @@ router.post("/login", async (req, res) => {
 });
 
 router.get("/me", protect, (req, res) => res.json({ success: true, data: { user: req.user } }));
-router.post("/forgot-password", [body("email").isEmail()], validate, forgotPassword);
-router.post("/reset-password/:token", [body("password").isLength({ min: 6 })], validate, resetPassword);
+
+// ── Password reset ────────────────────────────────────────
+router.post(
+  "/forgot-password",
+  [body("email").isEmail().withMessage("Valid email required")],
+  validate,
+  forgotPassword
+);
+
+router.post(
+  "/reset-password/:token",
+  [body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters")],
+  validate,
+  resetPassword
+);
+
 export default router;
