@@ -68,7 +68,8 @@ import HomeworkDetail from "./pages/teacher/Homework/HomeworkDetail";
 import ParentAnnouncements from "./pages/parent/Announcements";
 import ParentHomework from "./pages/parent/Homework";
 import PupilHomework from "./pages/pupil/Homework";
-
+//live chat
+import ChatPage from "./pages/chat/ChatPage";
 // ── Other Roles ─────────────────────────────────────────────
 import TeacherDashboard from "./pages/teacher/Dashboard";
 import PupilDashboard from "./pages/pupil/Dashboard";
@@ -130,6 +131,16 @@ export default function App() {
     </RoleRoute>
   }
 />
+              {/*____live chat____*/}
+              <Route
+  path="/dashboard/chat"
+  element={
+    <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+      <ChatPage />
+    </RoleRoute>
+  }
+/>
+
               {/* ── Super Admin only ─────────────────────── */}
               <Route
                 path="/dashboard/schools"
