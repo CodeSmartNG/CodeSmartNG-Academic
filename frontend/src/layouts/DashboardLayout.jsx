@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import api from "../services/api"; // 👈 Import api to fetch the count
+import api from "../services/api";
 
 const NAV_BY_ROLE = {
   super_admin: [
@@ -72,30 +72,24 @@ export default function DashboardLayout() {
   const nav = NAV_BY_ROLE[user?.role] || [];
   
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // 👈 Mobile menu state
 
-  // 👇 Fetch unread messages every 30 seconds
+  // Fetch unread messages
   useEffect(() => {
-    // Only fetch for roles that have chat access
     if (!["admin", "proprietor", "teacher"].includes(user?.role)) return;
-
     const fetchUnread = () => {
       api.get("/chat/unread/count")
         .then(({ data }) => setUnreadCount(data.data.count || 0))
-        .catch(() => {}); // Ignore errors silently
+        .catch(() => {});
     };
-
-    fetchUnread(); // Fetch immediately on load
-    const interval = setInterval(fetchUnread, 30000); // Then every 30s
-
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
     return () => clearInterval(interval);
   }, [user]);
 
-  // 👇 If the user navigates to the chat page, clear the badge temporarily
-  // (The next poll will update it accurately based on what they actually read)
   useEffect(() => {
-    if (location.pathname === "/dashboard/chat") {
-      setUnreadCount(0);
-    }
+    if (location.pathname === "/dashboard/chat") setUnreadCount(0);
+    setIsSidebarOpen(false); // 👈 Close sidebar on navigation (mobile)
   }, [location.pathname]);
 
   const handleLogout = () => {
@@ -104,10 +98,23 @@ export default function DashboardLayout() {
   };
 
   return (
-    <div className="min-h-screen flex bg-slate-50">
+    <div className="min-h-screen flex bg-slate-50 relative overflow-hidden">
+      
+      {/* 👇 Mobile Backdrop (Dark overlay) */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden print:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col print:hidden">
-        <div className="p-5 border-b">
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col transform transition-transform duration-300 ease-in-out print:hidden
+        md:relative md:translate-x-0
+        ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
+      `}>
+        <div className="p-5 border-b flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-blue-900 text-white flex items-center justify-center shadow-lg">
               <i className="fas fa-graduation-cap text-lg" />
@@ -117,6 +124,13 @@ export default function DashboardLayout() {
               <div className="text-xs text-slate-500">Academic Portal</div>
             </div>
           </div>
+          {/* Close button for mobile */}
+          <button 
+            className="md:hidden text-slate-400 hover:text-slate-700"
+            onClick={() => setIsSidebarOpen(false)}
+          >
+            <i className="fas fa-times text-xl"></i>
+          </button>
         </div>
 
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
@@ -126,9 +140,9 @@ export default function DashboardLayout() {
               to={item.to}
               end={item.end}
               className={({ isActive }) =>
-                `flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+                `flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors ${
                   isActive
-                    ? "bg-blue-700 text-white"
+                    ? "bg-blue-700 text-white font-medium shadow-md shadow-blue-700/20"
                     : "text-slate-700 hover:bg-slate-100"
                 }`
               }
@@ -138,7 +152,6 @@ export default function DashboardLayout() {
                 {item.label}
               </div>
               
-              {/* 👇 The Unread Badge */}
               {item.label === "Chat" && unreadCount > 0 && (
                 <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                   {unreadCount}
@@ -151,7 +164,7 @@ export default function DashboardLayout() {
         <div className="p-3 border-t">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-600 hover:bg-red-50 font-medium"
           >
             <i className="fas fa-sign-out-alt w-5 text-center" />
             Logout
@@ -160,17 +173,28 @@ export default function DashboardLayout() {
       </aside>
 
       {/* Main area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white/80 backdrop-blur border-b border-slate-200 px-6 py-3 flex items-center justify-between print:hidden">
-          <div className="text-sm text-slate-500">
-            {user?.role?.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())} Dashboard
-          </div>
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        <header className="bg-white border-b border-slate-200 px-4 md:px-6 py-3 flex items-center justify-between print:hidden shrink-0">
+          
+          {/* 👇 Hamburger Menu (Mobile Only) */}
           <div className="flex items-center gap-3">
-            <div className="text-right">
+            <button 
+              className="md:hidden text-slate-600 hover:text-slate-900"
+              onClick={() => setIsSidebarOpen(true)}
+            >
+              <i className="fas fa-bars text-xl"></i>
+            </button>
+            <div className="text-sm text-slate-500 font-medium hidden sm:block">
+              {user?.role?.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())} Dashboard
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="text-right hidden sm:block">
               <div className="text-sm font-medium text-slate-800">{user?.fullName}</div>
               <div className="text-xs text-slate-500">{user?.email}</div>
             </div>
-            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
               {user?.fullName?.charAt(0) || "U"}
             </div>
           </div>
