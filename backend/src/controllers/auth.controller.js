@@ -26,7 +26,7 @@ export const login = async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
 
-    // For non-super-admin, verify school is approved
+    // For non-super-admin, verify school is approved AND subscription is active
     if (user.role !== "super_admin") {
       const userSchool = school || (await School.findById(user.schoolId));
       if (!userSchool) {
@@ -36,6 +36,14 @@ export const login = async (req, res) => {
         return res.status(403).json({
           success: false,
           message: `School is ${userSchool.status}. Contact CodeSmartNG support.`,
+        });
+      }
+
+      // 👇 NEW: Check if subscription has expired
+      if (userSchool.subscriptionExpiresAt && new Date() > new Date(userSchool.subscriptionExpiresAt)) {
+        return res.status(403).json({
+          success: false,
+          message: "Your school's subscription has expired. Please contact CodeSmartNG to renew.",
         });
       }
     }
