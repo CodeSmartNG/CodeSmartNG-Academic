@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import api from "../../services/api";
 
@@ -53,13 +52,31 @@ export default function SchoolsList() {
     }
   };
 
+  // 👇 NEW: Renew Subscription Function
+  const renew = async (id) => {
+    if (!confirm("Renew this school's subscription for 30 days?")) return;
+    try {
+      const { data } = await api.patch(`/schools/${id}/renew`);
+      alert(data.message);
+      load();
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to renew");
+    }
+  };
+
+  // 👇 NEW: Helper to check if expired
+  const isExpired = (date) => {
+    if (!date) return false;
+    return new Date() > new Date(date);
+  };
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Schools</h1>
           <p className="text-sm text-slate-500">
-            Approve, reject, or suspend schools on the platform
+            Approve, manage subscriptions, or suspend schools on the platform
           </p>
         </div>
       </div>
@@ -84,63 +101,87 @@ export default function SchoolsList() {
                 <th className="p-3 text-left">School</th>
                 <th className="p-3 text-left">Contact</th>
                 <th className="p-3 text-left">Status</th>
+                <th className="p-3 text-left">Subscription</th> {/* 👈 NEW COLUMN */}
                 <th className="p-3 text-left">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {schools.map((s) => (
-                <tr key={s._id} className="border-t">
-                  <td className="p-3">
-                    <div className="font-medium">{s.name}</div>
-                    <div className="text-xs text-slate-400 font-mono">
-                      {s.slug}
-                    </div>
-                  </td>
-                  <td className="p-3">
-                    <div className="text-xs">{s.email}</div>
-                    <div className="text-xs text-slate-500">{s.phone}</div>
-                  </td>
-                  <td className="p-3">
-                    <StatusBadge status={s.status} />
-                  </td>
-                  <td className="p-3">
-                    <div className="flex gap-1 flex-wrap">
-                      {s.status === "pending" && (
-                        <>
+              {schools.map((s) => {
+                const expired = isExpired(s.subscriptionExpiresAt);
+                return (
+                  <tr key={s._id} className="border-t">
+                    <td className="p-3">
+                      <div className="font-medium">{s.name}</div>
+                      <div className="text-xs text-slate-400 font-mono">
+                        {s.slug}
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <div className="text-xs">{s.email}</div>
+                      <div className="text-xs text-slate-500">{s.phone}</div>
+                    </td>
+                    <td className="p-3">
+                      <StatusBadge status={s.status} />
+                    </td>
+                    <td className="p-3"> {/* 👈 NEW SUBSCRIPTION CELL */}
+                      {expired ? (
+                        <span className="text-red-600 font-medium text-xs flex items-center gap-1">
+                          <i className="fas fa-exclamation-circle"></i>
+                          Expired
+                        </span>
+                      ) : (
+                        <span className="text-green-600 text-xs">
+                          Active until {s.subscriptionExpiresAt ? new Date(s.subscriptionExpiresAt).toLocaleDateString() : "N/A"}
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <div className="flex gap-1 flex-wrap">
+                        {s.status === "pending" && (
+                          <>
+                            <button
+                              onClick={() => approve(s._id)}
+                              className="text-xs bg-green-600 text-white px-2 py-1 rounded"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => reject(s._id)}
+                              className="text-xs bg-red-600 text-white px-2 py-1 rounded"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+                        {s.status === "approved" && (
+                          <button
+                            onClick={() => suspend(s._id)}
+                            className="text-xs bg-amber-600 text-white px-2 py-1 rounded"
+                          >
+                            Suspend
+                          </button>
+                        )}
+                        {s.status === "suspended" && (
                           <button
                             onClick={() => approve(s._id)}
-                            className="text-xs bg-green-600 text-white px-2 py-0.5 rounded"
+                            className="text-xs bg-green-600 text-white px-2 py-1 rounded"
                           >
-                            Approve
+                            Reactivate
                           </button>
-                          <button
-                            onClick={() => reject(s._id)}
-                            className="text-xs bg-red-600 text-white px-2 py-0.5 rounded"
-                          >
-                            Reject
-                          </button>
-                        </>
-                      )}
-                      {s.status === "approved" && (
+                        )}
+                        
+                        {/* 👇 NEW: RENEW BUTTON */}
                         <button
-                          onClick={() => suspend(s._id)}
-                          className="text-xs bg-amber-600 text-white px-2 py-0.5 rounded"
+                          onClick={() => renew(s._id)}
+                          className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
                         >
-                          Suspend
+                          Renew 30d
                         </button>
-                      )}
-                      {s.status === "suspended" && (
-                        <button
-                          onClick={() => approve(s._id)}
-                          className="text-xs bg-green-600 text-white px-2 py-0.5 rounded"
-                        >
-                          Reactivate
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
