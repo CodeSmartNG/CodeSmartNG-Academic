@@ -161,3 +161,29 @@ export const updateMySchool = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+// PATCH /api/schools/:id/renew
+export const renewSchoolSubscription = async (req, res) => {
+  try {
+    const school = await School.findById(req.params.id);
+    if (!school) return res.status(404).json({ success: false, message: "School not found" });
+
+    // Calculate new expiry date (30 days from now, or 30 days from current expiry if still active)
+    const currentExpiry = school.subscriptionExpiresAt ? new Date(school.subscriptionExpiresAt) : new Date();
+    const baseDate = currentExpiry > new Date() ? currentExpiry : new Date();
+    
+    const newExpiry = new Date(baseDate);
+    newExpiry.setDate(newExpiry.getDate() + 30);
+
+    school.subscriptionExpiresAt = newExpiry;
+    school.subscriptionStatus = "active";
+    await school.save();
+
+    res.json({ 
+      success: true, 
+      message: `Subscription renewed until ${newExpiry.toDateString()}`, 
+      data: { school } 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
