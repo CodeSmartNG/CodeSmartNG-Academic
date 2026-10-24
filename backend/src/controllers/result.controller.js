@@ -201,15 +201,19 @@ export const computeClassResults = async (req, res) => {
     const byStudent = {};
     results.forEach((r) => {
       const key = r.studentId.toString();
-      if (!byStudent[key]) byStudent[key] = { total: 0, count: 0 };
-      byStudent[key].total += r.totalScore;
+      if (!byStudent[key]) {
+        byStudent[key] = { totalScoreSum: 0, maxPossibleSum: 0, count: 0 };
+      }
+      // 👇 FIX: Sum the raw scores AND the max possible scores
+      byStudent[key].totalScoreSum += r.totalScore;
+      byStudent[key].maxPossibleSum += r.maxPossible;
       byStudent[key].count++;
     });
 
     const pupilAverages = Object.entries(byStudent).map(([studentId, agg]) => ({
       id: studentId,
-      percentage: agg.count ? agg.total / agg.count : 0,
-      total: agg.total,
+      // 👇 FIX: The average is (Total Score / Total Max Possible) * 100
+      percentage: agg.maxPossibleSum > 0 ? (agg.totalScoreSum / agg.maxPossibleSum) * 100 : 0,
     }));
 
     const positions = computePosition(pupilAverages);
@@ -217,10 +221,11 @@ export const computeClassResults = async (req, res) => {
 
     // 3. Update anchor result per pupil with aggregates + position
     for (const [studentId, agg] of Object.entries(byStudent)) {
-      const avg = agg.count ? agg.total / agg.count : 0;
-      const { grade } = gradeFromPercentage(avg, gradingScale);
+      // 👇 FIX: Use the correct average percentage
+      const avgPercentage = agg.maxPossibleSum > 0 ? (agg.totalScoreSum / agg.maxPossibleSum) * 100 : 0;
+      const { grade } = gradeFromPercentage(avgPercentage, gradingScale);
 
-      // Clear anchors for this pupil-term (make sure we only have one)
+      // Clear anchors for this pupil-term
       await Result.updateMany(
         { schoolId: req.schoolId, studentId, session, term },
         { $set: { isAnchor: false } }
@@ -236,8 +241,8 @@ export const computeClassResults = async (req, res) => {
 
       if (anchor) {
         anchor.isAnchor = true;
-        anchor.overallTotal = Number(agg.total.toFixed(2));
-        anchor.overallAverage = Number(avg.toFixed(2));
+        anchor.overallTotal = Number(agg.totalScoreSum.toFixed(2));
+        anchor.overallAverage = Number(avgPercentage.toFixed(2)); // 👈 Correct Average
         anchor.overallGrade = grade;
         anchor.positionInClass = positions[studentId];
         anchor.totalPupilsInClass = totalPupils;
@@ -257,7 +262,6 @@ export const computeClassResults = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
-
 // ─────────────────────────────────────────────────────────────
 // GET /api/results/pupil/:studentId?session=&term=
 // Full report card for one pupil
