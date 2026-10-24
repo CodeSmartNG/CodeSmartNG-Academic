@@ -2,8 +2,9 @@ import School from "../models/School.js";
 import User from "../models/User.js";
 import { generateToken } from "../utils/generateToken.js";
 import crypto from "crypto";
+import sendEmail from "../utils/sendEmail.js"; // 👈 Ensure this file exists!
 
-// ... registerSchool function (keep yours) ...
+// ... registerSchool function (keep yours as it is) ...
 
 export const login = async (req, res) => {
   try {
@@ -82,40 +83,79 @@ export const forgotPassword = async (req, res) => {
       return res.json({ success: true, message: successMessage });
     }
 
-    // 👇 FIXED: Use the top-level crypto import
+    // Generate a random reset token
     const resetToken = crypto.randomBytes(32).toString("hex");
     
+    // Hash the token for database storage
     user.passwordResetToken = crypto
       .createHash("sha256")
       .update(resetToken)
       .digest("hex");
-    user.passwordResetExpires = Date.now() + 30 * 60 * 1000;
+    user.passwordResetExpires = Date.now() + 30 * 60 * 1000; // 30 minutes
     
     await user.save({ validateBeforeSave: false });
 
+    // Build the reset URL
     const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
     
-    // Log to Render so you can copy it
-    console.log("\n🔐 ========================================");
-    console.log("🔐 PASSWORD RESET REQUEST");
+    // 👇 Email Content (HTML & Text)
+    const message = `You are receiving this email because you (or someone else) requested a password reset for your CodeSmartNG account.\n\nPlease click the link below or paste it into your browser to complete the process:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email and your password will remain unchanged.`;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
+        <h2 style="color: #0b2b4f; text-align: center;">CodeSmartNG Academic</h2>
+        <p style="color: #334155; font-size: 16px;">Hello ${user.fullName},</p>
+        <p style="color: #334155; font-size: 16px;">You requested to reset your password. Click the button below to set a new one. This link expires in <strong>30 minutes</strong>.</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetUrl}" style="background-color: #1b4a7a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Reset Password</a>
+        </div>
+        
+        <p style="color: #64748b; font-size: 14px; text-align: center;">If the button doesn't work, copy and paste this link:<br>
+        <a href="${resetUrl}" style="color: #2563eb; word-break: break-all;">${resetUrl}</a></p>
+        
+        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+        <p style="color: #94a3b8; font-size: 12px; text-align: center;">If you didn't request this, you can safely ignore this email.</p>
+      </div>
+    `;
+
+    // Log to Render just in case the email fails
+    console.log("\n🔐 PASSWORD RESET REQUEST");
     console.log("🔐 User:", user.email);
     console.log("🔐 Reset URL:", resetUrl);
-    console.log("🔐 Expires: 30 minutes");
-    console.log("🔐 ========================================\n");
 
-    res.json({
-      success: true,
-      message: successMessage,
-      // In production (Render), you will NOT see this in the JSON. Check Render logs instead.
-      ...(process.env.NODE_ENV === "development" && { resetUrl }),
-    });
+    try {
+      // 👇 Send the email via Brevo
+      await sendEmail({
+        email: user.email,
+        subject: "Password Reset Request - CodeSmartNG Academic",
+        message,
+        html,
+      });
+
+      res.json({
+        success: true,
+        message: successMessage,
+        ...(process.env.NODE_ENV === "development" && { resetUrl }),
+      });
+    } catch (emailError) {
+      console.error("❌ Error sending email via Brevo:", emailError);
+      // Revert the token if email fails so they can try again
+      user.passwordResetToken = undefined;
+      user.passwordResetExpires = undefined;
+      await user.save({ validateBeforeSave: false });
+
+      return res.status(500).json({ 
+        success: false, 
+        message: "There was an error sending the reset email. Please try again later." 
+      });
+    }
   } catch (err) {
     console.error("forgotPassword error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// 👇 ADD THIS: The missing resetPassword function!
 export const resetPassword = async (req, res) => {
   try {
     // 1. Get the token from the URL and hash it to match the DB
