@@ -41,3 +41,26 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* ── Print Styles for Report Cards ───────────────────────── */
+@media print {
+  /* Hide everything except the report card */
+  aside, header, .no-print {
+    display: none !important;
+  }
+  
+  /* Reset main container for full A4 page */
+  body, html, #root, main {
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Make sure the report card takes full width */
+  .max-w-4xl {
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
