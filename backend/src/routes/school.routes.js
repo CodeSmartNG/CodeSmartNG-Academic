@@ -1,5 +1,4 @@
 import express from "express";
-import { renewSchoolSubscription } from "../controllers/school.controller.js";
 
 import {
   getAllSchools,
@@ -11,6 +10,8 @@ import {
   updateMySchool,
 } from "../controllers/school.controller.js";
 import { protect, authorize } from "../middleware/auth.js";
+import { renewSchoolSubscription } from "../controllers/school.controller.js";
+
 
 const router = express.Router();
 
