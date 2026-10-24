@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { resultApi } from "../../services/resultApi";
 import api from "../../services/api";
+import { Link } from "react-router-dom";
 
 export default function ParentResults() {
   const [children, setChildren] = useState([]);
@@ -48,13 +49,13 @@ export default function ParentResults() {
                   <h3 className="font-semibold text-lg">{c.student.fullName}</h3>
                   <p className="text-xs text-slate-500">{c.student.className} · {c.student.admissionNumber}</p>
                 </div>
-                <button
-                  onClick={() => download(c.student._id)}
-                  disabled={!c.summary?.isPublished}
-                  className="bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm disabled:opacity-50"
-                >
-                  ⬇ PDF
-                </button>
+                <Link
+  to={`/dashboard/report-card/${c.student._id}?session=${encodeURIComponent(filters.session)}&term=${encodeURIComponent(filters.term)}`}
+  className="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1.5 rounded-lg text-sm inline-block"
+>
+  ⬇ Report Card
+</Link>
+
               </div>
               {c.summary ? (
                 c.summary.isPublished ? (
