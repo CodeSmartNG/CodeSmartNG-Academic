@@ -47,7 +47,7 @@ import AssessmentList from "./pages/school-admin/Results/AssessmentList";
 import EnterScores from "./pages/school-admin/Results/EnterScores";
 import Broadsheet from "./pages/school-admin/Results/Broadsheet";
 import ParentResults from "./pages/parent/Results";
-
+import ReportCard from "./pages/ReportCard";
 // ── Fees ────────────────────────────────────────────────────
 import FeeStructures from "./pages/school-admin/Fees/FeeStructures";
 import BillList from "./pages/school-admin/Fees/BillList";
@@ -111,6 +111,15 @@ export default function App() {
             <Route path="/reset-password/:token" element={<ResetPassword />} />
 
             {/* ── Protected Routes (with layout) ──────────── */}
+            <Route
+  path="/dashboard/report-card/:studentId"
+  element={
+    <RoleRoute allow={["proprietor", "admin", "teacher", "parent", "pupil"]}>
+      <ReportCard />
+    </RoleRoute>
+  }
+/>
+            
             <Route
               element={
                 <ProtectedRoute>
