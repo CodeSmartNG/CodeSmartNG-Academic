@@ -1,9 +1,9 @@
 import School from "../models/School.js";
 import User from "../models/User.js";
-import { generateToken } from "../utils/generateToken.js"; // 👈 Make sure this is imported!
+import { generateToken } from "../utils/generateToken.js";
 import crypto from "crypto";
 
-// ... registerSchool function ...
+// ... registerSchool function (keep yours) ...
 
 export const login = async (req, res) => {
   try {
@@ -42,14 +42,13 @@ export const login = async (req, res) => {
     user.lastLogin = new Date();
     await user.save({ validateBeforeSave: false });
 
-    // 👇 THIS IS THE CRITICAL LINE
     const token = generateToken(user._id); 
 
     res.json({
       success: true,
       message: "Login successful",
       data: {
-        token, // 👈 MUST BE HERE
+        token,
         user: {
           id: user._id,
           fullName: user.fullName,
@@ -77,31 +76,26 @@ export const forgotPassword = async (req, res) => {
 
     const user = await User.findOne(query);
     
-    // ⚠️ Security: Always return the same message whether user exists or not
     const successMessage = "If that email exists, a password reset link has been sent.";
     
     if (!user) {
       return res.json({ success: true, message: successMessage });
     }
 
-    // Generate a random reset token
-    const crypto = await import("crypto");
+    // 👇 FIXED: Use the top-level crypto import
     const resetToken = crypto.randomBytes(32).toString("hex");
     
-    // Hash the token for database storage
     user.passwordResetToken = crypto
       .createHash("sha256")
       .update(resetToken)
       .digest("hex");
-    user.passwordResetExpires = Date.now() + 30 * 60 * 1000; // 30 minutes
+    user.passwordResetExpires = Date.now() + 30 * 60 * 1000;
     
     await user.save({ validateBeforeSave: false });
 
-    // Build the reset URL
     const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
     
-    // 👇 In production, you'd send this via email
-    // 👇 In development, log it to console
+    // Log to Render so you can copy it
     console.log("\n🔐 ========================================");
     console.log("🔐 PASSWORD RESET REQUEST");
     console.log("🔐 User:", user.email);
@@ -112,11 +106,45 @@ export const forgotPassword = async (req, res) => {
     res.json({
       success: true,
       message: successMessage,
-      // 👇 Only include in development for testing
+      // In production (Render), you will NOT see this in the JSON. Check Render logs instead.
       ...(process.env.NODE_ENV === "development" && { resetUrl }),
     });
   } catch (err) {
     console.error("forgotPassword error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// 👇 ADD THIS: The missing resetPassword function!
+export const resetPassword = async (req, res) => {
+  try {
+    // 1. Get the token from the URL and hash it to match the DB
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(req.params.token)
+      .digest("hex");
+
+    // 2. Find the user with this token who hasn't expired
+    const user = await User.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: "Invalid or expired token" });
+    }
+
+    // 3. Set the new password
+    user.password = req.body.password;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    
+    // Save triggers the bcrypt hashing in User.js
+    await user.save();
+
+    res.json({ success: true, message: "Password reset successful. Please login." });
+  } catch (err) {
+    console.error("resetPassword error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
