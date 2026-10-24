@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { classApi } from "../../../services/classApi";
 import { resultApi } from "../../../services/resultApi";
+import { Link } from "react-router-dom";
 
 export default function Broadsheet() {
   const [classes, setClasses] = useState([]);
@@ -171,15 +172,16 @@ export default function Broadsheet() {
                       "bg-slate-100"
                     }`}>{r.overallGrade}</span>
                   </td>
-                  <td className="p-2 text-center">{r.position ?? "—"}</td>
+
                   <td className="p-2 text-center">
-                    <button
-                      onClick={() => downloadPDF(r.student._id)}
-                      className="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700"
-                    >
-                      ⬇ PDF
-                    </button>
-                  </td>
+  <Link
+    to={`/dashboard/report-card/${r.student._id}?session=${encodeURIComponent(filters.session)}&term=${encodeURIComponent(filters.term)}`}
+    className="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 inline-block"
+  >
+    ⬇ Print PDF
+  </Link>
+</td>
+
                 </tr>
               ))}
             </tbody>
