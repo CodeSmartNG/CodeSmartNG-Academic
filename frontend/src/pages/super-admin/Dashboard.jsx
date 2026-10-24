@@ -25,6 +25,11 @@ export default function SuperAdminDashboard() {
   const schoolStats = stats.schools || { total: 0, pending: 0, approved: 0, suspended: 0 };
   const userStats = stats.users || { total: 0, pupils: 0, teachers: 0 };
 
+  const isExpired = (date) => {
+    if (!date) return false;
+    return new Date() > new Date(date);
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-8">
@@ -76,33 +81,51 @@ export default function SuperAdminDashboard() {
         {schools.length === 0 ? (
           <div className="p-10 text-center text-slate-400">No schools yet</div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-600">
-              <tr>
-                <th className="p-3 text-left">School</th>
-                <th className="p-3 text-left">Contact</th>
-                <th className="p-3 text-left">Status</th>
-                <th className="p-3 text-left">Registered</th>
-              </tr>
-            </thead>
-            <tbody>
-              {schools.map((s) => (
-                <tr key={s._id} className="border-t hover:bg-slate-50">
-                  <td className="p-3">
-                    <div className="font-medium">{s.name}</div>
-                    <div className="text-xs text-slate-400 font-mono">{s.slug}</div>
-                  </td>
-                  <td className="p-3 text-xs">{s.email}</td>
-                  <td className="p-3">
-                    <StatusBadge status={s.status} />
-                  </td>
-                  <td className="p-3 text-xs text-slate-500">
-                    {new Date(s.createdAt).toLocaleDateString()}
-                  </td>
+          /* 👇 FIXED: Added overflow-x-auto for mobile scrolling */
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[600px]">
+              <thead className="bg-slate-50 text-slate-600">
+                <tr>
+                  <th className="p-3 text-left">School</th>
+                  <th className="p-3 text-left">Contact</th>
+                  <th className="p-3 text-left">Status</th>
+                  <th className="p-3 text-left">Subscription</th> {/* 👈 NEW */}
+                  <th className="p-3 text-left">Registered</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {schools.map((s) => {
+                  const expired = isExpired(s.subscriptionExpiresAt);
+                  return (
+                    <tr key={s._id} className="border-t hover:bg-slate-50">
+                      <td className="p-3">
+                        <div className="font-medium">{s.name}</div>
+                        <div className="text-xs text-slate-400 font-mono">{s.slug}</div>
+                      </td>
+                      <td className="p-3 text-xs">{s.email}</td>
+                      <td className="p-3">
+                        <StatusBadge status={s.status} />
+                      </td>
+                      <td className="p-3"> {/* 👈 NEW */}
+                        {expired ? (
+                          <span className="text-red-600 font-medium text-xs whitespace-nowrap">
+                            Expired
+                          </span>
+                        ) : (
+                          <span className="text-green-600 text-xs whitespace-nowrap">
+                            Active
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3 text-xs text-slate-500 whitespace-nowrap">
+                        {new Date(s.createdAt).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
@@ -134,7 +157,7 @@ function StatusBadge({ status }) {
     rejected: "bg-slate-200 text-slate-600",
   };
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${styles[status] || styles.pending}`}>
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${styles[status] || styles.pending}`}>
       {status}
     </span>
   );
