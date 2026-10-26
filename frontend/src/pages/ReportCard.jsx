@@ -52,7 +52,6 @@ export default function ReportCard() {
         
         {/* Header with School Logo */}
         <div className="relative border-b-4 border-blue-900 pb-4 mb-6 text-center">
-          {/* 👇 School Logo */}
           {school?.logoUrl && (
             <img 
               src={school.logoUrl} 
@@ -71,7 +70,6 @@ export default function ReportCard() {
 
         {/* Pupil Info with Photo */}
         <div className="flex gap-6 mb-8">
-          {/* 👇 Pupil Photo */}
           <div className="w-24 h-24 flex-shrink-0 bg-slate-100 rounded-lg overflow-hidden border-2 border-slate-300">
             {student.photoUrl ? (
               <img src={student.photoUrl} alt={student.fullName} className="w-full h-full object-cover" />
@@ -82,7 +80,6 @@ export default function ReportCard() {
             )}
           </div>
           
-          {/* Details */}
           <div className="grid grid-cols-2 gap-x-8 gap-y-2 flex-1 text-sm">
             <div>
               <p><span className="font-semibold text-slate-600">Name:</span> <span className="font-medium text-slate-900">{student.fullName}</span></p>
@@ -156,52 +153,53 @@ export default function ReportCard() {
           </div>
         </div>
 
-        {/* Signatures */}
         {/* ── Signatures ─────────────────────────────────────── */}
-<div className="flex justify-between mt-16 text-sm text-slate-600">
-  
-  {/* Form Teacher Signature */}
-  <div className="text-center w-48 relative">
-    {cls?.formTeacherId?.fullName ? (
-      <div 
-        className="text-3xl text-blue-900 -mb-2" 
-        style={{ fontFamily: "'Dancing Script', cursive" }}
-      >
-        {cls.formTeacherId.fullName}
-      </div>
-    ) : (
-      <div className="h-8"></div> // Spacer if no teacher assigned
-    )}
-    <div className="border-t border-slate-400 pt-1 font-semibold">
-      Form Teacher's Signature
-    </div>
-  </div>
+        <div className="flex justify-between mt-16 text-sm text-slate-600">
+          
+          {/* Form Teacher Signature */}
+          <div className="text-center w-48 relative">
+            {cls?.formTeacherId?.fullName ? (
+              <div 
+                className="text-3xl text-blue-900 -mb-2" 
+                style={{ fontFamily: "'Dancing Script', cursive" }}
+              >
+                {cls.formTeacherId.fullName}
+              </div>
+            ) : (
+              <div className="h-8"></div>
+            )}
+            <div className="border-t border-slate-400 pt-1 font-semibold">
+              Form Teacher's Signature
+            </div>
+          </div>
 
-  {/* Head Teacher Signature */}
-  <div className="text-center w-48 relative">
-    {/* We use the school's proprietorName as the Head Teacher */}
-    {school?.proprietorName ? (
-      <div 
-        className="text-3xl text-blue-900 -mb-2" 
-        style={{ fontFamily: "'Dancing Script', cursive" }}
-      >
-        {school.proprietorName}
-      </div>
-    ) : (
-      <div className="h-8"></div>
-    )}
-    <div className="border-t border-slate-400 pt-1 font-semibold">
-      Head Teacher's Signature
-    </div>
-  </div>
-  
-</div>
+          {/* Head Teacher Signature */}
+          <div className="text-center w-48 relative">
+            {school?.proprietorName ? (
+              <div 
+                className="text-3xl text-blue-900 -mb-2" 
+                style={{ fontFamily: "'Dancing Script', cursive" }}
+              >
+                {school.proprietorName}
+              </div>
+            ) : (
+              <div className="h-8"></div>
+            )}
+            <div className="border-t border-slate-400 pt-1 font-semibold">
+              Head Teacher's Signature
+            </div>
+          </div>
+          
+        </div>
 
-{/* Digitally Signed Stamp */}
-<div className="mt-8 flex justify-center print:mt-4">
-  <div className="border-2 border-green-600 text-green-600 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest rotate-[-5deg] opacity-80 flex items-center gap-2">
-    <i className="fas fa-check-circle"></i> Digitally Verified
-  </div>
-</div>
+        {/* Digitally Signed Stamp */}
+        <div className="mt-8 flex justify-center print:mt-4">
+          <div className="border-2 border-green-600 text-green-600 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest rotate-[-5deg] opacity-80 flex items-center gap-2">
+            <i className="fas fa-check-circle"></i> Digitally Verified
+          </div>
+        </div>
+        
+      </div> {/* 👈 THIS WAS MISSING */}
+    </div> {/* 👈 THIS WAS MISSING */}
   );
 }
