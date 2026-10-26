@@ -20,21 +20,22 @@ export default function SchoolAdminDashboard() {
   const [logoUrl, setLogoUrl] = useState("");
   const [logoMsg, setLogoMsg] = useState(null);
 
+  // Subscription Status
+  const [schoolData, setSchoolData] = useState(null);
+  const [paying, setPaying] = useState(false);
+
   // Load data on mount
   const loadData = () => {
     api.get("/users?role=teacher").then(({ data }) => setTeachers(data.data.users || [])).catch(console.error);
     api.get("/subjects").then(({ data }) => setSubjects(data.data.subjects || [])).catch(console.error);
     api.get("/users?role=parent").then(({ data }) => setParents(data.data.users || [])).catch(console.error);
     
-    // Load existing school settings (Bank details & Logo)
+    // Load existing school settings
     api.get("/schools/mine").then(({ data }) => {
       const school = data.data.school;
-      if (school?.settings?.bankDetails) {
-        setBankForm(school.settings.bankDetails);
-      }
-      if (school?.logoUrl) {
-        setLogoUrl(school.logoUrl); // 👈 Load existing logo
-      }
+      setSchoolData(school);
+      if (school?.settings?.bankDetails) setBankForm(school.settings.bankDetails);
+      if (school?.logoUrl) setLogoUrl(school.logoUrl);
     }).catch(console.error);
   };
 
@@ -99,16 +100,37 @@ export default function SchoolAdminDashboard() {
     }
   };
 
-  // 👇 Save Logo URL to database
+  // Save Logo URL
   const handleSaveLogo = async (url) => {
     try {
       await api.patch("/schools/mine", { logoUrl: url });
       setLogoUrl(url);
       setLogoMsg({ type: "success", text: "Logo updated successfully!" });
-      setTimeout(() => setLogoMsg(null), 3000); // Hide message after 3 seconds
+      setTimeout(() => setLogoMsg(null), 3000);
     } catch (err) {
       setLogoMsg({ type: "error", text: "Failed to save logo" });
     }
+  };
+
+  // 👇 Handle Subscription Upgrade
+  const handleUpgrade = async (plan) => {
+    try {
+      setPaying(true);
+      const { data } = await api.post("/subscriptions/initialize", { plan });
+      window.location.href = data.data.authorization_url;
+    } catch (err) {
+      alert("Failed to initialize payment. Please try again.");
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  // 👇 Check if subscription is expiring or expired
+  const isExpiring = () => {
+    if (!schoolData?.subscriptionExpiresAt) return false;
+    const expiry = new Date(schoolData.subscriptionExpiresAt);
+    const threeDaysFromNow = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+    return expiry < threeDaysFromNow;
   };
 
   return (
@@ -116,13 +138,50 @@ export default function SchoolAdminDashboard() {
       <h1 className="text-2xl font-bold text-slate-800 mb-2">School Admin Dashboard</h1>
       <p className="text-sm text-slate-500 mb-6">Welcome to CodeSmartNG Academic — manage your school here.</p>
 
+      {/* 👇 SUBSCRIPTION ALERT BANNER */}
+      {isExpiring() && (
+        <div className="bg-red-50 border-l-4 border-red-600 p-5 rounded-xl mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm">
+          <div>
+            <h3 className="font-bold text-red-800 text-lg flex items-center gap-2">
+              <i className="fas fa-exclamation-triangle"></i> Subscription Expiring!
+            </h3>
+            <p className="text-sm text-red-700 mt-1">
+              Your subscription expired or will expire on <strong>{new Date(schoolData.subscriptionExpiresAt).toLocaleDateString()}</strong>. Renew now to keep your school active.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button 
+              onClick={() => handleUpgrade("starter")} 
+              disabled={paying}
+              className="bg-white border border-red-600 text-red-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-100 transition"
+            >
+              Starter ₦5,000
+            </button>
+            <button 
+              onClick={() => handleUpgrade("standard")} 
+              disabled={paying}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition"
+            >
+              Standard ₦10,000
+            </button>
+            <button 
+              onClick={() => handleUpgrade("premium")} 
+              disabled={paying}
+              className="bg-red-800 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-900 transition"
+            >
+              Premium ₦20,000
+            </button>
+          </div>
+        </div>
+      )}
+
       {msg && (
         <div className={`p-3 rounded-lg mb-6 text-sm ${msg.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
           {msg.text}
         </div>
       )}
 
-      {/* 👇 NEW: School Logo & Branding Section */}
+      {/* School Logo & Branding Section */}
       <div className="bg-white rounded-xl shadow-sm p-6 mb-8 flex flex-col md:flex-row items-center gap-6">
         <div className="flex-1">
           <h2 className="font-semibold text-slate-700 mb-2 text-lg">School Logo & Branding</h2>
