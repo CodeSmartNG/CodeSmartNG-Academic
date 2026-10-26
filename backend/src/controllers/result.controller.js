@@ -284,10 +284,14 @@ export const getPupilReportCard = async (req, res) => {
       return res.status(403).json({ success: false, message: "Access denied" });
     }
 
+    // 👇 CHANGED: Deep populate to get the Form Teacher's name
     const student = await Student.findOne({
       _id: studentId,
       schoolId: req.schoolId,
-    }).populate("classId");
+    }).populate({
+      path: "classId",
+      populate: { path: "formTeacherId", select: "fullName" }
+    });
 
     if (!student) return res.status(404).json({ success: false, message: "Pupil not found" });
 
@@ -312,7 +316,12 @@ export const getPupilReportCard = async (req, res) => {
         class: student.classId,
         session,
         term,
-        school: { name: school.name, logoUrl: school.logoUrl },
+        // 👇 CHANGED: Added proprietorName for the Head Teacher signature
+        school: { 
+          name: school.name, 
+          logoUrl: school.logoUrl, 
+          proprietorName: school.proprietorName 
+        },
         results,
         summary: anchor
           ? {
