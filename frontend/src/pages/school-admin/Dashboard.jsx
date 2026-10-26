@@ -14,8 +14,11 @@ export default function SchoolAdminDashboard() {
   // Bank Details
   const [bankForm, setBankForm] = useState({ bankName: "", accountName: "", accountNumber: "" });
   const [bankMsg, setBankMsg] = useState(null);
-  
   const [msg, setMsg] = useState(null);
+
+  // School Logo Upload
+  const [logoUrl, setLogoUrl] = useState("");
+  const [logoMsg, setLogoMsg] = useState(null);
 
   // Load data on mount
   const loadData = () => {
@@ -23,11 +26,14 @@ export default function SchoolAdminDashboard() {
     api.get("/subjects").then(({ data }) => setSubjects(data.data.subjects || [])).catch(console.error);
     api.get("/users?role=parent").then(({ data }) => setParents(data.data.users || [])).catch(console.error);
     
-    // 👇 Load existing bank details
+    // Load existing school settings (Bank details & Logo)
     api.get("/schools/mine").then(({ data }) => {
       const school = data.data.school;
       if (school?.settings?.bankDetails) {
         setBankForm(school.settings.bankDetails);
+      }
+      if (school?.logoUrl) {
+        setLogoUrl(school.logoUrl); // 👈 Load existing logo
       }
     }).catch(console.error);
   };
@@ -87,9 +93,21 @@ export default function SchoolAdminDashboard() {
         settings: { bankDetails: bankForm }
       });
       setBankMsg({ type: "success", text: "Bank details saved! Parents will now see these when paying." });
-      loadData(); // Reload to verify
+      loadData();
     } catch (err) {
       setBankMsg({ type: "error", text: err.response?.data?.message || "Failed to save bank details" });
+    }
+  };
+
+  // 👇 Save Logo URL to database
+  const handleSaveLogo = async (url) => {
+    try {
+      await api.patch("/schools/mine", { logoUrl: url });
+      setLogoUrl(url);
+      setLogoMsg({ type: "success", text: "Logo updated successfully!" });
+      setTimeout(() => setLogoMsg(null), 3000); // Hide message after 3 seconds
+    } catch (err) {
+      setLogoMsg({ type: "error", text: "Failed to save logo" });
     }
   };
 
@@ -103,6 +121,27 @@ export default function SchoolAdminDashboard() {
           {msg.text}
         </div>
       )}
+
+      {/* 👇 NEW: School Logo & Branding Section */}
+      <div className="bg-white rounded-xl shadow-sm p-6 mb-8 flex flex-col md:flex-row items-center gap-6">
+        <div className="flex-1">
+          <h2 className="font-semibold text-slate-700 mb-2 text-lg">School Logo & Branding</h2>
+          <p className="text-sm text-slate-500 mb-2">
+            Upload your school logo. It will appear on the parent dashboard, report cards, and PDFs.
+          </p>
+          {logoMsg && (
+            <div className={`text-sm font-medium ${logoMsg.type === "success" ? "text-green-600" : "text-red-600"}`}>
+              {logoMsg.text}
+            </div>
+          )}
+        </div>
+        <div className="ml-auto flex-shrink-0">
+          <ImageUpload 
+            currentImage={logoUrl} 
+            onUploadSuccess={handleSaveLogo} 
+          />
+        </div>
+      </div>
 
       <div className="grid md:grid-cols-3 gap-6 mb-8">
         {/* Add Teacher Form */}
@@ -150,14 +189,14 @@ export default function SchoolAdminDashboard() {
       <div className="bg-white rounded-xl shadow-sm p-6 mt-6 mb-8">
         <h2 className="font-semibold text-slate-700 mb-4">School Bank Account (for Fees)</h2>
         {bankMsg && <div className={`p-3 rounded mb-3 text-sm ${bankMsg.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>{bankMsg.text}</div>}
-        <form onSubmit={handleSaveBank} className="grid grid-cols-3 gap-4">
+        <form onSubmit={handleSaveBank} className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <input required placeholder="Bank Name (e.g. GTBank)" className="border rounded-lg p-2" 
             value={bankForm.bankName} onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })} />
           <input required placeholder="Account Name" className="border rounded-lg p-2" 
             value={bankForm.accountName} onChange={(e) => setBankForm({ ...bankForm, accountName: e.target.value })} />
           <input required placeholder="Account Number" className="border rounded-lg p-2" 
             value={bankForm.accountNumber} onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })} />
-          <button type="submit" className="bg-blue-700 text-white px-4 py-2 rounded-lg col-span-3">Save Bank Details</button>
+          <button type="submit" className="bg-blue-700 text-white px-4 py-2 rounded-lg md:col-span-3">Save Bank Details</button>
         </form>
       </div>
 
