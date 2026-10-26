@@ -121,6 +121,21 @@ export const markAttendance = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+// 👇 Send SMS to parents of absent pupils (Plain Text Version)
+records.forEach(async (r) => {
+  if (r.status === "absent") {
+    try {
+      const student = await Student.findById(r.studentId).select("fullName guardian.phone");
+      if (student?.guardian?.phone) {
+        // This uses the plain text method, NOT templates
+        const msg = `CodeSmartNG: Your child, ${student.fullName}, was marked ABSENT today (${date}). Please contact the school if this is an error.`;
+        await sendSms(student.guardian.phone, msg);
+      }
+    } catch (err) {
+      console.error("Absentee SMS failed:", err.message);
+    }
+  }
+});
 // ─────────────────────────────────────────────────────────────
 // GET /api/attendance/class/:classId?date=YYYY-MM-DD
 // Returns pupils in the class + their attendance for that date.
