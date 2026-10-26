@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom"; // 👈 ADDED for Paystack verification
 import api from "../../services/api";
 import ImageUpload from "../../components/ImageUpload";
 
 export default function SchoolAdminDashboard() {
+  const [searchParams, setSearchParams] = useSearchParams(); // 👈 ADDED
+
   const [teachers, setTeachers] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [parents, setParents] = useState([]);
@@ -41,7 +44,26 @@ export default function SchoolAdminDashboard() {
 
   useEffect(() => {
     loadData();
-  }, []);
+
+    // 👇 PAYSTACK VERIFICATION LOGIC
+    const reference = searchParams.get("reference");
+    const paymentStatus = searchParams.get("payment");
+
+    if (paymentStatus === "success" && reference) {
+      // Tell the backend to verify this reference securely
+      api.get(`/subscriptions/verify/${reference}`)
+        .then(({ data }) => {
+          if (data.success) {
+            alert("Payment successful! Your subscription has been renewed.");
+            loadData(); // Reload school data to hide the red banner
+            setSearchParams({}); // Clear the URL parameters so it doesn't loop
+          }
+        })
+        .catch((err) => {
+          console.error("Verification failed", err);
+        });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Create teacher
   const handleAddTeacher = async (e) => {
@@ -112,7 +134,7 @@ export default function SchoolAdminDashboard() {
     }
   };
 
-  // 👇 Handle Subscription Upgrade
+  // Handle Subscription Upgrade
   const handleUpgrade = async (plan) => {
     try {
       setPaying(true);
@@ -125,7 +147,7 @@ export default function SchoolAdminDashboard() {
     }
   };
 
-  // 👇 Check if subscription is expiring or expired
+  // Check if subscription is expiring or expired
   const isExpiring = () => {
     if (!schoolData?.subscriptionExpiresAt) return false;
     const expiry = new Date(schoolData.subscriptionExpiresAt);
