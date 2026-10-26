@@ -3,6 +3,9 @@ import Student from "../models/Student.js";
 import Class from "../models/Class.js";
 import User from "../models/User.js";
 
+import Class from "../models/Class.js";
+import { sendSms } from "../utils/sendSms.js"; // 👈 Make sure sendSms is imported
+
 const VALID_STATUSES = ["present", "absent", "late", "excused"];
 
 // ─────────────────────────────────────────────────────────────
@@ -32,14 +35,11 @@ export const markAttendance = async (req, res) => {
       return res.status(400).json({ success: false, message: "No records provided" });
     }
 
-    // Validate class belongs to this school
     const cls = await Class.findOne({ _id: classId, schoolId: req.schoolId });
     if (!cls) return res.status(404).json({ success: false, message: "Class not found" });
 
-    // ── STRICT PERMISSION: ONLY the Form Teacher (or Admin) can mark ──
     if (req.user.role === "teacher") {
       const isFormTeacher = cls.formTeacherId?.toString() === req.user._id.toString();
-      
       if (!isFormTeacher) {
         return res.status(403).json({
           success: false,
@@ -48,7 +48,6 @@ export const markAttendance = async (req, res) => {
       }
     }
 
-    // Validate records
     for (const r of records) {
       if (!r.studentId) {
         return res.status(400).json({ success: false, message: "studentId missing in a record" });
@@ -61,7 +60,6 @@ export const markAttendance = async (req, res) => {
       }
     }
 
-    // Ensure every studentId belongs to this school + class
     const studentIds = records.map((r) => r.studentId);
     const validStudents = await Student.find({
       _id: { $in: studentIds },
@@ -78,7 +76,6 @@ export const markAttendance = async (req, res) => {
       });
     }
 
-    // Upsert each record
     const now = new Date();
     const bulkOps = records.map((r) => ({
       updateOne: {
@@ -107,6 +104,21 @@ export const markAttendance = async (req, res) => {
 
     const result = await Attendance.bulkWrite(bulkOps);
 
+    // 👇 SEND SMS TO ABSENT PUPILS (This is inside the try block now)
+    records.forEach(async (r) => {
+      if (r.status === "absent") {
+        try {
+          const student = await Student.findById(r.studentId).select("fullName guardian.phone");
+          if (student?.guardian?.phone) {
+            const msg = `CodeSmartNG: Your child, ${student.fullName}, was marked ABSENT today (${date}). Please contact the school if this is an error.`;
+            await sendSms(student.guardian.phone, msg);
+          }
+        } catch (err) {
+          console.error("Absentee SMS failed:", err.message);
+        }
+      }
+    });
+
     res.status(201).json({
       success: true,
       message: `Attendance saved for ${records.length} pupil(s) on ${date}`,
@@ -121,21 +133,7 @@ export const markAttendance = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
-// 👇 Send SMS to parents of absent pupils (Plain Text Version)
-records.forEach(async (r) => {
-  if (r.status === "absent") {
-    try {
-      const student = await Student.findById(r.studentId).select("fullName guardian.phone");
-      if (student?.guardian?.phone) {
-        // This uses the plain text method, NOT templates
-        const msg = `CodeSmartNG: Your child, ${student.fullName}, was marked ABSENT today (${date}). Please contact the school if this is an error.`;
-        await sendSms(student.guardian.phone, msg);
-      }
-    } catch (err) {
-      console.error("Absentee SMS failed:", err.message);
-    }
-  }
-});
+
 // ─────────────────────────────────────────────────────────────
 // GET /api/attendance/class/:classId?date=YYYY-MM-DD
 // Returns pupils in the class + their attendance for that date.
