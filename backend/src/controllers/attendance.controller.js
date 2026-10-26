@@ -2,8 +2,6 @@ import Attendance from "../models/Attendance.js";
 import Student from "../models/Student.js";
 import Class from "../models/Class.js";
 import User from "../models/User.js";
-
-import Class from "../models/Class.js";
 import { sendSms } from "../utils/sendSms.js"; // 👈 Make sure sendSms is imported
 
 const VALID_STATUSES = ["present", "absent", "late", "excused"];
