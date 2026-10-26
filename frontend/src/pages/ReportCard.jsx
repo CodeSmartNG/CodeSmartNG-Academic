@@ -50,9 +50,17 @@ export default function ReportCard() {
       {/* ── Report Card (This is what gets printed) ────────────── */}
       <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 print:border-0 print:shadow-none print:p-0">
         
-        {/* Header */}
-        <div className="text-center border-b-4 border-blue-900 pb-4 mb-6">
-          <h1 className="text-3xl font-bold text-blue-900 uppercase tracking-wide">
+        {/* Header with School Logo */}
+        <div className="relative border-b-4 border-blue-900 pb-4 mb-6 text-center">
+          {/* 👇 School Logo */}
+          {school?.logoUrl && (
+            <img 
+              src={school.logoUrl} 
+              alt="School Logo" 
+              className="absolute left-0 top-0 h-20 w-20 object-contain"
+            />
+          )}
+          <h1 className="text-3xl font-bold text-blue-900 uppercase tracking-wide px-24">
             {school?.name || "School Name"}
           </h1>
           <p className="text-sm text-slate-600">{school?.address || "School Address"}</p>
@@ -61,16 +69,30 @@ export default function ReportCard() {
           </h2>
         </div>
 
-        {/* Pupil Info Grid */}
-        <div className="grid grid-cols-2 gap-4 mb-8 text-sm">
-          <div>
-            <p><span className="font-semibold text-slate-600">Name:</span> <span className="font-medium text-slate-900">{student.fullName}</span></p>
-            <p><span className="font-semibold text-slate-600">Admission No:</span> {student.admissionNumber}</p>
-            <p><span className="font-semibold text-slate-600">Class:</span> {cls?.name || student.className}</p>
+        {/* Pupil Info with Photo */}
+        <div className="flex gap-6 mb-8">
+          {/* 👇 Pupil Photo */}
+          <div className="w-24 h-24 flex-shrink-0 bg-slate-100 rounded-lg overflow-hidden border-2 border-slate-300">
+            {student.photoUrl ? (
+              <img src={student.photoUrl} alt={student.fullName} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-slate-400 font-bold text-3xl">
+                {student.fullName.charAt(0)}
+              </div>
+            )}
           </div>
-          <div>
-            <p><span className="font-semibold text-slate-600">Gender:</span> <span className="capitalize">{student.gender}</span></p>
-            <p><span className="font-semibold text-slate-600">Date Generated:</span> {new Date().toLocaleDateString()}</p>
+          
+          {/* Details */}
+          <div className="grid grid-cols-2 gap-x-8 gap-y-2 flex-1 text-sm">
+            <div>
+              <p><span className="font-semibold text-slate-600">Name:</span> <span className="font-medium text-slate-900">{student.fullName}</span></p>
+              <p><span className="font-semibold text-slate-600">Admission No:</span> {student.admissionNumber}</p>
+              <p><span className="font-semibold text-slate-600">Class:</span> {cls?.name || student.className}</p>
+            </div>
+            <div>
+              <p><span className="font-semibold text-slate-600">Gender:</span> <span className="capitalize">{student.gender}</span></p>
+              <p><span className="font-semibold text-slate-600">Date Generated:</span> {new Date().toLocaleDateString()}</p>
+            </div>
           </div>
         </div>
 
