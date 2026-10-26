@@ -11,7 +11,6 @@ const PLANS = {
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/subscriptions/initialize
-// Generates a Paystack checkout URL for the School Admin
 // ─────────────────────────────────────────────────────────────
 export const initializeSubscription = async (req, res) => {
   try {
@@ -31,9 +30,10 @@ export const initializeSubscription = async (req, res) => {
     const response = await axios.post(
       "https://api.paystack.co/transaction/initialize",
       {
-        email: school.email, // Use school email for the receipt
+        email: school.email,
         amount: amountKobo,
-        callback_url: `${process.env.CLIENT_URL}/dashboard?payment=success`, // Where Paystack sends them after payment
+        // 👇 FIXED: Paystack will append the reference to this URL automatically
+        callback_url: `${process.env.CLIENT_URL}/dashboard?payment=success`, 
         metadata: {
           schoolId: school._id.toString(),
           plan: plan,
@@ -53,7 +53,10 @@ export const initializeSubscription = async (req, res) => {
 
     res.json({
       success: true,
-      data: { authorization_url: response.data.data.authorization_url },
+      data: { 
+        authorization_url: response.data.data.authorization_url,
+        reference: response.data.data.reference // 👈 Send reference to frontend just in case
+      },
     });
   } catch (err) {
     console.error("Paystack Init Error:", err.response?.data || err.message);
@@ -63,11 +66,9 @@ export const initializeSubscription = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/subscriptions/webhook
-// Paystack calls this automatically when a payment succeeds
 // ─────────────────────────────────────────────────────────────
 export const paystackWebhook = async (req, res) => {
   try {
-    // 1. Verify the event is genuinely from Paystack
     const hash = crypto
       .createHmac("sha512", process.env.PAYSTACK_SECRET_KEY)
       .update(JSON.stringify(req.body))
@@ -77,17 +78,14 @@ export const paystackWebhook = async (req, res) => {
       return res.status(401).send("Invalid signature");
     }
 
-    // 2. Handle successful charge
     const event = req.body;
     if (event.event === "charge.success") {
       const { reference, amount, metadata } = event.data;
       const { schoolId, plan } = metadata;
 
-      // Check if payment was already processed (idempotency)
       const existing = await SubscriptionPayment.findOne({ reference });
       if (existing) return res.status(200).send("Already processed");
 
-      // 3. Log the payment
       await SubscriptionPayment.create({
         schoolId,
         reference,
@@ -97,7 +95,6 @@ export const paystackWebhook = async (req, res) => {
         paidAt: new Date(),
       });
 
-      // 4. Extend the school's subscription by 30 days
       const school = await School.findById(schoolId);
       if (school) {
         const currentExpiry = school.subscriptionExpiresAt ? new Date(school.subscriptionExpiresAt) : new Date();
@@ -121,12 +118,13 @@ export const paystackWebhook = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/subscriptions/verify/:reference
-// Frontend calls this after payment to confirm success
+// This function now EXTENDS the subscription on the fly
 // ─────────────────────────────────────────────────────────────
 export const verifySubscription = async (req, res) => {
   try {
     const { reference } = req.params;
 
+    // 1. Verify with Paystack
     const response = await axios.get(
       `https://api.paystack.co/transaction/verify/${reference}`,
       {
@@ -134,12 +132,52 @@ export const verifySubscription = async (req, res) => {
       }
     );
 
-    if (response.data.data.status === "success") {
-      res.json({ success: true, message: "Payment verified" });
-    } else {
-      res.status(400).json({ success: false, message: "Payment not successful" });
+    if (response.data.data.status !== "success") {
+      return res.status(400).json({ success: false, message: "Payment not successful" });
     }
+
+    const { amount, metadata } = response.data.data;
+    const { schoolId, plan } = metadata;
+
+    // 2. Check if payment is already logged (idempotency)
+    const existing = await SubscriptionPayment.findOne({ reference });
+    if (existing && existing.status === "success") {
+      return res.json({ success: true, message: "Payment already processed" });
+    }
+
+    // 3. Log the payment
+    await SubscriptionPayment.findOneAndUpdate(
+      { reference },
+      {
+        schoolId,
+        reference,
+        amountKobo: amount,
+        plan,
+        status: "success",
+        paidAt: new Date(),
+      },
+      { upsert: true, new: true }
+    );
+
+    // 4. Extend the school's subscription
+    const school = await School.findById(schoolId);
+    if (school) {
+      const currentExpiry = school.subscriptionExpiresAt
+        ? new Date(school.subscriptionExpiresAt)
+        : new Date();
+      const baseDate = currentExpiry > new Date() ? currentExpiry : new Date();
+      const newExpiry = new Date(baseDate);
+      newExpiry.setDate(newExpiry.getDate() + 30);
+
+      school.subscriptionExpiresAt = newExpiry;
+      school.subscriptionStatus = "active";
+      school.subscriptionPlan = plan;
+      await school.save();
+    }
+
+    res.json({ success: true, message: "Payment verified and subscription extended" });
   } catch (err) {
+    console.error("Verify Error:", err.response?.data || err.message);
     res.status(500).json({ success: false, message: "Verification failed" });
   }
 };
