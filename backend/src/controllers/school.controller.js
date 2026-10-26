@@ -1,6 +1,6 @@
 import School from "../models/School.js";
-import User from "../models/User.js"; // 👈 ADD THIS at the top
-
+import User from "../models/User.js"; 
+import Student from "../models/Student.js";
 // ─────────────────────────────────────────────────────────────
 // GET /api/schools
 // Super Admin: List all schools
@@ -86,7 +86,7 @@ export const getPlatformStats = async (req, res) => {
       pendingSchools,
       suspendedSchools,
       totalUsers,
-      totalPupils,
+      totalPupils, 
       totalTeachers,
     ] = await Promise.all([
       School.countDocuments(),
@@ -94,7 +94,7 @@ export const getPlatformStats = async (req, res) => {
       School.countDocuments({ status: "pending" }),
       School.countDocuments({ status: "suspended" }),
       User.countDocuments(),
-      User.countDocuments({ role: "pupil" }),
+      Student.countDocuments(), 
       User.countDocuments({ role: "teacher" }),
     ]);
 
