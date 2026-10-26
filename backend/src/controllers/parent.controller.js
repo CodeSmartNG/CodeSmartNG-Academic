@@ -387,13 +387,20 @@ export const updateMyProfile = async (req, res) => {
       if (req.body[k] !== undefined) updates[k] = req.body[k];
     });
 
-    const user = await User.findByIdAndUpdate(req.user._id, updates, {
-      new: true,
-      runValidators: true,
-    }).select("-password");
+    // Do not allow empty fullName
+    if (updates.fullName === "") {
+      return res.status(400).json({ success: false, message: "Full name cannot be empty" });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id, 
+      updates, 
+      { new: true, runValidators: true }
+    ).select("-password");
 
     res.json({ success: true, message: "Profile updated", data: { user } });
   } catch (err) {
+    console.error("updateMyProfile error:", err);
     res.status(400).json({ success: false, message: err.message });
   }
 };
