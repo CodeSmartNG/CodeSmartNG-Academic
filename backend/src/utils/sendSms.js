@@ -1,17 +1,8 @@
-// backend/src/utils/sendSms.js
 import axios from "axios";
 
-const TERMII_API_URL = "https://api.ng.termii.com/api/sms/send";
-
-/**
- * Sends a single SMS message using the Termii API.
- * @param {string} to - The recipient's phone number (e.g., '2348012345678').
- * @param {string} message - The message content.
- */
 export const sendSms = async (to, message) => {
   try {
-    // It's good practice to ensure the number is in international format.
-    // This simple regex ensures it starts with '234' and has 10 digits after.
+    // Format phone number (e.g., 08012345678 -> 2348012345678)
     const formattedPhone = to.replace(/\D/g, '');
     const internationalPhone = formattedPhone.startsWith('0') 
       ? `234${formattedPhone.substring(1)}` 
@@ -26,7 +17,7 @@ export const sendSms = async (to, message) => {
       api_key: process.env.TERMII_API_KEY,
     };
 
-    const response = await axios.post(TERMII_API_URL, payload, {
+    const response = await axios.post("https://api.ng.termii.com/api/sms/send", payload, {
       headers: { "Content-Type": "application/json" },
     });
 
@@ -34,8 +25,7 @@ export const sendSms = async (to, message) => {
     return response.data;
   } catch (error) {
     console.error("❌ Failed to send SMS:", error.response?.data || error.message);
-    // We throw an error so the calling function knows it failed,
-    // but we don't want this to crash the main application flow.
+    // We catch the error so a failed SMS doesn't crash the main app
     throw new Error("Failed to send SMS notification");
   }
 };
