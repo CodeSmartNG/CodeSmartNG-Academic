@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../../services/api";
+import ImageUpload from "../../components/ImageUpload";
 
 export default function SchoolAdminDashboard() {
   const [teachers, setTeachers] = useState([]);
