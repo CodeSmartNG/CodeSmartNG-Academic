@@ -14,11 +14,11 @@ import classRoutes from "./routes/class.routes.js";
 import attendanceRoutes from "./routes/attendance.routes.js";
 import assessmentRoutes from "./routes/assessment.routes.js";
 import resultRoutes from "./routes/result.routes.js";
-import feeRoutes from "./routes/fee.routes.js";            // 👈 MUST BE HERE
+import feeRoutes from "./routes/fee.routes.js";        
 import parentRoutes from "./routes/parent.routes.js";
 import homeworkRoutes from "./routes/homework.routes.js";
 import announcementRoutes from "./routes/announcement.routes.js";
-
+import subscriptionRoutes from "./routes/subscription.routes.js";
 const app = express();
 
 // ── Security & Middleware ───────────────────────────────────
@@ -56,6 +56,7 @@ app.use("/api/fees", feeRoutes);                           // 👈 MUST BE HERE
 app.use("/api/parent", parentRoutes);
 app.use("/api/homework", homeworkRoutes);
 app.use("/api/announcements", announcementRoutes);
+app.use("/api/subscriptions", subscriptionRoutes);
 
 app.get("/", (_, res) =>
   res.json({ success: true, message: "CodeSmartNG Academic API", version: "1.0.0" })
