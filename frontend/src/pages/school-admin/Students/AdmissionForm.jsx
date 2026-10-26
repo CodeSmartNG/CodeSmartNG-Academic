@@ -1,7 +1,7 @@
-//frontend/src/pages/school-admin/Students/AdmissionForm.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { studentApi } from "../../../services/studentApi";
+import ImageUpload from "../../../components/ImageUpload";
 
 const CLASSES = [
   "Nursery 1", "Nursery 2", "Nursery 3",
@@ -24,6 +24,7 @@ export default function AdmissionForm() {
     religion: "",
     className: "",
     academicSession: "2025/2026",
+    photoUrl: "", // 👈 ADDED THIS LINE
     guardian: {
       fullName: "", relationship: "father", phone: "",
       altPhone: "", email: "", address: "", occupation: "",
@@ -56,7 +57,6 @@ export default function AdmissionForm() {
     try {
       const payload = {
         ...form,
-        // Strip empty objects
         emergencyContact: form.emergencyContact.fullName ? form.emergencyContact : undefined,
         medicalInfo: form.medicalInfo.bloodGroup ? form.medicalInfo : undefined,
         previousSchool: form.previousSchool.name ? form.previousSchool : undefined,
@@ -80,27 +80,35 @@ export default function AdmissionForm() {
 
         {/* ── Step 1: Pupil Bio ─────────────────────────── */}
         {step === 1 && (
-          <div className="space-y-4">
-            <h2 className="font-semibold text-slate-700">Pupil Information</h2>
-            <Field label="Full Name *" value={form.fullName} onChange={(v) => update("fullName", v)} />
-            <Field label="Date of Birth *" type="date" value={form.dateOfBirth} onChange={(v) => update("dateOfBirth", v)} />
-            <div className="grid grid-cols-2 gap-4">
-              <Select label="Gender *" value={form.gender} onChange={(v) => update("gender", v)}
-                options={[{ v: "male", l: "Male" }, { v: "female", l: "Female" }]} />
-              <Select label="Class *" value={form.className} onChange={(v) => update("className", v)}
-                options={CLASSES.map((c) => ({ v: c, l: c }))} placeholder="Select class" />
+          <>
+            <div className="flex justify-center mb-8">
+              <ImageUpload 
+                currentImage={form.photoUrl} 
+                onUploadSuccess={(url) => update("photoUrl", url)} 
+              />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Academic Session *" value={form.academicSession} onChange={(v) => update("academicSession", v)} />
-              <Field label="State of Origin" value={form.stateOfOrigin} onChange={(v) => update("stateOfOrigin", v)} />
+            <div className="space-y-4">
+              <h2 className="font-semibold text-slate-700 border-b pb-2">Pupil Information</h2>
+              <Field label="Full Name *" value={form.fullName} onChange={(v) => update("fullName", v)} />
+              <Field label="Date of Birth *" type="date" value={form.dateOfBirth} onChange={(v) => update("dateOfBirth", v)} />
+              <div className="grid grid-cols-2 gap-4">
+                <Select label="Gender *" value={form.gender} onChange={(v) => update("gender", v)}
+                  options={[{ v: "male", l: "Male" }, { v: "female", l: "Female" }]} />
+                <Select label="Class *" value={form.className} onChange={(v) => update("className", v)}
+                  options={CLASSES.map((c) => ({ v: c, l: c }))} placeholder="Select class" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Academic Session *" value={form.academicSession} onChange={(v) => update("academicSession", v)} />
+                <Field label="State of Origin" value={form.stateOfOrigin} onChange={(v) => update("stateOfOrigin", v)} />
+              </div>
             </div>
-          </div>
+          </>
         )}
 
         {/* ── Step 2: Guardian ──────────────────────────── */}
         {step === 2 && (
           <div className="space-y-4">
-            <h2 className="font-semibold text-slate-700">Parent / Guardian</h2>
+            <h2 className="font-semibold text-slate-700 border-b pb-2">Parent / Guardian</h2>
             <Field label="Guardian Full Name *" value={form.guardian.fullName} onChange={(v) => update("guardian.fullName", v)} />
             <div className="grid grid-cols-2 gap-4">
               <Select label="Relationship *" value={form.guardian.relationship} onChange={(v) => update("guardian.relationship", v)}
@@ -120,20 +128,20 @@ export default function AdmissionForm() {
         {/* ── Step 3: Optional details ──────────────────── */}
         {step === 3 && (
           <div className="space-y-4">
-            <h2 className="font-semibold text-slate-700">Emergency Contact</h2>
+            <h2 className="font-semibold text-slate-700 border-b pb-2">Emergency Contact</h2>
             <Field label="Contact Name" value={form.emergencyContact.fullName} onChange={(v) => update("emergencyContact.fullName", v)} />
             <div className="grid grid-cols-2 gap-4">
               <Field label="Phone" value={form.emergencyContact.phone} onChange={(v) => update("emergencyContact.phone", v)} />
               <Field label="Relationship" value={form.emergencyContact.relationship} onChange={(v) => update("emergencyContact.relationship", v)} />
             </div>
 
-            <h2 className="font-semibold text-slate-700 pt-4">Medical</h2>
+            <h2 className="font-semibold text-slate-700 pt-4 border-b pb-2">Medical</h2>
             <div className="grid grid-cols-2 gap-4">
               <Field label="Blood Group" value={form.medicalInfo.bloodGroup} onChange={(v) => update("medicalInfo.bloodGroup", v)} />
               <Field label="Allergies" value={form.medicalInfo.allergies} onChange={(v) => update("medicalInfo.allergies", v)} />
             </div>
 
-            <h2 className="font-semibold text-slate-700 pt-4">Previous School (optional)</h2>
+            <h2 className="font-semibold text-slate-700 pt-4 border-b pb-2">Previous School (optional)</h2>
             <Field label="School Name" value={form.previousSchool.name} onChange={(v) => update("previousSchool.name", v)} />
             <div className="grid grid-cols-2 gap-4">
               <Field label="Last Class" value={form.previousSchool.lastClass} onChange={(v) => update("previousSchool.lastClass", v)} />
@@ -143,11 +151,11 @@ export default function AdmissionForm() {
         )}
 
         {/* ── Nav buttons ──────────────────────────────── */}
-        <div className="flex justify-between mt-8">
+        <div className="flex justify-between mt-8 pt-6 border-t">
           <button
             disabled={step === 1}
             onClick={() => setStep((s) => s - 1)}
-            className="px-4 py-2 rounded-lg border disabled:opacity-40"
+            className="px-6 py-2 rounded-lg border hover:bg-slate-50 disabled:opacity-40"
           >
             Back
           </button>
@@ -159,15 +167,15 @@ export default function AdmissionForm() {
                 setError("");
                 setStep((s) => s + 1);
               }}
-              className="bg-blue-700 text-white px-6 py-2 rounded-lg"
+              className="bg-blue-700 hover:bg-blue-800 text-white px-6 py-2 rounded-lg"
             >
-              Next
+              Next Step
             </button>
           ) : (
             <button
               disabled={saving}
               onClick={submit}
-              className="bg-green-600 text-white px-6 py-2 rounded-lg disabled:opacity-50"
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg disabled:opacity-50"
             >
               {saving ? "Admitting…" : "Admit Pupil"}
             </button>
@@ -181,10 +189,10 @@ export default function AdmissionForm() {
 function Field({ label, value, onChange, type = "text" }) {
   return (
     <label className="block">
-      <span className="text-sm text-slate-600">{label}</span>
+      <span className="text-sm font-medium text-slate-600">{label}</span>
       <input
         type={type}
-        className="mt-1 w-full border rounded-lg p-2"
+        className="mt-1 w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
       />
@@ -195,9 +203,9 @@ function Field({ label, value, onChange, type = "text" }) {
 function Select({ label, value, onChange, options, placeholder }) {
   return (
     <label className="block">
-      <span className="text-sm text-slate-600">{label}</span>
+      <span className="text-sm font-medium text-slate-600">{label}</span>
       <select
-        className="mt-1 w-full border rounded-lg p-2"
+        className="mt-1 w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
       >
