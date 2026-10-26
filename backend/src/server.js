@@ -18,6 +18,10 @@ import parentRoutes from "./routes/parent.routes.js"; // 👈 Add at the top
 import feeRoutes from "./routes/fee.routes.js";
 import chatRoutes from "./routes/chat.routes.js";
 
+import subscriptionRoutes from "./routes/subscription.routes.js";
+
+
+
 dotenv.config();
 const app = express();
 
@@ -39,6 +43,7 @@ app.use("/api/announcements", announcementRoutes); // 👈 ADDED
 app.use("/api/parent", parentRoutes); // 👈 Add with the other app.use() lines
 app.use("/api/fees", feeRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/subscriptions", subscriptionRoutes);
 
 app.get("/", (_, res) =>
   res.json({
