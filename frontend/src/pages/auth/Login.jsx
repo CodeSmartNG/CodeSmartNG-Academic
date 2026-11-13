@@ -4,7 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 
 export default function Login() {
   const { login } = useAuth();
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // 👈 SAS: Added navigate
   const [form, setForm] = useState({ email: "", password: "", schoolSlug: "" });
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -16,7 +16,8 @@ export default function Login() {
     setLoading(true);
     try {
       await login(form.email, form.password, form.schoolSlug || undefined);
-      window.location.href = "/dashboard";
+      // 👈 SAS: Use navigate instead of window.location.href
+      navigate("/dashboard", { replace: true }); 
     } catch (err) {
       const msg = err.response?.data?.message || err.message || "Login failed. Please try again.";
       setError(msg);
@@ -56,7 +57,7 @@ export default function Login() {
               <span className="text-amber-400">Better Learning.</span>
             </h1>
             <p className="text-blue-100 text-lg max-w-md">
-              Everything your nursery and primary school needs — pupils, teachers, results, fees, and parent communication — all in one portal.
+              Everything your school needs — pupils, teachers, results, fees, and parent communication — all in one portal.
             </p>
 
             {/* Feature bullets */}
