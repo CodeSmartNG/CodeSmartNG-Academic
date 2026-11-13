@@ -9,17 +9,16 @@ import { generateReportCardPDF } from "../services/pdf.service.js";
 import {
   gradeFromPercentage,
   computePosition,
-  DEFAULT_GRADING_SCALE,
+  getScaleForClass,
+  isSecondaryClassName,
+  PRIMARY_GRADING_SCALE,
 } from "../services/grading.service.js";
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/results/assessment/:id/scores
 // Body: { scores: [{ studentId, score }] }
-// Bulk-save scores for one assessment.
-// Auto-creates or updates the Result document per pupil.
 // ─────────────────────────────────────────────────────────────
-
-        export const enterAssessmentScores = async (req, res) => {
+export const enterAssessmentScores = async (req, res) => {
   try {
     const assessment = await Assessment.findOne({
       _id: req.params.id,
@@ -35,7 +34,6 @@ import {
       return res.status(400).json({ success: false, message: "scores[] required" });
     }
 
-    // Validate scores
     for (const s of scores) {
       if (s.score != null && (s.score < 0 || s.score > assessment.maxScore)) {
         return res.status(400).json({
@@ -47,12 +45,11 @@ import {
 
     const studentIds = scores.map((s) => s.studentId);
 
-    // Just verify the students exist in the school (don't check className match)
     const validStudents = await Student.find({
       _id: { $in: studentIds },
       schoolId: req.schoolId,
       admissionStatus: "active",
-    }).select("_id");
+    }).select("_id stream");
 
     const validSet = new Set(validStudents.map((s) => s._id.toString()));
 
@@ -87,6 +84,8 @@ import {
             },
             $set: {
               classId: assessment.classId,
+              // 👈 SAS: Snapshot the class level & stream for fast broadsheets
+              classLevelId: assessment.classLevelId,
               teacherId: assessment.teacherId,
             },
           },
@@ -99,7 +98,6 @@ import {
       await Result.bulkWrite(bulkOps);
     }
 
-    // Now update the scores[] array
     const results = await Result.find({
       schoolId: req.schoolId,
       studentId: { $in: studentIds },
@@ -126,7 +124,6 @@ import {
       if (idx >= 0) result.scores[idx] = entry;
       else result.scores.push(entry);
 
-      // Make sure classId is always set
       if (!result.classId) result.classId = assessment.classId;
 
       await result.save();
@@ -146,19 +143,25 @@ import {
 };
 
 // ─────────────────────────────────────────────────────────────
-// Helper: recalculate one Result document
+// Helper: Recalculate one Result document with the correct scale
 // ─────────────────────────────────────────────────────────────
 const recalcResult = async (result, gradingScale) => {
   const totalScore = result.scores.reduce((sum, s) => sum + (s.score || 0), 0);
   const maxPossible = result.scores.reduce((sum, s) => sum + s.maxScore, 0);
   const percentage = maxPossible ? (totalScore / maxPossible) * 100 : 0;
-  const { grade, remark } = gradeFromPercentage(percentage, gradingScale);
+  
+  // 👈 SAS: Get the grade and (optionally) the gradePoint
+  const entry = gradeFromPercentage(percentage, gradingScale);
 
   result.totalScore = Number(totalScore.toFixed(2));
   result.maxPossible = maxPossible;
   result.percentage = Number(percentage.toFixed(2));
-  result.grade = grade;
-  result.remark = remark;
+  result.grade = entry.grade;
+  result.remark = entry.remark;
+  // 👈 SAS: Save gradePoint if present (WAEC scale only)
+  if (entry.gradePoint !== undefined) {
+    result.gradePoint = entry.gradePoint;
+  }
 
   await result.save();
   return result;
@@ -167,7 +170,6 @@ const recalcResult = async (result, gradingScale) => {
 // ─────────────────────────────────────────────────────────────
 // POST /api/results/compute
 // Body: { classId, session, term }
-// Recalculate all results for the class-term + compute positions
 // ─────────────────────────────────────────────────────────────
 export const computeClassResults = async (req, res) => {
   try {
@@ -176,10 +178,22 @@ export const computeClassResults = async (req, res) => {
     const cls = await Class.findOne({ _id: classId, schoolId: req.schoolId });
     if (!cls) return res.status(404).json({ success: false, message: "Class not found" });
 
+    // 👈 SAS: Pick the correct grading scale based on track
     const schoolDoc = await (await import("../models/School.js")).default.findById(req.schoolId);
-    const gradingScale = schoolDoc?.settings?.gradingScale?.length
-      ? schoolDoc.settings.gradingScale
-      : DEFAULT_GRADING_SCALE;
+    const isSecondary = cls.track === "secondary" || isSecondaryClassName(cls.name);
+    
+    // Get the scale from school settings (school admin can customize)
+    // or fall back to our defaults
+    let gradingScale;
+    if (isSecondary && schoolDoc?.settings?.gradingScales?.secondary?.length) {
+      gradingScale = schoolDoc.settings.gradingScales.secondary;
+    } else if (!isSecondary && schoolDoc?.settings?.gradingScales?.nursery_primary?.length) {
+      gradingScale = schoolDoc.settings.gradingScales.nursery_primary;
+    } else {
+      gradingScale = getScaleForClass(cls.name);
+    }
+
+    console.log(`📊 Computing results for ${cls.name} (${isSecondary ? "WAEC" : "Primary"} scale)`);
 
     const results = await Result.find({
       schoolId: req.schoolId,
@@ -192,7 +206,7 @@ export const computeClassResults = async (req, res) => {
       return res.json({ success: true, message: "No results to compute", data: { updated: 0 } });
     }
 
-    // 1. Recalc totals + grades for every single result
+    // 1. Recalc totals + grades for every result
     for (const r of results) {
       await recalcResult(r, gradingScale);
     }
@@ -204,7 +218,6 @@ export const computeClassResults = async (req, res) => {
       if (!byStudent[key]) {
         byStudent[key] = { totalScoreSum: 0, maxPossibleSum: 0, count: 0 };
       }
-      // 👇 FIX: Sum the raw scores AND the max possible scores
       byStudent[key].totalScoreSum += r.totalScore;
       byStudent[key].maxPossibleSum += r.maxPossible;
       byStudent[key].count++;
@@ -212,26 +225,24 @@ export const computeClassResults = async (req, res) => {
 
     const pupilAverages = Object.entries(byStudent).map(([studentId, agg]) => ({
       id: studentId,
-      // 👇 FIX: The average is (Total Score / Total Max Possible) * 100
       percentage: agg.maxPossibleSum > 0 ? (agg.totalScoreSum / agg.maxPossibleSum) * 100 : 0,
     }));
 
+    // 👈 SAS: For Secondary, we could rank within stream. For now, rank within class.
+    // TODO: If needed, filter pupilAverages by stream before calling computePosition.
     const positions = computePosition(pupilAverages);
     const totalPupils = pupilAverages.length;
 
     // 3. Update anchor result per pupil with aggregates + position
     for (const [studentId, agg] of Object.entries(byStudent)) {
-      // 👇 FIX: Use the correct average percentage
       const avgPercentage = agg.maxPossibleSum > 0 ? (agg.totalScoreSum / agg.maxPossibleSum) * 100 : 0;
-      const { grade } = gradeFromPercentage(avgPercentage, gradingScale);
+      const entry = gradeFromPercentage(avgPercentage, gradingScale);
 
-      // Clear anchors for this pupil-term
       await Result.updateMany(
         { schoolId: req.schoolId, studentId, session, term },
         { $set: { isAnchor: false } }
       );
 
-      // Find the first result to be the anchor
       const anchor = await Result.findOne({
         schoolId: req.schoolId,
         studentId,
@@ -242,8 +253,12 @@ export const computeClassResults = async (req, res) => {
       if (anchor) {
         anchor.isAnchor = true;
         anchor.overallTotal = Number(agg.totalScoreSum.toFixed(2));
-        anchor.overallAverage = Number(avgPercentage.toFixed(2)); // 👈 Correct Average
-        anchor.overallGrade = grade;
+        anchor.overallAverage = Number(avgPercentage.toFixed(2));
+        anchor.overallGrade = entry.grade;
+        // 👈 SAS: Save the gradePoint for the overall grade too
+        if (entry.gradePoint !== undefined) {
+          anchor.gradePoint = entry.gradePoint;
+        }
         anchor.positionInClass = positions[studentId];
         anchor.totalPupilsInClass = totalPupils;
         anchor.computedBy = req.user._id;
@@ -254,7 +269,7 @@ export const computeClassResults = async (req, res) => {
 
     res.json({
       success: true,
-      message: `Computed results for ${totalPupils} pupil(s)`,
+      message: `Computed results for ${totalPupils} pupil(s) using ${isSecondary ? "WAEC" : "Primary"} grading`,
       data: { updated: results.length, pupils: totalPupils },
     });
   } catch (err) {
@@ -262,6 +277,7 @@ export const computeClassResults = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
 // ─────────────────────────────────────────────────────────────
 // GET /api/results/pupil/:studentId?session=&term=
 // Full report card for one pupil
@@ -275,7 +291,6 @@ export const getPupilReportCard = async (req, res) => {
       return res.status(400).json({ success: false, message: "session and term required" });
     }
 
-    // Permission
     if (req.user.role === "parent") {
       const hasChild = req.user.children?.some((c) => c.toString() === studentId);
       if (!hasChild) return res.status(403).json({ success: false, message: "Access denied" });
@@ -284,7 +299,6 @@ export const getPupilReportCard = async (req, res) => {
       return res.status(403).json({ success: false, message: "Access denied" });
     }
 
-    // 👇 CHANGED: Deep populate to get the Form Teacher's name
     const student = await Student.findOne({
       _id: studentId,
       schoolId: req.schoolId,
@@ -305,7 +319,6 @@ export const getPupilReportCard = async (req, res) => {
       .populate("teacherId", "fullName")
       .sort({ "subjectId.name": 1 });
 
-    // Anchor carries the aggregates
     const anchor = results.find((r) => r.isAnchor);
     const school = await (await import("../models/School.js")).default.findById(req.schoolId);
 
@@ -316,11 +329,12 @@ export const getPupilReportCard = async (req, res) => {
         class: student.classId,
         session,
         term,
-        // 👇 CHANGED: Added proprietorName for the Head Teacher signature
-        school: { 
-          name: school.name, 
-          logoUrl: school.logoUrl, 
-          proprietorName: school.proprietorName 
+        school: {
+          name: school.name,
+          logoUrl: school.logoUrl,
+          proprietorName: school.proprietorName,
+          // 👈 SAS: Send the grading scale info for the frontend report card
+          isSecondary: student.classId?.track === "secondary" || isSecondaryClassName(student.className),
         },
         results,
         summary: anchor
@@ -328,6 +342,7 @@ export const getPupilReportCard = async (req, res) => {
               overallTotal: anchor.overallTotal,
               overallAverage: anchor.overallAverage,
               overallGrade: anchor.overallGrade,
+              gradePoint: anchor.gradePoint,
               positionInClass: anchor.positionInClass,
               totalPupilsInClass: anchor.totalPupilsInClass,
               formTeacherComment: anchor.formTeacherComment,
@@ -344,7 +359,6 @@ export const getPupilReportCard = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/results/class/:classId/broadsheet?session=&term=
-// All pupils × all subjects
 // ─────────────────────────────────────────────────────────────
 export const getClassBroadsheet = async (req, res) => {
   try {
@@ -356,6 +370,8 @@ export const getClassBroadsheet = async (req, res) => {
 
     const cls = await Class.findOne({ _id: classId, schoolId: req.schoolId });
     if (!cls) return res.status(404).json({ success: false, message: "Class not found" });
+
+    const isSecondary = cls.track === "secondary" || isSecondaryClassName(cls.name);
 
     const students = await Student.find({
       schoolId: req.schoolId,
@@ -372,18 +388,16 @@ export const getClassBroadsheet = async (req, res) => {
       .populate("subjectId", "name code")
       .lean();
 
-    // Build matrix
     const subjectsMap = new Map();
     results.forEach((r) => {
       if (r.subjectId) subjectsMap.set(r.subjectId._id.toString(), r.subjectId);
     });
     const subjects = [...subjectsMap.values()].sort((a, b) => a.name.localeCompare(b.name));
 
-        const rows = students.map((s) => {
+    const rows = students.map((s) => {
       const studentResults = results.filter((r) => r.studentId.toString() === s._id.toString());
       const scores = {};
-      
-      // For each subject, show the raw score out of the max possible
+
       subjects.forEach((sub) => {
         const r = studentResults.find((x) => x.subjectId?._id.toString() === sub._id.toString());
         scores[sub._id] = r ? `${r.totalScore}/${r.maxPossible}` : null;
@@ -391,23 +405,29 @@ export const getClassBroadsheet = async (req, res) => {
 
       const anchor = studentResults.find((r) => r.isAnchor);
       return {
-        student: { _id: s._id, fullName: s.fullName, admissionNumber: s.admissionNumber },
+        student: {
+          _id: s._id,
+          fullName: s.fullName,
+          admissionNumber: s.admissionNumber,
+          // 👈 SAS: Include stream for Secondary broadsheets
+          stream: s.stream || null,
+        },
         scores,
         overallTotal: anchor?.overallTotal ?? 0,
         overallAverage: anchor?.overallAverage ?? 0,
         overallGrade: anchor?.overallGrade ?? "—",
+        gradePoint: anchor?.gradePoint ?? null,
         position: anchor?.positionInClass ?? null,
         isPublished: anchor?.isPublished ?? false,
       };
     });
 
-    // Sort rows by position
     rows.sort((a, b) => (a.position ?? 999) - (b.position ?? 999));
 
     res.json({
       success: true,
       data: {
-        class: { id: cls._id, name: cls.name },
+        class: { id: cls._id, name: cls.name, isSecondary },
         session,
         term,
         subjects,
@@ -421,7 +441,6 @@ export const getClassBroadsheet = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // PATCH /api/results/:id/comment
-// Body: { subjectComment } OR { formTeacherComment }
 // ─────────────────────────────────────────────────────────────
 export const updateResultComment = async (req, res) => {
   try {
@@ -429,10 +448,7 @@ export const updateResultComment = async (req, res) => {
 
     const updates = {};
     if (subjectComment !== undefined) updates.subjectComment = subjectComment;
-    if (formTeacherComment !== undefined) {
-      // Only form teacher or admin can set this
-      updates.formTeacherComment = formTeacherComment;
-    }
+    if (formTeacherComment !== undefined) updates.formTeacherComment = formTeacherComment;
 
     const result = await Result.findOneAndUpdate(
       { _id: req.params.id, schoolId: req.schoolId },
@@ -449,7 +465,6 @@ export const updateResultComment = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // PATCH /api/results/pupil/:studentId/head-comment
-// Body: { session, term, headTeacherComment }
 // ─────────────────────────────────────────────────────────────
 export const setHeadComment = async (req, res) => {
   try {
@@ -471,7 +486,6 @@ export const setHeadComment = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/results/class/:classId/publish
-// Body: { session, term }
 // ─────────────────────────────────────────────────────────────
 export const publishClassResults = async (req, res) => {
   try {
@@ -482,7 +496,6 @@ export const publishClassResults = async (req, res) => {
       return res.status(400).json({ success: false, message: "classId, session, and term are required" });
     }
 
-    // 1. Mark all results as published
     const result = await Result.updateMany(
       { schoolId: req.schoolId, classId, session, term },
       {
@@ -492,22 +505,18 @@ export const publishClassResults = async (req, res) => {
       }
     );
 
-    // 👇 2. SAFETY NET: Make sure every pupil has an anchor doc
-    // If Admin clicks Publish without computing first, create a basic anchor.
     const allResults = await Result.find({ schoolId: req.schoolId, classId, session, term });
     const pupilsWithAnchor = new Set();
     allResults.forEach(r => { if (r.isAnchor) pupilsWithAnchor.add(r.studentId.toString()); });
 
-    // Find pupils who have results but no anchor
     const pupilsWithoutAnchor = [...new Set(allResults.map(r => r.studentId.toString()))]
       .filter(id => !pupilsWithAnchor.has(id));
 
     for (const studentId of pupilsWithoutAnchor) {
-      // Find the first result doc for this pupil and make it the anchor
-      const firstResult = await Result.findOne({ 
-        schoolId: req.schoolId, classId, studentId, session, term 
+      const firstResult = await Result.findOne({
+        schoolId: req.schoolId, classId, studentId, session, term
       }).sort({ "scores.assessmentName": 1 });
-      
+
       if (firstResult) {
         firstResult.isAnchor = true;
         await firstResult.save();
@@ -544,7 +553,6 @@ export const getMyResults = async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 // GET /api/results/children?session=&term= (parent)
 // ─────────────────────────────────────────────────────────────
-
 export const getChildrenResults = async (req, res) => {
   try {
     const childIds = req.user.children || [];
@@ -560,11 +568,10 @@ export const getChildrenResults = async (req, res) => {
     const children = await Student.find({
       _id: { $in: childIds },
       schoolId: req.schoolId,
-    }).select("fullName admissionNumber className photoUrl");
+    }).select("fullName admissionNumber className photoUrl stream");
 
     const out = await Promise.all(
       children.map(async (c) => {
-        // 👇 Find the anchor (should exist after compute or publish)
         const anchor = await Result.findOne({
           schoolId: req.schoolId,
           studentId: c._id,
@@ -583,7 +590,9 @@ export const getChildrenResults = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────
 // GET /api/results/assessment/:id/scores
+// ─────────────────────────────────────────────────────────────
 export const getAssessmentScores = async (req, res) => {
   try {
     const assessment = await Assessment.findOne({ _id: req.params.id, schoolId: req.schoolId });
@@ -596,7 +605,6 @@ export const getAssessmentScores = async (req, res) => {
       term: assessment.term,
     });
 
-    // Create a map like { "studentId": 9 }
     const scores = {};
     results.forEach((r) => {
       const entry = r.scores.find(
@@ -612,7 +620,10 @@ export const getAssessmentScores = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
-// GET /api/results/pupil/:studentId/pdf?session=&term=
+
+// ─────────────────────────────────────────────────────────────
+// GET /api/results/pupil/:studentId/pdf
+// ─────────────────────────────────────────────────────────────
 export const downloadReportCardPDF = async (req, res) => {
   try {
     const { studentId } = req.params;
@@ -621,7 +632,6 @@ export const downloadReportCardPDF = async (req, res) => {
     console.log("🎯 === PDF DOWNLOAD STARTED ===");
     console.log("🎯 Student:", studentId, "Session:", session, "Term:", term);
 
-    // Permission check
     if (req.user.role === "parent") {
       const hasChild = req.user.children?.some((c) => c.toString() === studentId);
       if (!hasChild) {
@@ -635,7 +645,7 @@ export const downloadReportCardPDF = async (req, res) => {
 
     const student = await Student.findOne({ _id: studentId, schoolId: req.schoolId })
       .populate("classId");
-    
+
     if (!student) {
       console.log("❌ Student not found");
       return res.status(404).json({ success: false, message: "Pupil not found" });
@@ -651,6 +661,9 @@ export const downloadReportCardPDF = async (req, res) => {
     const anchor = results.find((r) => r.isAnchor);
     const school = await (await import("../models/School.js")).default.findById(req.schoolId);
 
+    // 👈 SAS: Tell the PDF service which track this pupil is on
+    const isSecondary = student.classId?.track === "secondary" || isSecondaryClassName(student.className);
+
     console.log("🎨 Calling PDF service...");
 
     const buffer = await generateReportCardPDF({
@@ -660,10 +673,12 @@ export const downloadReportCardPDF = async (req, res) => {
       session,
       term,
       results,
+      isSecondary, // 👈 SAS
       summary: anchor ? {
         overallTotal: anchor.overallTotal,
         overallAverage: anchor.overallAverage,
         overallGrade: anchor.overallGrade,
+        gradePoint: anchor.gradePoint,
         positionInClass: anchor.positionInClass,
         totalPupilsInClass: anchor.totalPupilsInClass,
         formTeacherComment: anchor.formTeacherComment,
