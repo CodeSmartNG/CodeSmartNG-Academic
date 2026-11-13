@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { classApi, subjectApi } from "../../../services/classApi";
@@ -17,38 +16,34 @@ export default function ClassDetail() {
   const [subjectForm, setSubjectForm] = useState({ subjectId: "", teacherId: "" });
 
   const load = async () => {
-  setLoading(true);
-  try {
-    // 1. Fetch the class (If this fails, we kick them back)
-    const classRes = await classApi.get(id);
-    setCls(classRes.data.data.class);
-    setPupils(classRes.data.data.pupils || []);
-    setFormTeacherId(classRes.data.data.class.formTeacherId?._id || "");
-
-    // 2. Fetch subjects (If this fails, just use an empty array)
+    setLoading(true);
     try {
-      const subjectsRes = await subjectApi.list();
-      setSubjects(subjectsRes.data.data.subjects || []);
-    } catch (e) {
-      console.warn("Could not load subjects", e);
-    }
+      const classRes = await classApi.get(id);
+      setCls(classRes.data.data.class);
+      setPupils(classRes.data.data.pupils || []);
+      setFormTeacherId(classRes.data.data.class.formTeacherId?._id || "");
 
-    // 3. Fetch teachers (If this fails, just use an empty array)
-    try {
-      const teachersRes = await api.get("/users?role=teacher&limit=200");
-      setTeachers(teachersRes.data.data.users || []);
-    } catch (e) {
-      console.warn("Could not load teachers", e);
-    }
+      try {
+        const subjectsRes = await subjectApi.list();
+        setSubjects(subjectsRes.data.data.subjects || []);
+      } catch (e) {
+        console.warn("Could not load subjects", e);
+      }
 
-  } catch (err) {
-    console.error("Failed to load class:", err);
-    // Only navigate away if the class itself is missing
-    navigate("/dashboard/classes"); 
-  } finally {
-    setLoading(false);
-  }
-};
+      try {
+        const teachersRes = await api.get("/users?role=teacher&limit=200");
+        setTeachers(teachersRes.data.data.users || []);
+      } catch (e) {
+        console.warn("Could not load teachers", e);
+      }
+
+    } catch (err) {
+      console.error("Failed to load class:", err);
+      navigate("/dashboard/classes"); 
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     load();
@@ -84,6 +79,17 @@ export default function ClassDetail() {
   if (loading) return <div className="p-6 text-slate-400">Loading…</div>;
   if (!cls) return null;
 
+  // 👈 SAS: Determine if this is a Secondary class
+  const isSecondary = cls.level === "jss" || cls.level === "sss";
+  
+  // 👈 SAS: Filter subjects to only show those matching the class track
+  const availableSubjects = subjects.filter((s) => {
+    // If the class is Secondary, only show Secondary subjects
+    if (isSecondary) return s.track === "secondary";
+    // If the class is Primary/Nursery, show Primary subjects (or old ones without a track)
+    return !s.track || s.track === "nursery_primary";
+  });
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <button
@@ -101,18 +107,22 @@ export default function ClassDetail() {
               {cls.displayName || cls.name}
             </h1>
             <p className="text-sm text-slate-500">
-              {cls.academicSession} · {cls.level} · {pupils.length}/{cls.capacity}{" "}
+              {cls.academicSession} · {cls.level?.toUpperCase()} · {pupils.length}/{cls.capacity}{" "}
               pupils
             </p>
           </div>
           <span
             className={`px-3 py-1 rounded-full text-xs font-medium ${
-              cls.level === "nursery"
+              isSecondary
+                ? cls.level === "jss"
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-purple-100 text-purple-700"
+                : cls.level === "nursery"
                 ? "bg-pink-100 text-pink-700"
                 : "bg-green-100 text-green-700"
             }`}
           >
-            {cls.level}
+            {cls.level?.toUpperCase()}
           </span>
         </div>
       </div>
@@ -208,7 +218,8 @@ export default function ClassDetail() {
               }
             >
               <option value="">Select subject…</option>
-              {subjects.map((s) => (
+              {/* 👈 SAS: Use filtered subjects here */}
+              {availableSubjects.map((s) => (
                 <option key={s._id} value={s._id}>
                   {s.name}
                 </option>
@@ -249,19 +260,19 @@ export default function ClassDetail() {
             Pupils ({pupils.length})
           </h3>
           <button
-  onClick={async () => {
-    try {
-      const { data } = await classApi.backfillStudents();
-      alert(data.message || "Pupils linked successfully");
-      load();
-    } catch (err) {
-      alert(err.response?.data?.message || "Failed to link pupils");
-    }
-  }}
-  className="text-xs text-blue-600 hover:underline"
->
-  Link unlinked pupils
-</button>
+            onClick={async () => {
+              try {
+                const { data } = await classApi.backfillStudents();
+                alert(data.message || "Pupils linked successfully");
+                load();
+              } catch (err) {
+                alert(err.response?.data?.message || "Failed to link pupils");
+              }
+            }}
+            className="text-xs text-blue-600 hover:underline"
+          >
+            Link unlinked pupils
+          </button>
         </div>
         {pupils.length === 0 ? (
           <p className="text-sm text-slate-400">No pupils in this class yet.</p>
