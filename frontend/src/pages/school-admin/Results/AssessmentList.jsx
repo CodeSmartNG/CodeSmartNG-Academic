@@ -3,8 +3,12 @@ import { Link, useSearchParams } from "react-router-dom";
 import { classApi } from "../../../services/classApi";
 import { subjectApi } from "../../../services/classApi";
 import { assessmentApi } from "../../../services/resultApi";
+import { useAuth } from "../../../context/AuthContext"; // 👈 SAS
 
 export default function AssessmentList() {
+  const { activeTrack } = useAuth(); // 👈 SAS
+  const isSecondary = activeTrack === "secondary";
+
   const [searchParams, setSearchParams] = useSearchParams();
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
@@ -19,19 +23,24 @@ export default function AssessmentList() {
 
   const [showCreate, setShowCreate] = useState(false);
 
+  // 👈 SAS: Load classes and subjects filtered by track
   useEffect(() => {
-    Promise.all([classApi.list(), subjectApi.list()]).then(([c, s]) => {
+    Promise.all([
+      classApi.list({ track: activeTrack }),
+      subjectApi.list({ track: activeTrack }),
+    ]).then(([c, s]) => {
       setClasses(c.data.data.classes);
       setSubjects(s.data.data.subjects);
     });
-  }, []);
+  }, [activeTrack]);
 
   const load = () => {
-    assessmentApi.list(filters).then(({ data }) => setAssessments(data.data.assessments));
+    // 👈 SAS: Include track in filters (in case backend needs it)
+    assessmentApi.list({ ...filters, track: activeTrack }).then(({ data }) => setAssessments(data.data.assessments));
     setSearchParams(filters, { replace: true });
   };
 
-  useEffect(load, [filters]);
+  useEffect(load, [filters, activeTrack]);
 
   const remove = async (id) => {
     if (!confirm("Delete this assessment and its scores?")) return;
@@ -43,7 +52,9 @@ export default function AssessmentList() {
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Assessments</h1>
+          <h1 className="text-2xl font-bold text-slate-800">
+            {isSecondary ? "Secondary Assessments" : "Nursery & Primary Assessments"}
+          </h1>
           <p className="text-sm text-slate-500">Create tests & exams, then enter scores</p>
         </div>
         <button
@@ -124,6 +135,7 @@ export default function AssessmentList() {
           classes={classes}
           subjects={subjects}
           defaults={{ session: filters.session, term: filters.term }}
+          isSecondary={isSecondary} // 👈 SAS
           onClose={() => setShowCreate(false)}
           onCreated={() => { setShowCreate(false); load(); }}
         />
@@ -132,11 +144,14 @@ export default function AssessmentList() {
   );
 }
 
-function CreateAssessmentModal({ classes, subjects, defaults, onClose, onCreated }) {
+function CreateAssessmentModal({ classes, subjects, defaults, onClose, onCreated, isSecondary }) {
+  // 👈 SAS: Set default form values based on track
   const [form, setForm] = useState({
     classId: "", subjectId: "",
     session: defaults.session, term: defaults.term,
-    name: "First Test", type: "test", maxScore: 10,
+    name: isSecondary ? "CA 1" : "First Test", 
+    type: isSecondary ? "ca" : "test", // Note: we need to add "ca" to the backend enum
+    maxScore: isSecondary ? 10 : 10,
   });
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -151,10 +166,27 @@ function CreateAssessmentModal({ classes, subjects, defaults, onClose, onCreated
     } finally { setSaving(false); }
   };
 
+  // Helper to update max score when the name changes
+  const handleNameChange = (name) => {
+    let newMax = form.maxScore;
+    let newType = form.type;
+    
+    if (isSecondary) {
+      if (name === "CA 1" || name === "CA 2") { newMax = 10; newType = "ca"; }
+      else if (name === "Assignment") { newMax = 10; newType = "assignment"; }
+      else if (name === "Examination") { newMax = 70; newType = "exam"; }
+    } else {
+      if (name === "First Test") { newMax = 10; newType = "test"; }
+      else if (name === "Examination") { newMax = 60; newType = "exam"; }
+      else if (name === "Assignment") { newMax = 10; newType = "assignment"; }
+    }
+    setForm({ ...form, name, maxScore: newMax, type: newType });
+  };
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl p-6 w-full max-w-md">
-        <h3 className="font-bold text-lg mb-4">New Assessment</h3>
+      <div className="bg-white rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <h3 className="font-bold text-lg mb-4">New {isSecondary ? "Secondary" : "Primary"} Assessment</h3>
         {error && <div className="bg-red-50 text-red-700 p-2 rounded mb-3 text-sm">{error}</div>}
 
         <label className="block mb-3">
@@ -193,19 +225,38 @@ function CreateAssessmentModal({ classes, subjects, defaults, onClose, onCreated
             </select>
           </label>
         </div>
+        
         <label className="block mb-3">
           <span className="text-sm text-slate-600">Assessment Name</span>
-          <input className="mt-1 w-full border rounded-lg p-2"
-            placeholder="First Test / Mid-Term / Examination"
+          {/* 👈 SAS: Dropdown for pre-defined secondary names */}
+          <select className="mt-1 w-full border rounded-lg p-2"
             value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            onChange={(e) => handleNameChange(e.target.value)}>
+            {isSecondary ? (
+              <>
+                <option value="CA 1">CA 1 (Continuous Assessment 1)</option>
+                <option value="CA 2">CA 2 (Continuous Assessment 2)</option>
+                <option value="Assignment">Assignment</option>
+                <option value="Examination">Examination</option>
+              </>
+            ) : (
+              <>
+                <option value="First Test">First Test</option>
+                <option value="Second Test">Second Test</option>
+                <option value="Assignment">Assignment</option>
+                <option value="Examination">Examination</option>
+              </>
+            )}
+          </select>
         </label>
+
         <div className="grid grid-cols-2 gap-3 mb-4">
           <label className="block">
             <span className="text-sm text-slate-600">Type</span>
             <select className="mt-1 w-full border rounded-lg p-2"
               value={form.type}
               onChange={(e) => setForm({ ...form, type: e.target.value })}>
+              {isSecondary && <option value="ca">CA</option>}
               <option value="test">Test</option>
               <option value="assignment">Assignment</option>
               <option value="exam">Exam</option>
