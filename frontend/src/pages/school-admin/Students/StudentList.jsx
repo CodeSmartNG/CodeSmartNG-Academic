@@ -2,8 +2,24 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { studentApi } from "../../../services/studentApi";
+import { useAuth } from "../../../context/AuthContext"; // 👈 SAS
+
+// 👈 SAS: Class lists
+const PRIMARY_CLASSES = [
+  "Nursery 1", "Nursery 2", "Nursery 3",
+  "Primary 1", "Primary 2", "Primary 3",
+  "Primary 4", "Primary 5", "Primary 6",
+];
+const SECONDARY_CLASSES = [
+  "JSS 1", "JSS 2", "JSS 3",
+  "SSS 1", "SSS 2", "SSS 3",
+];
 
 export default function StudentList() {
+  const { activeTrack } = useAuth(); // 👈 SAS
+  const isSecondary = activeTrack === "secondary";
+  const availableClasses = isSecondary ? SECONDARY_CLASSES : PRIMARY_CLASSES;
+
   const [students, setStudents] = useState([]);
   const [stats, setStats] = useState(null);
   const [filters, setFilters] = useState({ search: "", className: "", admissionStatus: "" });
@@ -14,19 +30,28 @@ export default function StudentList() {
     setLoading(true);
     try {
       const [listRes, statsRes] = await Promise.all([
-        studentApi.list(filters),
-        studentApi.stats(),
+        // 👈 SAS: Send the track so backend only returns students in this track
+        studentApi.list({ ...filters, track: activeTrack }),
+        studentApi.stats({ track: activeTrack }),
       ]);
       setStudents(listRes.data.data.students);
       setStats(statsRes.data.data);
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
+  // Reset filters and reload when the track changes
+  useEffect(() => {
+    setFilters({ search: "", className: "", admissionStatus: "" });
+    setSelected([]);
+  }, [activeTrack]);
+
   useEffect(() => {
     load();
-  }, [filters]);
+  }, [filters, activeTrack]);
 
   const toggleSelect = (id) => {
     setSelected((prev) =>
@@ -43,7 +68,9 @@ export default function StudentList() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Pupils</h1>
+          <h1 className="text-2xl font-bold text-slate-800">
+            {isSecondary ? "Secondary Pupils" : "Nursery & Primary Pupils"}
+          </h1>
           <p className="text-sm text-slate-500">Manage admissions, promotions, and records</p>
         </div>
         <Link
@@ -78,8 +105,8 @@ export default function StudentList() {
           onChange={(e) => setFilters({ ...filters, className: e.target.value })}
         >
           <option value="">All Classes</option>
-          {["Nursery 1", "Nursery 2", "Nursery 3", "Primary 1", "Primary 2",
-            "Primary 3", "Primary 4", "Primary 5", "Primary 6"].map((c) => (
+          {/* 👈 SAS: Only show classes for the active track */}
+          {availableClasses.map((c) => (
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
@@ -126,6 +153,8 @@ export default function StudentList() {
               <th className="p-3 text-left">Admission No</th>
               <th className="p-3 text-left">Name</th>
               <th className="p-3 text-left">Class</th>
+              {/* 👈 SAS: Only show Stream column for Secondary */}
+              {isSecondary && <th className="p-3 text-left">Stream</th>}
               <th className="p-3 text-left">Gender</th>
               <th className="p-3 text-left">Guardian</th>
               <th className="p-3 text-left">Status</th>
@@ -134,9 +163,17 @@ export default function StudentList() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="8" className="p-6 text-center text-slate-400">Loading…</td></tr>
+              <tr>
+                <td colSpan={isSecondary ? 9 : 8} className="p-6 text-center text-slate-400">
+                  Loading…
+                </td>
+              </tr>
             ) : students.length === 0 ? (
-              <tr><td colSpan="8" className="p-6 text-center text-slate-400">No pupils found</td></tr>
+              <tr>
+                <td colSpan={isSecondary ? 9 : 8} className="p-6 text-center text-slate-400">
+                  No pupils found for {isSecondary ? "Secondary" : "Primary"} track
+                </td>
+              </tr>
             ) : (
               students.map((s) => (
                 <tr key={s._id} className="border-t hover:bg-slate-50">
@@ -150,6 +187,22 @@ export default function StudentList() {
                   <td className="p-3 font-mono text-xs">{s.admissionNumber}</td>
                   <td className="p-3 font-medium">{s.fullName}</td>
                   <td className="p-3">{s.className}</td>
+                  {/* 👈 SAS: Show stream for Secondary */}
+                  {isSecondary && (
+                    <td className="p-3">
+                      {s.stream ? (
+                        <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${
+                          s.stream === "science" ? "bg-blue-100 text-blue-700" :
+                          s.stream === "arts" ? "bg-purple-100 text-purple-700" :
+                          "bg-amber-100 text-amber-700"
+                        }`}>
+                          {s.stream}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
+                    </td>
+                  )}
                   <td className="p-3 capitalize">{s.gender}</td>
                   <td className="p-3">
                     <div>{s.guardian?.fullName}</div>
@@ -200,7 +253,7 @@ function StatusBadge({ status }) {
     archived: "bg-slate-200 text-slate-600",
   };
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${styles[status] || styles.active}`}>
+    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${styles[status] || styles.active}`}>
       {status}
     </span>
   );
