@@ -3,6 +3,12 @@ import User from "../models/User.js";
 import { generateAdmissionNumber } from "../utils/generateAdmissionNumber.js";
 
 // ─────────────────────────────────────────────────────────────
+// Helper: Determine if a class is Secondary
+// ─────────────────────────────────────────────────────────────
+const SECONDARY_CLASSES = ["JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3"];
+const isSecondaryClass = (className) => SECONDARY_CLASSES.includes(className);
+
+// ─────────────────────────────────────────────────────────────
 // POST /api/students
 // Admit a new pupil
 // ─────────────────────────────────────────────────────────────
@@ -10,14 +16,18 @@ export const createStudent = async (req, res) => {
   try {
     const schoolId = req.schoolId;
 
-    // Auto-generate admission number if not supplied
     let admissionNumber = req.body.admissionNumber;
     if (!admissionNumber) {
       admissionNumber = await generateAdmissionNumber(schoolId);
     }
 
+    // 👈 SAS: Ensure stream is null if not an SSS class
+    const isSSS = req.body.className?.startsWith("SSS");
+    const stream = isSSS ? req.body.stream : null;
+
     const student = await Student.create({
       ...req.body,
+      stream, // 👈 SAS: Save the stream
       schoolId,
       admissionNumber,
       createdBy: req.user._id,
@@ -50,6 +60,7 @@ export const listStudents = async (req, res) => {
       admissionStatus,
       search,
       session,
+      track, // 👈 SAS: Track filter
       page = 1,
       limit = 50,
       sortBy = "createdAt",
@@ -60,8 +71,15 @@ export const listStudents = async (req, res) => {
 
     if (className) query.className = className;
     if (admissionStatus) query.admissionStatus = admissionStatus;
-    else query.admissionStatus = { $ne: "archived" }; // hide archived by default
+    else query.admissionStatus = { $ne: "archived" }; 
     if (session) query.academicSession = session;
+
+    // 👈 SAS: Filter by Secondary vs Primary using the className array
+    if (track === "secondary") {
+      query.className = { $in: SECONDARY_CLASSES };
+    } else if (track === "nursery_primary") {
+      query.className = { $nin: SECONDARY_CLASSES };
+    }
 
     if (search) {
       query.$or = [
@@ -107,19 +125,28 @@ export const listStudents = async (req, res) => {
 export const getStudentStats = async (req, res) => {
   try {
     const schoolId = req.schoolId;
+    const { track } = req.query; // 👈 SAS
+
+    // Base query for the active track
+    const baseQuery = { schoolId };
+    if (track === "secondary") {
+      baseQuery.className = { $in: SECONDARY_CLASSES };
+    } else if (track === "nursery_primary") {
+      baseQuery.className = { $nin: SECONDARY_CLASSES };
+    }
 
     const [total, active, archived, transferred, byClass, byGender] = await Promise.all([
-      Student.countDocuments({ schoolId }),
-      Student.countDocuments({ schoolId, admissionStatus: "active" }),
-      Student.countDocuments({ schoolId, admissionStatus: "archived" }),
-      Student.countDocuments({ schoolId, admissionStatus: "transferred" }),
+      Student.countDocuments(baseQuery),
+      Student.countDocuments({ ...baseQuery, admissionStatus: "active" }),
+      Student.countDocuments({ ...baseQuery, admissionStatus: "archived" }),
+      Student.countDocuments({ ...baseQuery, admissionStatus: "transferred" }),
       Student.aggregate([
-        { $match: { schoolId, admissionStatus: "active" } },
+        { $match: { ...baseQuery, admissionStatus: "active" } },
         { $group: { _id: "$className", count: { $sum: 1 } } },
         { $sort: { _id: 1 } },
       ]),
       Student.aggregate([
-        { $match: { schoolId, admissionStatus: "active" } },
+        { $match: { ...baseQuery, admissionStatus: "active" } },
         { $group: { _id: "$gender", count: { $sum: 1 } } },
       ]),
     ]);
@@ -166,7 +193,6 @@ export const getStudent = async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 export const updateStudent = async (req, res) => {
   try {
-    // Prevent changing immutable fields
     const forbidden = ["schoolId", "admissionNumber", "createdBy", "promotionHistory", "transferInfo"];
     forbidden.forEach((k) => delete req.body[k]);
 
@@ -188,12 +214,12 @@ export const updateStudent = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/students/promote
-// Bulk promote pupils to the next class
-// Body: { studentIds: [...], toClass: "Primary 2", toSession: "2025/2026" }
+// Bulk promote pupils
 // ─────────────────────────────────────────────────────────────
 export const promoteStudents = async (req, res) => {
   try {
-    const { studentIds, toClass, toSession } = req.body;
+    // 👈 SAS: Accept stream
+    const { studentIds, toClass, toSession, stream } = req.body;
 
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
       return res.status(400).json({ success: false, message: "No pupils selected" });
@@ -213,29 +239,37 @@ export const promoteStudents = async (req, res) => {
     }
 
     const now = new Date();
-    const bulkOps = students.map((s) => ({
-      updateOne: {
-        filter: { _id: s._id, schoolId: req.schoolId },
-        update: {
-          $set: {
-            className: toClass,
-            academicSession: toSession || s.academicSession,
-            admissionStatus: "active",
-            updatedBy: req.user._id,
-          },
-          $push: {
-            promotionHistory: {
-              fromClass: s.className,
-              toClass,
-              fromSession: s.academicSession,
-              toSession: toSession || s.academicSession,
-              promotedAt: now,
-              promotedBy: req.user._id,
+    const bulkOps = students.map((s) => {
+      // 👈 SAS: Only set stream if promoting to SSS
+      const isSSS = toClass.startsWith("SSS");
+      const newStream = isSSS ? stream : null;
+
+      return {
+        updateOne: {
+          filter: { _id: s._id, schoolId: req.schoolId },
+          update: {
+            $set: {
+              className: toClass,
+              stream: newStream, 
+              academicSession: toSession || s.academicSession,
+              admissionStatus: "active",
+              updatedBy: req.user._id,
+            },
+            $push: {
+              promotionHistory: {
+                fromClass: s.className,
+                toClass,
+                fromSession: s.academicSession,
+                toSession: toSession || s.academicSession,
+                stream: newStream, // 👈 SAS: Track stream changes
+                promotedAt: now,
+                promotedBy: req.user._id,
+              },
             },
           },
         },
-      },
-    }));
+      };
+    });
 
     const result = await Student.bulkWrite(bulkOps);
 
@@ -251,7 +285,6 @@ export const promoteStudents = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/students/:id/transfer
-// Mark pupil as transferred out
 // ─────────────────────────────────────────────────────────────
 export const transferStudent = async (req, res) => {
   try {
@@ -287,7 +320,6 @@ export const transferStudent = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/students/:id/archive
-// Soft-delete (archive) a pupil
 // ─────────────────────────────────────────────────────────────
 export const archiveStudent = async (req, res) => {
   try {
@@ -309,7 +341,6 @@ export const archiveStudent = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/students/:id/restore
-// Restore an archived pupil
 // ─────────────────────────────────────────────────────────────
 export const restoreStudent = async (req, res) => {
   try {
@@ -331,7 +362,6 @@ export const restoreStudent = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/students/:id/photo
-// Update pupil photo URL (after Cloudinary upload on frontend)
 // ─────────────────────────────────────────────────────────────
 export const updatePhoto = async (req, res) => {
   try {
@@ -358,7 +388,6 @@ export const updatePhoto = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/students/:id/link-parent
-// Link a parent user account to this pupil
 // ─────────────────────────────────────────────────────────────
 export const linkParent = async (req, res) => {
   try {
@@ -372,7 +401,6 @@ export const linkParent = async (req, res) => {
     if (!student) return res.status(404).json({ success: false, message: "Pupil not found" });
     if (!parent) return res.status(404).json({ success: false, message: "Parent account not found" });
 
-    // Link both directions
     student.parentUserId = parent._id;
     await student.save();
 
