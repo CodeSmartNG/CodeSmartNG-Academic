@@ -26,13 +26,22 @@ const classSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    name: { type: String, required: true, trim: true }, // e.g. "Primary 1"
+    // ── SAS: Track identifier ─────────────────────────────────
+    // Tells the system whether this class belongs to Primary or Secondary
+    track: {
+      type: String,
+      enum: ["nursery_primary", "secondary"],
+      default: "nursery_primary",
+      index: true,
+    },
+    name: { type: String, required: true, trim: true }, // e.g. "Primary 1", "JSS 1"
     level: {
       type: String,
-      enum: ["nursery", "primary"],
+      // 👈 SAS: Added "jss" and "sss"
+      enum: ["nursery", "primary", "jss", "sss"], 
       required: true,
     },
-    section: { type: String, trim: true }, // e.g. "A", "Blue" (optional)
+    section: { type: String, trim: true }, // e.g. "A", "Blue", "Science"
     capacity: { type: Number, default: 30, min: 1 },
     academicSession: { type: String, required: true, trim: true },
 
