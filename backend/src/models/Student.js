@@ -39,7 +39,18 @@ const studentSchema = new mongoose.Schema(
     classId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Class",
-      // Will be populated in Module 3
+    },
+    // ── SAS: Reference to the canonical Class Level (e.g. JSS 1) ──
+    classLevelId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ClassLevel",
+      index: true,
+    },
+    // ── SAS: Stream for Secondary School (SSS) students only ──────
+    stream: {
+      type: String,
+      enum: ["science", "arts", "commercial", null],
+      default: null,
     },
     academicSession: { type: String, required: true, trim: true },
     admissionDate: { type: Date, default: Date.now },
@@ -105,6 +116,8 @@ const studentSchema = new mongoose.Schema(
         toSession: String,
         promotedAt: Date,
         promotedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        // ── SAS: Track stream changes when moving from JSS3 to SSS1 ──
+        stream: { type: String, enum: ["science", "arts", "commercial", null] },
       },
     ],
 
@@ -131,6 +144,8 @@ studentSchema.index(
 // Common lookups
 studentSchema.index({ schoolId: 1, className: 1, admissionStatus: 1 });
 studentSchema.index({ schoolId: 1, "guardian.phone": 1 });
+// SAS: Speed up broadsheets and class lists for secondary schools
+studentSchema.index({ schoolId: 1, classLevelId: 1, stream: 1 });
 
 // ── Virtuals ────────────────────────────────────────────────────
 studentSchema.virtual("age").get(function () {
