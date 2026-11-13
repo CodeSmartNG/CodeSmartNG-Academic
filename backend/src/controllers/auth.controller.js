@@ -3,6 +3,8 @@ import User from "../models/User.js";
 import { generateToken } from "../utils/generateToken.js";
 import crypto from "crypto";
 import sendEmail from "../utils/sendEmail.js"; // 👈 Ensure this file exists!
+import { registerSchool } from "../controllers/school.controller.js";
+router.post("/register-school", registerSchool);
 
 // ... registerSchool function (keep yours as it is) ...
 
