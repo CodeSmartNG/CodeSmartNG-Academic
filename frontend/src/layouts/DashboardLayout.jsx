@@ -66,15 +66,21 @@ const NAV_BY_ROLE = {
 };
 
 export default function DashboardLayout() {
-  const { user, logout } = useAuth();
+  // 👈 SAS: Import activeTrack and changeTrack from context
+  const { user, logout, activeTrack, changeTrack } = useAuth();
+  
   const navigate = useNavigate();
   const location = useLocation();
   const nav = NAV_BY_ROLE[user?.role] || [];
   
   const [unreadCount, setUnreadCount] = useState(0);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // 👈 Mobile menu state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Fetch unread messages
+  // 👈 SAS: Show toggle only for admin/proprietor/teacher with multiple tracks
+  const hasMultipleTracks = user?.schoolTracks?.length > 1;
+  const isAdminOrTeacher = ["admin", "proprietor", "teacher"].includes(user?.role);
+  const showTrackToggle = hasMultipleTracks && isAdminOrTeacher;
+
   useEffect(() => {
     if (!["admin", "proprietor", "teacher"].includes(user?.role)) return;
     const fetchUnread = () => {
@@ -89,7 +95,7 @@ export default function DashboardLayout() {
 
   useEffect(() => {
     if (location.pathname === "/dashboard/chat") setUnreadCount(0);
-    setIsSidebarOpen(false); // 👈 Close sidebar on navigation (mobile)
+    setIsSidebarOpen(false);
   }, [location.pathname]);
 
   const handleLogout = () => {
@@ -100,7 +106,6 @@ export default function DashboardLayout() {
   return (
     <div className="min-h-screen flex bg-slate-50 relative overflow-hidden">
       
-      {/* 👇 Mobile Backdrop (Dark overlay) */}
       {isSidebarOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-40 md:hidden print:hidden"
@@ -108,7 +113,6 @@ export default function DashboardLayout() {
         />
       )}
 
-      {/* Sidebar */}
       <aside className={`
         fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col transform transition-transform duration-300 ease-in-out print:hidden
         md:relative md:translate-x-0
@@ -124,7 +128,6 @@ export default function DashboardLayout() {
               <div className="text-xs text-slate-500">Academic Portal</div>
             </div>
           </div>
-          {/* Close button for mobile */}
           <button 
             className="md:hidden text-slate-400 hover:text-slate-700"
             onClick={() => setIsSidebarOpen(false)}
@@ -132,6 +135,16 @@ export default function DashboardLayout() {
             <i className="fas fa-times text-xl"></i>
           </button>
         </div>
+
+        {/* 👈 SAS: Show current track indicator in sidebar */}
+        {showTrackToggle && (
+          <div className="px-3 py-2 border-b bg-slate-50">
+            <div className="text-xs text-slate-500 mb-1">Viewing:</div>
+            <div className="text-xs font-bold text-blue-700 uppercase">
+              {activeTrack === "secondary" ? "Secondary" : "Primary"}
+            </div>
+          </div>
+        )}
 
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {nav.map((item) => (
@@ -172,11 +185,9 @@ export default function DashboardLayout() {
         </div>
       </aside>
 
-      {/* Main area */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <header className="bg-white border-b border-slate-200 px-4 md:px-6 py-3 flex items-center justify-between print:hidden shrink-0">
           
-          {/* 👇 Hamburger Menu (Mobile Only) */}
           <div className="flex items-center gap-3">
             <button 
               className="md:hidden text-slate-600 hover:text-slate-900"
@@ -184,9 +195,36 @@ export default function DashboardLayout() {
             >
               <i className="fas fa-bars text-xl"></i>
             </button>
-            <div className="text-sm text-slate-500 font-medium hidden sm:block">
-              {user?.role?.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())} Dashboard
-            </div>
+
+            {/* 👈 SAS: Primary/Secondary Toggle */}
+            {showTrackToggle ? (
+              <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1">
+                <button
+                  onClick={() => changeTrack("nursery_primary")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                    activeTrack === "nursery_primary"
+                      ? "bg-white text-blue-900 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  <i className="fas fa-child mr-1"></i> Primary
+                </button>
+                <button
+                  onClick={() => changeTrack("secondary")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                    activeTrack === "secondary"
+                      ? "bg-white text-blue-900 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  <i className="fas fa-book-reader mr-1"></i> Secondary
+                </button>
+              </div>
+            ) : (
+              <div className="text-sm text-slate-500 font-medium hidden sm:block">
+                {user?.role?.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())} Dashboard
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-3">

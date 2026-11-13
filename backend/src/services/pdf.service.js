@@ -1,176 +1,274 @@
 import PDFDocument from "pdfkit";
 
+// Helper: format grade color for PDF
 const gradeColor = (grade) => {
   if (!grade) return "#64748b";
   const g = grade.toUpperCase();
-  if (g.startsWith("A") || g.startsWith("B")) return "#16a34a";
-  if (g.startsWith("C")) return "#2563eb";
-  if (g.startsWith("D") || g.startsWith("E")) return "#d97706";
-  if (g.startsWith("F")) return "#dc2626";
+  if (g.startsWith("A") || g.startsWith("B")) return "#16a34a"; // green
+  if (g.startsWith("C")) return "#2563eb"; // blue
+  if (g.startsWith("D") || g.startsWith("E")) return "#d97706"; // amber
+  if (g.startsWith("F")) return "#dc2626"; // red
   return "#64748b";
 };
 
 export const generateReportCardPDF = async (data) => {
   const { school, student, class: cls, session, term, results, summary, isSecondary } = data;
-  const isSec = isSecondary === true;
 
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: "A4", margin: 40 });
     const chunks = [];
-    doc.on("data", (c) => chunks.push(c));
+
+    doc.on("data", (chunk) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    const W = doc.page.width;
-    const H = doc.page.height;
-    const L = 40;
-    const CW = W - 80;
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+    const marginLeft = 40;
+    const contentWidth = pageWidth - 80;
 
-    // HEADER
-    doc.rect(0, 0, W, 90).fill(isSec ? "#0b2b4f" : "#0b4d2f");
-    doc.fillColor("white").fontSize(20).font("Helvetica-Bold")
-      .text(school?.name || "School Name", L, 20, { width: CW, align: "center" });
-    doc.fontSize(9).font("Helvetica")
-      .text(school?.address || "", L, 48, { width: CW, align: "center" });
-    doc.fontSize(8).text(
-      isSec ? "SECONDARY SCHOOL REPORT CARD" : "PRIMARY SCHOOL REPORT CARD",
-      L, 68, { width: CW, align: "center", characterSpacing: 1 }
-    );
+    // ═══════════════════════════════════════════════════════
+    // 1. HEADER — School info
+    // ═══════════════════════════════════════════════════════
+    doc.rect(0, 0, pageWidth, 90).fill(isSecondary ? "#0b2b4f" : "#0b4d2f");
 
-    // SESSION BAR
+    doc.fillColor("white")
+      .fontSize(22)
+      .font("Helvetica-Bold")
+      .text(school?.name || "School Name", marginLeft, 24, { width: contentWidth, align: "center" });
+
+    doc.fontSize(10)
+      .font("Helvetica")
+      .text(`${school?.address || ""}`, marginLeft, 52, { width: contentWidth, align: "center" });
+
+    doc.fontSize(9)
+      .text(`${isSecondary ? "SECONDARY SCHOOL REPORT CARD" : "PRIMARY SCHOOL REPORT CARD"}`, marginLeft, 70, {
+        width: contentWidth,
+        align: "center",
+        characterSpacing: 1,
+      });
+
+    doc.moveDown(3);
+
+    // ═══════════════════════════════════════════════════════
+    // 2. SESSION / TERM BAR
+    // ═══════════════════════════════════════════════════════
     let y = 105;
-    doc.rect(L, y, CW, 22).fill("#f1f5f9");
-    doc.fillColor("#0f172a").fontSize(9).font("Helvetica-Bold")
-      .text(`SESSION: ${session}`, L + 8, y + 7)
-      .text(`TERM: ${term}`, L + 200, y + 7)
-      .text(`CLASS: ${cls?.name || student.className}`, L + 380, y + 7);
+    doc.rect(marginLeft, y, contentWidth, 22).fill("#f1f5f9");
+    doc.fillColor("#0f172a")
+      .fontSize(9)
+      .font("Helvetica-Bold")
+      .text(`SESSION: ${session}`, marginLeft + 8, y + 7)
+      .text(`TERM: ${term}`, marginLeft + 200, y + 7)
+      .text(`CLASS: ${cls?.name || student.className || ""}`, marginLeft + 380, y + 7);
 
-    // STUDENT INFO
+    // ═══════════════════════════════════════════════════════
+    // 3. STUDENT INFO
+    // ═══════════════════════════════════════════════════════
     y = 140;
-    const info = [
+    doc.fillColor("#334155").fontSize(10).font("Helvetica-Bold");
+
+    const row1 = [
       ["NAME", student.fullName],
       ["ADMISSION NO", student.admissionNumber],
-      ["GENDER", student.gender?.toUpperCase()],
-      ["STREAM", isSec && student.stream ? student.stream.toUpperCase() : "N/A"],
     ];
-    let x = L;
-    info.forEach((item, i) => {
-      if (i === 2) { x = L; y += 32; }
-      doc.fontSize(7).fillColor("#64748b").font("Helvetica").text(item[0], x, y);
-      doc.fontSize(10).fillColor("#0f172a").font("Helvetica-Bold").text(item[1] || "—", x, y + 12);
-      x += CW / 2;
-    });
+    const row2 = [
+      ["GENDER", student.gender?.toUpperCase()],
+      ["STREAM", isSecondary && student.stream ? student.stream.toUpperCase() : "N/A"],
+    ];
+
+    let x = marginLeft;
+    for (const [label, value] of row1) {
+      doc.fontSize(8).fillColor("#64748b").text(label, x, y);
+      doc.fontSize(10).fillColor("#0f172a").font("Helvetica-Bold").text(value || "—", x, y + 12);
+      x += contentWidth / 2;
+    }
     y += 32;
 
-    // RESULTS TABLE
-    const cols = isSec
+    x = marginLeft;
+    for (const [label, value] of row2) {
+      doc.fontSize(8).fillColor("#64748b").font("Helvetica").text(label, x, y);
+      doc.fontSize(10).fillColor("#0f172a").font("Helvetica-Bold").text(value || "—", x, y + 12);
+      x += contentWidth / 2;
+    }
+    y += 35;
+
+    // ═══════════════════════════════════════════════════════
+    // 4. RESULTS TABLE
+    // ═══════════════════════════════════════════════════════
+    const columns = isSecondary
       ? [
-          { label: "SUBJECT", w: 130, a: "left" },
-          { label: "CA1", w: 35, a: "center" },
-          { label: "CA2", w: 35, a: "center" },
-          { label: "ASG", w: 35, a: "center" },
-          { label: "EXAM", w: 45, a: "center" },
-          { label: "TOTAL", w: 45, a: "center" },
-          { label: "GRADE", w: 50, a: "center" },
-          { label: "GP", w: 35, a: "center" },
+          { label: "SUBJECT", width: 130, align: "left" },
+          { label: "CA1", width: 35, align: "center" },
+          { label: "CA2", width: 35, align: "center" },
+          { label: "ASG", width: 35, align: "center" },
+          { label: "EXAM", width: 45, align: "center" },
+          { label: "TOTAL", width: 45, align: "center" },
+          { label: "GRADE", width: 50, align: "center" },
+          { label: "GP", width: 35, align: "center" },
         ]
       : [
-          { label: "SUBJECT", w: 190, a: "left" },
-          { label: "CA", w: 45, a: "center" },
-          { label: "EXAM", w: 45, a: "center" },
-          { label: "TOTAL", w: 45, a: "center" },
-          { label: "GRADE", w: 50, a: "center" },
-          { label: "REMARK", w: 105, a: "left" },
+          { label: "SUBJECT", width: 190, align: "left" },
+          { label: "CA", width: 45, align: "center" },
+          { label: "EXAM", width: 45, align: "center" },
+          { label: "TOTAL", width: 45, align: "center" },
+          { label: "GRADE", width: 50, align: "center" },
+          { label: "REMARK", width: 105, align: "left" },
         ];
 
-    doc.rect(L, y, CW, 22).fill(isSec ? "#0b2b4f" : "#0b4d2f");
-    let colX = L;
+    // Table header
+    doc.rect(marginLeft, y, contentWidth, 22).fill(isSecondary ? "#0b2b4f" : "#0b4d2f");
+    let colX = marginLeft;
     doc.fillColor("white").fontSize(8).font("Helvetica-Bold");
-    cols.forEach((c) => {
-      doc.text(c.label, colX + 4, y + 7, { width: c.w - 8, align: c.a });
-      colX += c.w;
-    });
+    for (const col of columns) {
+      doc.text(col.label, colX + 4, y + 7, { width: col.width - 8, align: col.align });
+      colX += col.width;
+    }
     y += 22;
 
-    doc.font("Helvetica").fontSize(8);
-    const rowH = 18;
-    results.slice(0, 20).forEach((r, i) => {
-      const rowY = y + i * rowH;
-      if (i % 2 === 0) doc.rect(L, rowY, CW, rowH).fill("#f8fafc");
-      
+    // Table rows
+    doc.font("Helvetica").fontSize(8).fillColor("#0f172a");
+    const lineHeight = 18;
+    const maxRows = Math.min(results.length, 20);
+
+    for (let i = 0; i < maxRows; i++) {
+      const r = results[i];
+      const rowY = y + i * lineHeight;
+
+      // Alternate row background
+      if (i % 2 === 0) {
+        doc.rect(marginLeft, rowY, contentWidth, lineHeight).fill("#f8fafc");
+      }
+
+      // Extract component scores
       const scores = {};
-      r.scores?.forEach((s) => { scores[s.assessmentName] = s.score; });
-
-      const cells = isSec
-        ? [r.subjectId?.name, scores["CA 1"] ?? "—", scores["CA 2"] ?? "—",
-           scores["Assignment"] ?? "—", scores["Examination"] ?? "—",
-           r.totalScore ?? 0, r.grade, r.gradePoint ?? "—"]
-        : [r.subjectId?.name, scores["First Test"] ?? "—", scores["Examination"] ?? "—",
-           `${r.totalScore}/${r.maxPossible}`, r.grade, r.remark];
-
-      colX = L;
-      cols.forEach((c, ci) => {
-        doc.fillColor(c.label === "GRADE" ? gradeColor(r.grade) : "#0f172a");
-        doc.text(String(cells[ci] ?? ""), colX + 4, rowY + 5, { width: c.w - 8, align: c.a });
-        colX += c.w;
+      r.scores?.forEach((s) => {
+        scores[s.assessmentName] = s.score;
       });
-    });
-    y += Math.min(results.length, 20) * rowH + 15;
 
-    // SUMMARY
+      const cells = isSecondary
+        ? [
+            r.subjectId?.name || "—",
+            scores["CA 1"] ?? "—",
+            scores["CA 2"] ?? "—",
+            scores["Assignment"] ?? "—",
+            scores["Examination"] ?? "—",
+            `${r.totalScore ?? 0}`,
+            r.grade || "—",
+            r.gradePoint ?? "—",
+          ]
+        : [
+            r.subjectId?.name || "—",
+            scores["First Test"] ?? scores["Class Assessment"] ?? "—",
+            scores["Examination"] ?? "—",
+            `${r.totalScore ?? 0}`,
+            r.grade || "—",
+            r.remark || "—",
+          ];
+
+      colX = marginLeft;
+      doc.fillColor("#0f172a");
+      for (let c = 0; c < columns.length; c++) {
+        const col = columns[c];
+        // Color the grade cell
+        if (columns[c].label === "GRADE") {
+          doc.fillColor(gradeColor(r.grade));
+        } else {
+          doc.fillColor("#0f172a");
+        }
+        doc.text(String(cells[c]), colX + 4, rowY + 5, {
+          width: col.width - 8,
+          align: col.align,
+        });
+        colX += col.width;
+      }
+    }
+
+    y += maxRows * lineHeight + 10;
+
+    // ═══════════════════════════════════════════════════════
+    // 5. SUMMARY
+    // ═══════════════════════════════════════════════════════
     if (summary) {
-      doc.rect(L, y, CW, 42).fill("#f1f5f9");
-      const sCols = [
-        ["TOTAL", summary.overallTotal ?? "—"],
-        ["AVERAGE", `${summary.overallAverage?.toFixed(1) ?? 0}%`],
-        ["GRADE", summary.overallGrade ?? "—"],
-        ...(isSec ? [["GRADE POINT", summary.gradePoint ?? "—"]] : []),
-        ["POSITION", summary.positionInClass ? `${summary.positionInClass}/${summary.totalPupilsInClass}` : "—"],
+      doc.rect(marginLeft, y, contentWidth, 42).fill("#f1f5f9").stroke("#cbd5e1");
+      
+      const summaryCols = [
+        { label: "TOTAL SCORE", value: summary.overallTotal ?? "—" },
+        { label: "AVERAGE %", value: summary.overallAverage?.toFixed(1) ?? "—" },
+        { label: "OVERALL GRADE", value: summary.overallGrade ?? "—" },
+        { label: isSecondary ? "TOTAL GP" : "POSITION", value: isSecondary ? summary.gradePoint ?? "—" : summary.positionInClass ?? "—" },
+        { label: isSecondary ? "POSITION" : "OUT OF", value: isSecondary ? summary.positionInClass ?? "—" : summary.totalPupilsInClass ?? "—" },
       ];
-      const cw = CW / sCols.length;
-      sCols.forEach((sc, i) => {
-        const sx = L + i * cw;
-        doc.fillColor("#64748b").fontSize(7).font("Helvetica").text(sc[0], sx + 4, y + 8, { width: cw - 8, align: "center" });
+
+      const cellWidth = contentWidth / summaryCols.length;
+      summaryCols.forEach((sc, i) => {
+        const sx = marginLeft + i * cellWidth;
+        doc.fillColor("#64748b").fontSize(7).font("Helvetica").text(sc.label, sx + 4, y + 8, { width: cellWidth - 8, align: "center" });
         doc.fillColor(i === 2 ? gradeColor(summary.overallGrade) : "#0f172a")
-          .fontSize(12).font("Helvetica-Bold").text(String(sc[1]), sx + 4, y + 20, { width: cw - 8, align: "center" });
+          .fontSize(12).font("Helvetica-Bold")
+          .text(String(sc.value), sx + 4, y + 20, { width: cellWidth - 8, align: "center" });
       });
       y += 55;
     }
 
-    // COMMENTS
-    doc.fillColor("#334155").fontSize(8).font("Helvetica-Bold").text("FORM TEACHER'S COMMENT:", L, y);
-    doc.fillColor("#0f172a").fontSize(9).font("Helvetica").text(summary?.formTeacherComment || "—", L + 130, y, { width: CW - 130 });
+    // ═══════════════════════════════════════════════════════
+    // 6. COMMENTS
+    // ═══════════════════════════════════════════════════════
+    doc.fillColor("#334155").fontSize(8).font("Helvetica-Bold").text("FORM TEACHER'S COMMENT", marginLeft, y);
+    doc.fillColor("#0f172a").fontSize(9).font("Helvetica").text(summary?.formTeacherComment || "—", marginLeft + 130, y, { width: contentWidth - 130 });
     y += 20;
-    doc.fillColor("#334155").fontSize(8).font("Helvetica-Bold").text("HEAD TEACHER'S COMMENT:", L, y);
-    doc.fillColor("#0f172a").fontSize(9).font("Helvetica").text(summary?.headTeacherComment || "—", L + 130, y, { width: CW - 130 });
+
+    doc.fillColor("#334155").fontSize(8).font("Helvetica-Bold").text("HEAD TEACHER'S COMMENT", marginLeft, y);
+    doc.fillColor("#0f172a").fontSize(9).font("Helvetica").text(summary?.headTeacherComment || "—", marginLeft + 130, y, { width: contentWidth - 130 });
     y += 30;
 
-    // GRADING KEY
-    const scale = isSec
-      ? [["A1", "75-100"], ["B2", "70-74"], ["B3", "65-69"], ["C4", "60-64"], ["C5", "55-59"], ["C6", "50-54"], ["D7", "45-49"], ["E8", "40-44"], ["F9", "0-39"]]
-      : [["A", "70-100"], ["B", "60-69"], ["C", "50-59"], ["D", "40-49"], ["E", "30-39"], ["F", "0-29"]];
+    // ═══════════════════════════════════════════════════════
+    // 7. GRADING KEY (bottom left)
+    // ═══════════════════════════════════════════════════════
+    const scale = isSecondary
+      ? [
+          ["A1", "75-100"], ["B2", "70-74"], ["B3", "65-69"],
+          ["C4", "60-64"], ["C5", "55-59"], ["C6", "50-54"],
+          ["D7", "45-49"], ["E8", "40-44"], ["F9", "0-39"],
+        ]
+      : [
+          ["A", "70-100"], ["B", "60-69"], ["C", "50-59"],
+          ["D", "40-49"], ["E", "30-39"], ["F", "0-29"],
+        ];
 
-    doc.fillColor("#334155").fontSize(8).font("Helvetica-Bold").text("GRADING KEY:", L, y);
+    doc.fillColor("#334155").fontSize(8).font("Helvetica-Bold").text("GRADING KEY", marginLeft, y);
     y += 12;
-    scale.forEach((item, i) => {
-      const sx = L + (i % 3) * 70;
-      const sy = y + Math.floor(i / 3) * 12;
-      doc.fillColor(gradeColor(item[0])).fontSize(8).font("Helvetica-Bold").text(item[0], sx, sy);
-      doc.fillColor("#64748b").font("Helvetica").text(item[1], sx + 22, sy);
-    });
 
-    // SIGNATURES
-    const sigY = H - 70;
+    const scaleColWidth = 60;
+    const scalePerRow = isSecondary ? 3 : 3;
+    for (let i = 0; i < scale.length; i++) {
+      const row = Math.floor(i / scalePerRow);
+      const col = i % scalePerRow;
+      const sx = marginLeft + col * scaleColWidth;
+      const sy = y + row * 12;
+      doc.fillColor(gradeColor(scale[i][0])).fontSize(8).font("Helvetica-Bold").text(scale[i][0], sx, sy);
+      doc.fillColor("#64748b").font("Helvetica").text(scale[i][1], sx + 22, sy);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 8. SIGNATURES (bottom right)
+    // ═══════════════════════════════════════════════════════
+    const sigY = pageHeight - 70;
     doc.fillColor("#64748b").fontSize(8).font("Helvetica")
-      .text("________________________", W - 200, sigY)
-      .text(school?.proprietorName || "Head Teacher", W - 200, sigY + 12, { width: 160, align: "center" })
-      .text("Head Teacher", W - 200, sigY + 25, { width: 160, align: "center" });
+      .text("________________________", pageWidth - 200, sigY)
+      .text(school?.proprietorName || "Head Teacher", pageWidth - 200, sigY + 12, { width: 160, align: "center" })
+      .text("Head Teacher's Signature", pageWidth - 200, sigY + 25, { width: 160, align: "center" });
 
-    // FOOTER
-    doc.fillColor("#94a3b8").fontSize(7).text(
-      `Generated by CodeSmartNG Academic · ${new Date().toLocaleDateString()}`,
-      L, H - 30, { width: CW, align: "center" }
-    );
+    // ═══════════════════════════════════════════════════════
+    // 9. FOOTER
+    // ═══════════════════════════════════════════════════════
+    doc.fillColor("#94a3b8").fontSize(7).font("Helvetica")
+      .text(
+        `Generated by CodeSmartNG Academic · ${new Date().toLocaleDateString()}`,
+        marginLeft,
+        pageHeight - 30,
+        { width: contentWidth, align: "center" }
+      );
 
     doc.end();
   });
