@@ -31,6 +31,19 @@ const resultSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    // ── SAS: Class Level & Stream snapshots ───────────────────
+    // Stored directly here to make broadsheets & ranking fast without deep joins
+    classLevelId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ClassLevel",
+      index: true,
+    },
+    stream: {
+      type: String,
+      enum: ["science", "arts", "commercial", null],
+      default: null,
+    },
+
     subjectId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Subject",
@@ -47,8 +60,10 @@ const resultSchema = new mongoose.Schema(
     totalScore: { type: Number, default: 0 },        // sum of scores
     maxPossible: { type: Number, default: 100 },     // sum of maxScores
     percentage: { type: Number, default: 0 },        // (totalScore / maxPossible) * 100
-    grade: { type: String, default: "" },            // A/B/C/D/E/F
+    grade: { type: String, default: "" },            // A/B/C/D/E/F OR A1/B2/F9
     remark: { type: String, default: "" },           // Excellent, Very Good, etc.
+    // ── SAS: WAEC Grade Point (for Secondary GPA) ─────────────
+    gradePoint: { type: Number, default: null },
 
     // ── Nursery: developmental ────────────────────────────────
     // Only used when subject.isDevelopmental = true
@@ -99,5 +114,7 @@ resultSchema.index(
 
 // Fast class broadsheet
 resultSchema.index({ schoolId: 1, classId: 1, session: 1, term: 1 });
+// SAS: Fast stream-based broadsheets for SSS
+resultSchema.index({ schoolId: 1, classLevelId: 1, stream: 1, session: 1, term: 1 });
 
 export default mongoose.model("Result", resultSchema);

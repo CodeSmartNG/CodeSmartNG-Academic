@@ -2,10 +2,11 @@ import School from "../models/School.js";
 import User from "../models/User.js";
 import { generateToken } from "../utils/generateToken.js";
 import crypto from "crypto";
-import sendEmail from "../utils/sendEmail.js"; // 👈 Ensure this file exists!
+import sendEmail from "../utils/sendEmail.js";
 
-// ... registerSchool function (keep yours as it is) ...
-
+// ─────────────────────────────────────────────────────────────
+// LOGIN
+// ─────────────────────────────────────────────────────────────
 export const login = async (req, res) => {
   try {
     const { email, password, schoolSlug } = req.body;
@@ -27,8 +28,9 @@ export const login = async (req, res) => {
     }
 
     // For non-super-admin, verify school is approved AND subscription is active
+    let userSchool = null;
     if (user.role !== "super_admin") {
-      const userSchool = school || (await School.findById(user.schoolId));
+      userSchool = school || (await School.findById(user.schoolId));
       if (!userSchool) {
         return res.status(403).json({ success: false, message: "School not found" });
       }
@@ -39,7 +41,6 @@ export const login = async (req, res) => {
         });
       }
 
-      // 👇 NEW: Check if subscription has expired
       if (userSchool.subscriptionExpiresAt && new Date() > new Date(userSchool.subscriptionExpiresAt)) {
         return res.status(403).json({
           success: false,
@@ -64,6 +65,8 @@ export const login = async (req, res) => {
           email: user.email,
           role: user.role,
           schoolId: user.schoolId,
+          // 👈 SAS: Send the tracks to the frontend for the Track Switcher
+          schoolTracks: userSchool?.tracks || ["nursery_primary"], 
         },
       },
     });
@@ -73,6 +76,9 @@ export const login = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────
+// FORGOT PASSWORD
+// ─────────────────────────────────────────────────────────────
 export const forgotPassword = async (req, res) => {
   try {
     const { email, schoolSlug } = req.body;
@@ -91,22 +97,18 @@ export const forgotPassword = async (req, res) => {
       return res.json({ success: true, message: successMessage });
     }
 
-    // Generate a random reset token
     const resetToken = crypto.randomBytes(32).toString("hex");
     
-    // Hash the token for database storage
     user.passwordResetToken = crypto
       .createHash("sha256")
       .update(resetToken)
       .digest("hex");
-    user.passwordResetExpires = Date.now() + 30 * 60 * 1000; // 30 minutes
+    user.passwordResetExpires = Date.now() + 30 * 60 * 1000;
     
     await user.save({ validateBeforeSave: false });
 
-    // Build the reset URL
     const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
     
-    // 👇 Email Content (HTML & Text)
     const message = `You are receiving this email because you (or someone else) requested a password reset for your CodeSmartNG account.\n\nPlease click the link below or paste it into your browser to complete the process:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email and your password will remain unchanged.`;
 
     const html = `
@@ -127,13 +129,11 @@ export const forgotPassword = async (req, res) => {
       </div>
     `;
 
-    // Log to Render just in case the email fails
     console.log("\n🔐 PASSWORD RESET REQUEST");
     console.log("🔐 User:", user.email);
     console.log("🔐 Reset URL:", resetUrl);
 
     try {
-      // 👇 Send the email via Brevo
       await sendEmail({
         email: user.email,
         subject: "Password Reset Request - CodeSmartNG Academic",
@@ -148,7 +148,6 @@ export const forgotPassword = async (req, res) => {
       });
     } catch (emailError) {
       console.error("❌ Error sending email via Brevo:", emailError);
-      // Revert the token if email fails so they can try again
       user.passwordResetToken = undefined;
       user.passwordResetExpires = undefined;
       await user.save({ validateBeforeSave: false });
@@ -164,15 +163,16 @@ export const forgotPassword = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────
+// RESET PASSWORD
+// ─────────────────────────────────────────────────────────────
 export const resetPassword = async (req, res) => {
   try {
-    // 1. Get the token from the URL and hash it to match the DB
     const hashedToken = crypto
       .createHash("sha256")
       .update(req.params.token)
       .digest("hex");
 
-    // 2. Find the user with this token who hasn't expired
     const user = await User.findOne({
       passwordResetToken: hashedToken,
       passwordResetExpires: { $gt: Date.now() },
@@ -182,12 +182,10 @@ export const resetPassword = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid or expired token" });
     }
 
-    // 3. Set the new password
     user.password = req.body.password;
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
     
-    // Save triggers the bcrypt hashing in User.js
     await user.save();
 
     res.json({ success: true, message: "Password reset successful. Please login." });

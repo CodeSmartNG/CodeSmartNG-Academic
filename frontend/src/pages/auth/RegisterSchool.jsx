@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../../services/api";
 
@@ -11,15 +11,21 @@ export default function RegisterSchool() {
   const [success, setSuccess] = useState(false);
 
   const [form, setForm] = useState({
+    tracks: [], // 👈 SAS: Empty array for selected levels
     schoolName: "",
+    address: "",
     email: "",
     phone: "",
-    address: "",
     proprietorName: "",
     password: "",
   });
 
   const update = (field, value) => setForm({ ...form, [field]: value });
+
+  // Scroll to top when step changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [step]);
 
   // Generate a preview slug from the school name
   const slugPreview = form.schoolName
@@ -27,7 +33,8 @@ export default function RegisterSchool() {
     .trim()
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, ""); // SAS Fix: strip leading/trailing dashes
 
   const passwordStrength = () => {
     let score = 0;
@@ -43,17 +50,21 @@ export default function RegisterSchool() {
 
   const validateStep = (s) => {
     if (s === 1) {
+      if (form.tracks.length === 0) return "Please select at least one school level";
+    }
+    if (s === 2) {
       if (!form.schoolName.trim()) return "Please enter your school name";
       if (!form.address.trim()) return "Please enter your school address";
     }
-    if (s === 2) {
+    if (s === 3) {
       if (!form.email.trim()) return "Please enter your email";
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return "Please enter a valid email";
       if (!form.phone.trim()) return "Please enter your phone number";
     }
-    if (s === 3) {
+    if (s === 4) {
       if (!form.proprietorName.trim()) return "Please enter the proprietor's name";
-      if (form.password.length < 6) return "Password must be at least 6 characters";
+      if (form.password.length < 8) return "Password must be at least 8 characters";
+      if (passwordStrength() < 2) return "Password is too weak. Add letters, numbers, or symbols.";
     }
     return null;
   };
@@ -67,18 +78,26 @@ export default function RegisterSchool() {
 
   const back = () => {
     setError("");
+    setShowPassword(false);
     setStep(step - 1);
   };
 
   const submit = async (e) => {
     e.preventDefault();
-    const err = validateStep(3);
-    if (err) return setError(err);
+    // Validate all steps before submitting
+    for (let s = 1; s <= 4; s++) {
+      const err = validateStep(s);
+      if (err) {
+        setStep(s);
+        setError(err);
+        return;
+      }
+    }
 
     setError("");
     setLoading(true);
     try {
-      await api.post("/auth/register-school", form);
+      await api.post("/auth/register-school", { ...form, slug: slugPreview });
       setSuccess(true);
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed. Please try again.");
@@ -97,7 +116,7 @@ export default function RegisterSchool() {
           </div>
           <h2 className="text-2xl font-bold text-slate-900 mb-2">Registration Successful!</h2>
           <p className="text-slate-500 text-sm mb-6">
-            Your school has been registered. The CodeSmartNG Super Admin will review and approve your account shortly. You will be notified by email.
+            Your <strong>{form.tracks.includes("secondary") ? (form.tracks.includes("nursery_primary") ? "combined Primary & Secondary" : "Secondary") : "Primary"}</strong> school has been registered. The CodeSmartNG Super Admin will review and approve your account shortly. You will be notified by email.
           </p>
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-left">
             <p className="text-xs text-blue-800 font-semibold mb-1">Next Steps:</p>
@@ -193,45 +212,100 @@ export default function RegisterSchool() {
             <div className="mb-6">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                  Step {step} of 3
+                  Step {step} of 4
                 </span>
                 <span className="text-xs text-slate-400">
-                  {step === 1 && "School Info"}
-                  {step === 2 && "Contact"}
-                  {step === 3 && "Account"}
+                  {step === 1 && "School Levels"}
+                  {step === 2 && "School Info"}
+                  {step === 3 && "Contact"}
+                  {step === 4 && "Account"}
                 </span>
               </div>
               <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-blue-700 to-blue-900 transition-all duration-300"
-                  style={{ width: `${(step / 3) * 100}%` }}
+                  style={{ width: `${(step / 4) * 100}%` }}
                 ></div>
               </div>
             </div>
 
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-slate-900">
-                {step === 1 && "Tell us about your school"}
-                {step === 2 && "How can we reach you?"}
-                {step === 3 && "Create your account"}
+                {step === 1 && "What levels does your school run?"}
+                {step === 2 && "Tell us about your school"}
+                {step === 3 && "How can we reach you?"}
+                {step === 4 && "Create your account"}
               </h2>
               <p className="text-sm text-slate-500 mt-1">
-                {step === 1 && "Basic information about your school"}
-                {step === 2 && "Contact details for your school"}
-                {step === 3 && "Set up your login credentials"}
+                {step === 1 && "You can select both if you run a combined school."}
+                {step === 2 && "Basic information about your school"}
+                {step === 3 && "Contact details for your school"}
+                {step === 4 && "Set up your login credentials"}
               </p>
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2 mb-4">
+              <div role="alert" className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2 mb-4">
                 <i className="fas fa-exclamation-circle text-red-600 mt-0.5"></i>
                 <div className="text-sm text-red-700">{error}</div>
               </div>
             )}
 
-            <form onSubmit={submit} className="space-y-4">
-              {/* ── Step 1: School Info ─────────────────────── */}
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (step < 4) next();
+                else submit(e);
+              }} 
+              className="space-y-4"
+            >
+              {/* ── Step 1: School Levels (SAS) ─────────────── */}
               {step === 1 && (
+                <div className="space-y-3">
+                  <label 
+                    className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition ${
+                      form.tracks.includes("nursery_primary") ? "border-blue-600 bg-blue-50" : "border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-1 w-5 h-5 text-blue-600 rounded"
+                      checked={form.tracks.includes("nursery_primary")}
+                      onChange={(e) => {
+                        if (e.target.checked) update("tracks", [...form.tracks, "nursery_primary"]);
+                        else update("tracks", form.tracks.filter(t => t !== "nursery_primary"));
+                      }}
+                    />
+                    <div>
+                      <div className="font-semibold text-slate-800">Nursery & Primary</div>
+                      <div className="text-xs text-slate-500 mt-0.5">Pre-Nursery through Primary 6</div>
+                    </div>
+                  </label>
+
+                  <label 
+                    className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition ${
+                      form.tracks.includes("secondary") ? "border-blue-600 bg-blue-50" : "border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-1 w-5 h-5 text-blue-600 rounded"
+                      checked={form.tracks.includes("secondary")}
+                      onChange={(e) => {
+                        if (e.target.checked) update("tracks", [...form.tracks, "secondary"]);
+                        else update("tracks", form.tracks.filter(t => t !== "secondary"));
+                      }}
+                    />
+                    <div>
+                      <div className="font-semibold text-slate-800">Secondary School</div>
+                      <div className="text-xs text-slate-500 mt-0.5">JSS 1-3 and SSS 1-3 (Sciences, Arts, Commercial)</div>
+                    </div>
+                  </label>
+                </div>
+              )}
+
+              {/* ── Step 2: School Info ─────────────────────── */}
+              {step === 2 && (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -241,6 +315,8 @@ export default function RegisterSchool() {
                       <i className="fas fa-school absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
                       <input
                         type="text"
+                        name="organization"
+                        autoComplete="organization"
                         className="w-full border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition"
                         placeholder="e.g. Bright Future Academy"
                         value={form.schoolName}
@@ -263,6 +339,8 @@ export default function RegisterSchool() {
                       <i className="fas fa-map-marker-alt absolute left-4 top-4 text-slate-400 text-sm"></i>
                       <textarea
                         rows="3"
+                        name="address"
+                        autoComplete="street-address"
                         className="w-full border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition resize-none"
                         placeholder="e.g. 12 Adeola Street, Ikeja, Lagos"
                         value={form.address}
@@ -274,8 +352,8 @@ export default function RegisterSchool() {
                 </>
               )}
 
-              {/* ── Step 2: Contact ─────────────────────────── */}
-              {step === 2 && (
+              {/* ── Step 3: Contact ─────────────────────────── */}
+              {step === 3 && (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -285,6 +363,8 @@ export default function RegisterSchool() {
                       <i className="fas fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
                       <input
                         type="email"
+                        name="email"
+                        autoComplete="email"
                         className="w-full border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition"
                         placeholder="admin@school.com"
                         value={form.email}
@@ -302,6 +382,8 @@ export default function RegisterSchool() {
                       <i className="fas fa-phone absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
                       <input
                         type="tel"
+                        name="phone"
+                        autoComplete="tel"
                         className="w-full border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition"
                         placeholder="08012345678"
                         value={form.phone}
@@ -313,8 +395,8 @@ export default function RegisterSchool() {
                 </>
               )}
 
-              {/* ── Step 3: Account ─────────────────────────── */}
-              {step === 3 && (
+              {/* ── Step 4: Account ─────────────────────────── */}
+              {step === 4 && (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -324,6 +406,8 @@ export default function RegisterSchool() {
                       <i className="fas fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
                       <input
                         type="text"
+                        name="name"
+                        autoComplete="name"
                         className="w-full border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition"
                         placeholder="e.g. Mrs. Folake Adeyemi"
                         value={form.proprietorName}
@@ -341,12 +425,14 @@ export default function RegisterSchool() {
                       <i className="fas fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
                       <input
                         type={showPassword ? "text" : "password"}
+                        name="new-password"
+                        autoComplete="new-password"
                         className="w-full border border-slate-200 rounded-xl pl-11 pr-11 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition"
-                        placeholder="At least 6 characters"
+                        placeholder="At least 8 characters"
                         value={form.password}
                         onChange={(e) => update("password", e.target.value)}
                         required
-                        minLength={6}
+                        minLength={8}
                       />
                       <button
                         type="button"
@@ -386,14 +472,14 @@ export default function RegisterSchool() {
                     Back
                   </button>
                 )}
-                {step < 3 ? (
+                {step < 4 ? (
                   <button
                     type="button"
                     onClick={next}
-                    className="flex-1 bg-gradient-to-r from-blue-700 to-blue-900 hover:from-blue-800 hover:to-blue-950 text-white py-3 rounded-xl font-semibold shadow-lg shadow-blue-700/30 transition-all"
+                    className="flex-1 bg-gradient-to-r from-blue-700 to-blue-900 hover:from-blue-800 hover:to-blue-950 text-white py-3 rounded-xl font-semibold shadow-lg shadow-blue-700/30 transition-all flex items-center justify-center gap-2"
                   >
                     Continue
-                    <i className="fas fa-arrow-right ml-2 text-sm"></i>
+                    <i className="fas fa-arrow-right text-sm"></i>
                   </button>
                 ) : (
                   <button

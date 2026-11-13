@@ -1,6 +1,62 @@
 import School from "../models/School.js";
 import User from "../models/User.js"; 
 import Student from "../models/Student.js";
+import { seedSecondarySchool } from "../services/seedSchool.js"; // 👈 Import the seeder
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/auth/register-school (or /api/schools/register)
+// Public: Register a new school
+// ─────────────────────────────────────────────────────────────
+export const registerSchool = async (req, res) => {
+  try {
+    const { 
+      schoolName, email, phone, address, proprietorName, password,
+      tracks 
+    } = req.body;
+
+    // 1. Check if email already exists
+    const existingSchool = await School.findOne({ email });
+    if (existingSchool) {
+      return res.status(400).json({ success: false, message: "A school with this email already exists" });
+    }
+
+    // 2. Create the school
+    const school = await School.create({
+      name: schoolName,
+      email,
+      phone,
+      address,
+      proprietorName,
+      tracks: tracks && tracks.length > 0 ? tracks : ["nursery_primary"],
+      status: "pending", 
+    });
+
+    // 3. Create the proprietor user account
+    const user = await User.create({
+      fullName: proprietorName,
+      email,
+      password,
+      role: "proprietor",
+      schoolId: school._id,
+    });
+
+    // 4. Seed Secondary data immediately if selected
+    if (school.tracks.includes("secondary")) {
+      await seedSecondarySchool(school._id);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "School registered successfully. Awaiting approval.",
+      data: { school, user: { id: user._id, email: user.email } },
+    });
+
+  } catch (error) {
+    console.error("registerSchool error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // ─────────────────────────────────────────────────────────────
 // GET /api/schools
 // Super Admin: List all schools
@@ -30,6 +86,12 @@ export const approveSchool = async (req, res) => {
     school.status = "approved";
     school.approvedAt = new Date();
     await school.save();
+
+    // 👈 SAS: Trigger seeding if the school registered for Secondary
+    // (Just in case it wasn't seeded during registration)
+    if (school.tracks && school.tracks.includes("secondary")) {
+      await seedSecondarySchool(school._id);
+    }
 
     res.json({ success: true, message: "School approved", data: { school } });
   } catch (err) {
@@ -71,8 +133,6 @@ export const suspendSchool = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
-
-
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/schools/stats
@@ -119,6 +179,7 @@ export const getPlatformStats = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
 export const getMySchool = async (req, res) => {
   try {
     const school = await School.findById(req.user.schoolId);
@@ -128,7 +189,6 @@ export const getMySchool = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
-
 
 export const updateMySchool = async (req, res) => {
   try {
@@ -141,7 +201,7 @@ export const updateMySchool = async (req, res) => {
     if (req.body.address) school.address = req.body.address;
     if (req.body.logoUrl) school.logoUrl = req.body.logoUrl;
 
-    // 👇 Merge settings (don't overwrite the whole object)
+    // Merge settings
     if (req.body.settings) {
       if (req.body.settings.bankDetails) {
         school.settings.bankDetails = req.body.settings.bankDetails;
@@ -152,7 +212,6 @@ export const updateMySchool = async (req, res) => {
       if (req.body.settings.currentSession) {
         school.settings.currentSession = req.body.settings.currentSession;
       }
-      // Add more if needed (classes, terms, etc.)
     }
 
     await school.save();
@@ -161,13 +220,15 @@ export const updateMySchool = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// ─────────────────────────────────────────────────────────────
 // PATCH /api/schools/:id/renew
+// ─────────────────────────────────────────────────────────────
 export const renewSchoolSubscription = async (req, res) => {
   try {
     const school = await School.findById(req.params.id);
     if (!school) return res.status(404).json({ success: false, message: "School not found" });
 
-    // Calculate new expiry date (30 days from now, or 30 days from current expiry if still active)
     const currentExpiry = school.subscriptionExpiresAt ? new Date(school.subscriptionExpiresAt) : new Date();
     const baseDate = currentExpiry > new Date() ? currentExpiry : new Date();
     

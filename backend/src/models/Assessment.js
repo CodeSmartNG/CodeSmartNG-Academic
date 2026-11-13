@@ -14,6 +14,12 @@ const assessmentSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    // ── SAS: Link to the canonical level (JSS 1, Primary 3) ───
+    classLevelId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ClassLevel",
+      index: true,
+    },
     subjectId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Subject",
@@ -26,20 +32,18 @@ const assessmentSchema = new mongoose.Schema(
       required: true,
     },
 
-    session: { type: String, required: true, index: true }, // e.g. "2025/2026"
-    term: { type: String, required: true, index: true },    // "First Term"
+    session: { type: String, required: true, index: true }, 
+    term: { type: String, required: true, index: true },    
 
-    name: { type: String, required: true, trim: true },     // "First Test", "Examination"
+    name: { type: String, required: true, trim: true },     // "First Test", "CA 1"
     type: {
       type: String,
-      enum: ["test", "assignment", "exam", "project"],
+      enum: ["ca", "test", "assignment", "exam", "project"], // ── SAS: Added "ca"
       required: true,
     },
     maxScore: { type: Number, required: true, min: 1 },
     date: { type: Date, default: Date.now },
 
-    // Snapshot of school's assessment structure at creation time
-    // Prevents retroactive changes from breaking old results
     isDevelopmental: { type: Boolean, default: false },
 
     isPublished: { type: Boolean, default: false },
