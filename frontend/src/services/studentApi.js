@@ -2,7 +2,8 @@ import api from "./api";
 
 export const studentApi = {
   list: (params) => api.get("/students", { params }),
-  stats: () => api.get("/students/stats"),
+  // 👈 SAS: Added params so it sends ?track=secondary
+  stats: (params) => api.get("/students/stats", { params }),
   get: (id) => api.get(`/students/${id}`),
   create: (data) => api.post("/students", data),
   update: (id, data) => api.patch(`/students/${id}`, data),
