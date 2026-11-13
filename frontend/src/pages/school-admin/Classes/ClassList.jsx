@@ -1,9 +1,13 @@
-
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { classApi } from "../../../services/classApi";
+import { useAuth } from "../../../context/AuthContext"; // 👈 SAS
 
 export default function ClassList() {
+  // 👈 SAS: Get the active track
+  const { activeTrack } = useAuth(); 
+  const isSecondary = activeTrack === "secondary";
+
   const [classes, setClasses] = useState([]);
   const [stats, setStats] = useState(null);
   const [filters, setFilters] = useState({ level: "", search: "" });
@@ -13,9 +17,10 @@ export default function ClassList() {
   const load = async () => {
     setLoading(true);
     try {
+      // 👈 SAS: Pass the track to the API
       const [listRes, statsRes] = await Promise.all([
-        classApi.list(filters),
-        classApi.stats(),
+        classApi.list({ ...filters, track: activeTrack }),
+        classApi.stats({ track: activeTrack }),
       ]);
       setClasses(listRes.data?.data?.classes || []);
       setStats(statsRes.data.data);
@@ -27,14 +32,21 @@ export default function ClassList() {
   };
 
   useEffect(() => {
+    // Reset filter when track changes
+    setFilters({ level: "", search: "" });
+  }, [activeTrack]);
+
+  useEffect(() => {
     load();
-  }, [filters]);
+  }, [filters, activeTrack]); // 👈 Reload when track changes
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Classes</h1>
+          <h1 className="text-2xl font-bold text-slate-800">
+            {isSecondary ? "Secondary Classes" : "Nursery & Primary Classes"}
+          </h1>
           <p className="text-sm text-slate-500">
             Manage classes and teacher assignments
           </p>
@@ -50,8 +62,17 @@ export default function ClassList() {
       {stats && (
         <div className="grid grid-cols-3 gap-4 mb-6">
           <StatCard label="Total Classes" value={stats.total} color="blue" />
-          <StatCard label="Nursery" value={stats.nursery} color="pink" />
-          <StatCard label="Primary" value={stats.primary} color="green" />
+          {isSecondary ? (
+            <>
+              <StatCard label="Junior (JSS)" value={stats.junior || 0} color="amber" />
+              <StatCard label="Senior (SSS)" value={stats.senior || 0} color="purple" />
+            </>
+          ) : (
+            <>
+              <StatCard label="Nursery" value={stats.nursery || 0} color="pink" />
+              <StatCard label="Primary" value={stats.primary || 0} color="green" />
+            </>
+          )}
         </div>
       )}
 
@@ -68,8 +89,17 @@ export default function ClassList() {
           onChange={(e) => setFilters({ ...filters, level: e.target.value })}
         >
           <option value="">All Levels</option>
-          <option value="nursery">Nursery</option>
-          <option value="primary">Primary</option>
+          {isSecondary ? (
+            <>
+              <option value="jss">JSS (Junior)</option>
+              <option value="sss">SSS (Senior)</option>
+            </>
+          ) : (
+            <>
+              <option value="nursery">Nursery</option>
+              <option value="primary">Primary</option>
+            </>
+          )}
         </select>
       </div>
 
@@ -77,7 +107,9 @@ export default function ClassList() {
         {loading ? (
           <p className="text-slate-400">Loading…</p>
         ) : classes.length === 0 ? (
-          <p className="text-slate-400">No classes yet</p>
+          <p className="text-slate-400">
+            No classes yet. Click "+ Create Class" to add one.
+          </p>
         ) : (
           classes.map((c) => (
             <Link
@@ -92,12 +124,16 @@ export default function ClassList() {
                   </h3>
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full ${
-                      c.level === "nursery"
+                      isSecondary
+                        ? c.level === "jss"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-purple-100 text-purple-700"
+                        : c.level === "nursery"
                         ? "bg-pink-100 text-pink-700"
                         : "bg-green-100 text-green-700"
                     }`}
                   >
-                    {c.level}
+                    {c.level?.toUpperCase()}
                   </span>
                 </div>
                 <div className="text-right">
@@ -126,6 +162,8 @@ export default function ClassList() {
 
       {showCreate && (
         <CreateClassModal
+          isSecondary={isSecondary}
+          activeTrack={activeTrack}
           onClose={() => setShowCreate(false)}
           onCreated={() => {
             setShowCreate(false);
@@ -142,6 +180,8 @@ function StatCard({ label, value, color }) {
     blue: "bg-blue-50 text-blue-700",
     pink: "bg-pink-50 text-pink-700",
     green: "bg-green-50 text-green-700",
+    amber: "bg-amber-50 text-amber-700",
+    purple: "bg-purple-50 text-purple-700",
   };
   return (
     <div className={`p-4 rounded-xl ${colors[color]}`}>
@@ -151,10 +191,11 @@ function StatCard({ label, value, color }) {
   );
 }
 
-function CreateClassModal({ onClose, onCreated }) {
+function CreateClassModal({ onClose, onCreated, isSecondary, activeTrack }) {
   const [form, setForm] = useState({
     name: "",
-    level: "primary",
+    // 👈 SAS: Default level based on track
+    level: isSecondary ? "jss" : "primary", 
     section: "",
     capacity: 30,
     academicSession: "2025/2026",
@@ -166,7 +207,8 @@ function CreateClassModal({ onClose, onCreated }) {
     setSaving(true);
     setError("");
     try {
-      await classApi.create(form);
+      // 👈 SAS: Send the track when creating
+      await classApi.create({ ...form, track: activeTrack });
       onCreated();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to create class");
@@ -178,7 +220,9 @@ function CreateClassModal({ onClose, onCreated }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl p-6 w-full max-w-md">
-        <h3 className="font-bold text-lg mb-4">Create New Class</h3>
+        <h3 className="font-bold text-lg mb-4">
+          Create New {isSecondary ? "Secondary" : "Primary"} Class
+        </h3>
         {error && (
           <div className="bg-red-50 text-red-700 p-2 rounded mb-3 text-sm">
             {error}
@@ -189,7 +233,7 @@ function CreateClassModal({ onClose, onCreated }) {
           <span className="text-sm text-slate-600">Class Name *</span>
           <input
             className="mt-1 w-full border rounded-lg p-2"
-            placeholder="e.g. Primary 1, Nursery 2"
+            placeholder={isSecondary ? "e.g. JSS 1, SSS 2 Science" : "e.g. Primary 1, Nursery 2"}
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
@@ -203,15 +247,24 @@ function CreateClassModal({ onClose, onCreated }) {
               value={form.level}
               onChange={(e) => setForm({ ...form, level: e.target.value })}
             >
-              <option value="nursery">Nursery</option>
-              <option value="primary">Primary</option>
+              {isSecondary ? (
+                <>
+                  <option value="jss">JSS (Junior)</option>
+                  <option value="sss">SSS (Senior)</option>
+                </>
+              ) : (
+                <>
+                  <option value="nursery">Nursery</option>
+                  <option value="primary">Primary</option>
+                </>
+              )}
             </select>
           </label>
           <label className="block">
             <span className="text-sm text-slate-600">Section</span>
             <input
               className="mt-1 w-full border rounded-lg p-2"
-              placeholder="A / Blue"
+              placeholder={isSecondary ? "Science / Arts" : "A / Blue"}
               value={form.section}
               onChange={(e) => setForm({ ...form, section: e.target.value })}
             />

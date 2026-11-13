@@ -2,7 +2,8 @@ import api from "./api";
 
 export const classApi = {
   list: (params) => api.get("/classes", { params }),
-  stats: () => api.get("/classes/stats"),
+  // 👈 SAS: Added params so it sends ?track=secondary
+  stats: (params) => api.get("/classes/stats", { params }),
   get: (id) => api.get(`/classes/${id}`),
   create: (data) => api.post("/classes", data),
   update: (id, data) => api.patch(`/classes/${id}`, data),
