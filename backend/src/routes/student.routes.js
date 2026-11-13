@@ -21,11 +21,11 @@ const router = express.Router();
 // All routes require auth + tenant scope
 router.use(protect, tenantScope);
 
-// ── Stats & list (admin, teacher can view) ─────────────────
+// ── Stats & list ────────────────────────────────────────────
 router.get("/stats", authorize("proprietor", "admin", "teacher"), getStudentStats);
 router.get("/", authorize("proprietor", "admin", "teacher"), listStudents);
 
-// ── Create / update (admin & proprietor only) ──────────────
+// ── Create ──────────────────────────────────────────────────
 router.post(
   "/",
   authorize("proprietor", "admin"),
@@ -38,6 +38,18 @@ router.post(
     body("guardian.fullName").trim().notEmpty().withMessage("Guardian name required"),
     body("guardian.relationship").isIn(["father", "mother", "guardian", "other"]),
     body("guardian.phone").trim().notEmpty().withMessage("Guardian phone required"),
+    // 👈 SAS: Validate stream (only required if className starts with SSS)
+    body("stream")
+      .optional({ nullable: true })
+      .custom((value, { req }) => {
+        if (req.body.className && req.body.className.startsWith("SSS")) {
+          if (!value) throw new Error("Stream is required for SSS students");
+          if (!["science", "arts", "commercial"].includes(value)) {
+            throw new Error("Stream must be science, arts, or commercial");
+          }
+        }
+        return true;
+      }),
   ],
   validate,
   createStudent
@@ -50,6 +62,18 @@ router.post(
   [
     body("studentIds").isArray({ min: 1 }).withMessage("Select at least one pupil"),
     body("toClass").trim().notEmpty().withMessage("Target class required"),
+    // 👈 SAS: Validate stream when promoting to SSS
+    body("stream")
+      .optional({ nullable: true })
+      .custom((value, { req }) => {
+        if (req.body.toClass && req.body.toClass.startsWith("SSS")) {
+          if (!value) throw new Error("Stream is required for promoting into SSS");
+          if (!["science", "arts", "commercial"].includes(value)) {
+            throw new Error("Stream must be science, arts, or commercial");
+          }
+        }
+        return true;
+      }),
   ],
   validate,
   promoteStudents

@@ -2,15 +2,25 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { studentApi } from "../../../services/studentApi";
 import ImageUpload from "../../../components/ImageUpload";
+import { useAuth } from "../../../context/AuthContext"; // 👈 SAS
 
-const CLASSES = [
+const PRIMARY_CLASSES = [
   "Nursery 1", "Nursery 2", "Nursery 3",
   "Primary 1", "Primary 2", "Primary 3",
   "Primary 4", "Primary 5", "Primary 6",
 ];
 
+// 👈 SAS: Secondary classes
+const SECONDARY_CLASSES = [
+  "JSS 1", "JSS 2", "JSS 3",
+  "SSS 1", "SSS 2", "SSS 3",
+];
+
 export default function AdmissionForm() {
   const navigate = useNavigate();
+  const { activeTrack } = useAuth(); // 👈 SAS
+  const isSecondary = activeTrack === "secondary";
+  
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -23,8 +33,9 @@ export default function AdmissionForm() {
     stateOfOrigin: "",
     religion: "",
     className: "",
+    stream: "", // 👈 SAS: For SSS streams
     academicSession: "2025/2026",
-    photoUrl: "", // 👈 ADDED THIS LINE
+    photoUrl: "",
     guardian: {
       fullName: "", relationship: "father", phone: "",
       altPhone: "", email: "", address: "", occupation: "",
@@ -45,8 +56,12 @@ export default function AdmissionForm() {
     });
   };
 
+  // Determine if the selected class is SSS (requires a stream)
+  const isSSS = isSecondary && form.className.startsWith("SSS");
+  const availableClasses = isSecondary ? SECONDARY_CLASSES : PRIMARY_CLASSES;
+
   const validateStep1 = () =>
-    form.fullName && form.dateOfBirth && form.gender && form.className && form.academicSession;
+    form.fullName && form.dateOfBirth && form.gender && form.className && form.academicSession && (!isSSS || form.stream);
 
   const validateStep2 = () =>
     form.guardian.fullName && form.guardian.phone && form.guardian.relationship;
@@ -57,6 +72,8 @@ export default function AdmissionForm() {
     try {
       const payload = {
         ...form,
+        // Remove stream if not an SSS student
+        stream: isSSS ? form.stream : null,
         emergencyContact: form.emergencyContact.fullName ? form.emergencyContact : undefined,
         medicalInfo: form.medicalInfo.bloodGroup ? form.medicalInfo : undefined,
         previousSchool: form.previousSchool.name ? form.previousSchool : undefined,
@@ -72,7 +89,9 @@ export default function AdmissionForm() {
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold text-slate-800 mb-1">Admit New Pupil</h1>
+      <h1 className="text-2xl font-bold text-slate-800 mb-1">
+        Admit New {isSecondary ? "Secondary" : "Nursery/Primary"} Pupil
+      </h1>
       <p className="text-sm text-slate-500 mb-6">Step {step} of 3</p>
 
       <div className="bg-white rounded-xl shadow-sm p-6">
@@ -91,12 +110,34 @@ export default function AdmissionForm() {
               <h2 className="font-semibold text-slate-700 border-b pb-2">Pupil Information</h2>
               <Field label="Full Name *" value={form.fullName} onChange={(v) => update("fullName", v)} />
               <Field label="Date of Birth *" type="date" value={form.dateOfBirth} onChange={(v) => update("dateOfBirth", v)} />
+              
               <div className="grid grid-cols-2 gap-4">
                 <Select label="Gender *" value={form.gender} onChange={(v) => update("gender", v)}
                   options={[{ v: "male", l: "Male" }, { v: "female", l: "Female" }]} />
                 <Select label="Class *" value={form.className} onChange={(v) => update("className", v)}
-                  options={CLASSES.map((c) => ({ v: c, l: c }))} placeholder="Select class" />
+                  options={availableClasses.map((c) => ({ v: c, l: c }))} placeholder="Select class" />
               </div>
+
+              {/* 👈 SAS: Stream selector for SSS students */}
+              {isSSS && (
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                  <Select 
+                    label="Stream *" 
+                    value={form.stream} 
+                    onChange={(v) => update("stream", v)}
+                    options={[
+                      { v: "science", l: "Science" },
+                      { v: "arts", l: "Arts" },
+                      { v: "commercial", l: "Commercial" },
+                    ]} 
+                    placeholder="Select stream (required for SSS)" 
+                  />
+                  <p className="text-xs text-blue-600 mt-2">
+                    SSS students must be assigned to a stream for subject allocation.
+                  </p>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Academic Session *" value={form.academicSession} onChange={(v) => update("academicSession", v)} />
                 <Field label="State of Origin" value={form.stateOfOrigin} onChange={(v) => update("stateOfOrigin", v)} />
@@ -162,7 +203,7 @@ export default function AdmissionForm() {
           {step < 3 ? (
             <button
               onClick={() => {
-                if (step === 1 && !validateStep1()) return setError("Please fill required pupil fields");
+                if (step === 1 && !validateStep1()) return setError("Please fill required pupil fields (and stream if SSS)");
                 if (step === 2 && !validateStep2()) return setError("Please fill required guardian fields");
                 setError("");
                 setStep((s) => s + 1);
