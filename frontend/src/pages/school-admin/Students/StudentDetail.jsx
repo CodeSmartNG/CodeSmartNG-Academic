@@ -1,4 +1,3 @@
-
 //frontend/src/pages/school-admin/Students/StudentDetail.jsx
 
 import { useEffect, useState } from "react";
@@ -68,6 +67,18 @@ export default function StudentDetail() {
             <p className="text-slate-500 font-mono text-sm">{student.admissionNumber}</p>
             <div className="flex flex-wrap gap-3 mt-3 text-sm">
               <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full">{student.className}</span>
+              
+              {/* 👈 SAS: Stream badge */}
+              {student.stream && (
+                <span className={`px-3 py-1 rounded-full capitalize ${
+                  student.stream === "science" ? "bg-blue-100 text-blue-700" :
+                  student.stream === "arts" ? "bg-purple-100 text-purple-700" :
+                  "bg-amber-100 text-amber-700"
+                }`}>
+                  {student.stream}
+                </span>
+              )}
+
               <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full capitalize">{student.gender}</span>
               {student.age != null && <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full">{student.age} yrs</span>}
               <StatusBadge status={student.admissionStatus} />
@@ -116,6 +127,8 @@ export default function StudentDetail() {
 
         <InfoCard title="Academic">
           <Row label="Class" value={student.className} />
+          {/* 👈 SAS: Show stream in Academic card */}
+          {student.stream && <Row label="Stream" value={student.stream.charAt(0).toUpperCase() + student.stream.slice(1)} />}
           <Row label="Session" value={student.academicSession} />
           <Row label="Admitted" value={new Date(student.admissionDate).toLocaleDateString()} />
           <Row label="Status" value={student.admissionStatus} />
@@ -151,7 +164,7 @@ export default function StudentDetail() {
               <Row
                 key={i}
                 label={new Date(p.promotedAt).toLocaleDateString()}
-                value={`${p.fromClass} → ${p.toClass} (${p.fromSession} → ${p.toSession})`}
+                value={`${p.fromClass} → ${p.toClass} (${p.fromSession} → ${p.toSession})${p.stream ? ` [${p.stream}]` : ""}`}
               />
             ))}
           </InfoCard>
