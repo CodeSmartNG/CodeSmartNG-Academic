@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
 
+
 // Helper: format grade color for PDF
 const gradeColor = (grade) => {
   if (!grade) return "#64748b";
