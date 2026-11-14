@@ -19,8 +19,8 @@ import {
   getPayment,
   downloadReceiptPDF,
   voidPayment,
-  manualPaymentRequest, // 👈 ADD THIS
-  approvePayment,       // 👈 ADD THIS
+  manualPaymentRequest,
+  approvePayment,
 } from "../controllers/payment.controller.js";
 import { protect, authorize, tenantScope } from "../middleware/auth.js";
 
@@ -38,7 +38,7 @@ router.get("/structures", authorize("proprietor", "admin"), listFeeStructures);
 router.post("/structures", authorize("proprietor", "admin"), createFeeStructure);
 router.patch("/structures/:id", authorize("proprietor", "admin"), updateFeeStructure);
 router.delete("/structures/:id", authorize("proprietor", "admin"), deleteFeeStructure);
-router.post("/payments/manual", authorize("parent"), manualPaymentRequest);
+
 // ── Bills ──────────────────────────────────────────────────
 router.post("/generate-bills", authorize("proprietor", "admin"), generateBills);
 router.get("/bills", authorize("proprietor", "admin", "parent", "pupil"), listBills);
@@ -51,17 +51,12 @@ router.get("/payments", authorize("proprietor", "admin", "parent", "pupil"), lis
 router.get("/payments/:id", authorize("proprietor", "admin", "parent", "pupil"), getPayment);
 router.get("/payments/:id/receipt.pdf", authorize("proprietor", "admin", "parent", "pupil"), downloadReceiptPDF);
 router.post("/payments/:id/void", authorize("proprietor", "admin"), voidPayment);
+
 // ── Manual Payments (Parents) ──────────────────────────────
-router.post(
-  "/payments/manual", 
-  authorize("parent"), 
-  manualPaymentRequest
-);
+// 👈 Fixed: Only declared once
+router.post("/payments/manual", authorize("parent"), manualPaymentRequest);
 
 // ── Approve Payments (Admin) ───────────────────────────────
-router.patch(
-  "/payments/:id/approve", 
-  authorize("proprietor", "admin"), 
-  approvePayment
-);
+router.patch("/payments/:id/approve", authorize("proprietor", "admin"), approvePayment);
+
 export default router;
