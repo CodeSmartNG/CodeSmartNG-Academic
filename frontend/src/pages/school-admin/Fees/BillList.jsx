@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom"; // 👈 Added useLocation
 import { classApi } from "../../../services/classApi";
 import { feeApi, formatNaira } from "../../../services/feeApi";
-import { useAuth } from "../../../context/AuthContext"; // 👈 SAS
+import { useAuth } from "../../../context/AuthContext";
 
 export default function BillList() {
-  const { activeTrack } = useAuth(); // 👈 SAS
+  const { activeTrack } = useAuth();
   const isSecondary = activeTrack === "secondary";
+  const location = useLocation(); // 👈 To highlight active tab
 
   const [classes, setClasses] = useState([]);
   const [bills, setBills] = useState([]);
@@ -16,16 +17,14 @@ export default function BillList() {
   });
   const [loading, setLoading] = useState(true);
 
-  // 👈 SAS: Fetch classes by active track
   useEffect(() => {
     classApi.list({ track: activeTrack }).then(({ data }) => setClasses(data.data.classes));
-    setFilters(f => ({ ...f, classId: "" })); // Reset class filter when track changes
+    setFilters(f => ({ ...f, classId: "" }));
   }, [activeTrack]);
 
   const load = () => {
     setLoading(true);
     Promise.all([
-      // 👈 SAS: Send track to bills and stats
       feeApi.listBills({ ...filters, track: activeTrack }),
       feeApi.stats(filters.session, filters.term, activeTrack),
     ]).then(([b, s]) => {
@@ -38,6 +37,22 @@ export default function BillList() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
+      {/* 👈 SAS: Navigation Tabs */}
+      <div className="flex gap-4 mb-6 border-b pb-2">
+        <Link 
+          to="/dashboard/fees" 
+          className={`font-semibold pb-2 ${location.pathname === "/dashboard/fees" ? "text-blue-700 border-b-2 border-blue-700" : "text-slate-500 hover:text-slate-700"}`}
+        >
+          Bills & Balances
+        </Link>
+        <Link 
+          to="/dashboard/fees/structures" 
+          className={`font-semibold pb-2 ${location.pathname === "/dashboard/fees/structures" ? "text-blue-700 border-b-2 border-blue-700" : "text-slate-500 hover:text-slate-700"}`}
+        >
+          Fee Structures
+        </Link>
+      </div>
+
       <div className="flex items-center gap-3 mb-6">
         <h1 className="text-2xl font-bold text-slate-800">
           {isSecondary ? "Secondary" : "Primary"} Bills & Balances
@@ -92,7 +107,7 @@ export default function BillList() {
               <tr><td colSpan="7" className="p-6 text-center text-slate-400">Loading…</td></tr>
             ) : bills.length === 0 ? (
               <tr><td colSpan="7" className="p-6 text-center text-slate-400">
-                No bills yet. Go to Fee Structures and click "Generate Bills".
+                No bills yet. Go to <strong>Fee Structures</strong> and click "Generate Bills".
               </td></tr>
             ) : bills.map((b) => (
               <tr key={b._id} className="border-t">
@@ -102,7 +117,6 @@ export default function BillList() {
                 </td>
                 <td className="p-3 text-xs">
                   {b.classId?.name}
-                  {/* 👈 SAS: Show stream if applicable */}
                   {b.studentId?.stream && (
                     <span className="ml-1 text-[10px] text-blue-600 capitalize">
                       ({b.studentId.stream})
