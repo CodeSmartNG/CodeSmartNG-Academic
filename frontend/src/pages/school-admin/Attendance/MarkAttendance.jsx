@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { classApi } from "../../../services/classApi";
 import { attendanceApi } from "../../../services/attendanceApi";
-import { useAuth } from "../../../context/AuthContext";
+import { useAuth } from "../../../context/AuthContext"; // 👈 SAS
 
 const STATUSES = ["present", "absent", "late", "excused"];
 
@@ -13,14 +13,16 @@ const STATUS_COLORS = {
   excused: { bg: "bg-blue-600", text: "text-white", outline: "border-blue-600 text-blue-700" },
 };
 
-// 👇 Helper function to get today's date in Lagos
 const today = () => {
   const now = new Date(Date.now() + 60 * 60 * 1000); // Lagos is UTC+1
   return now.toISOString().slice(0, 10);
 };
 
 export default function MarkAttendance() {
-  const { user } = useAuth();
+  // 👈 SAS: Get activeTrack
+  const { user, activeTrack } = useAuth();
+  const isSecondary = activeTrack === "secondary";
+
   const [searchParams, setSearchParams] = useSearchParams();
   const [classes, setClasses] = useState([]);
   
@@ -34,9 +36,10 @@ export default function MarkAttendance() {
 
   // Load classes (only assigned ones for teachers)
   useEffect(() => {
+    // 👈 SAS: For admins, filter by track. For teachers, the backend handles it (they only see assigned classes)
     const fetchClasses = user?.role === "teacher" 
       ? classApi.myClasses() 
-      : classApi.list();
+      : classApi.list({ track: activeTrack });
 
     fetchClasses.then(({ data }) => {
       const fetchedClasses = data.data.classes || [];
@@ -47,7 +50,14 @@ export default function MarkAttendance() {
         setClassId(fetchedClasses[0]._id);
       }
     }).catch(console.error);
-  }, [user]);
+  }, [user, activeTrack]); // 👈 SAS: Re-fetch if track changes
+
+  // Reset classId if track changes so we don't try to load a Primary class in Secondary mode
+  useEffect(() => {
+    setClassId("");
+    setRecords([]);
+    setSummary(null);
+  }, [activeTrack]);
 
   // Load attendance when class or date changes
   useEffect(() => {
@@ -106,7 +116,6 @@ export default function MarkAttendance() {
       const { data } = await attendanceApi.mark(payload);
       setToast({ type: "success", message: data.message });
       
-      // Reload to get fresh IDs
       const reload = await attendanceApi.getClass(classId, date);
       setRecords(
         reload.data.data.records.map((r) => ({
@@ -126,7 +135,6 @@ export default function MarkAttendance() {
     }
   };
 
-  // Live summary for UI
   const liveSummary = records.reduce(
     (acc, r) => {
       if (r.status) acc[r.status]++;
@@ -138,7 +146,15 @@ export default function MarkAttendance() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">Mark Attendance</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-slate-800">Mark Attendance</h1>
+        {/* 👈 SAS: Show badge indicating which track is active */}
+        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+          isSecondary ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
+        }`}>
+          {isSecondary ? "SECONDARY" : "PRIMARY"}
+        </span>
+      </div>
 
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-end">
@@ -148,7 +164,7 @@ export default function MarkAttendance() {
             className="mt-1 w-full border rounded-lg p-2"
             value={classId}
             onChange={(e) => setClassId(e.target.value)}
-            disabled={user?.role === "teacher"} // 👈 Lock the dropdown for teachers
+            disabled={user?.role === "teacher"}
           >
             <option value="">Select class…</option>
             {classes.map((c) => (
@@ -191,7 +207,7 @@ export default function MarkAttendance() {
       {loading ? (
         <div className="text-center text-slate-400 py-10">Loading…</div>
       ) : !classId ? (
-        <div className="text-center text-slate-400 py-10">Select a class to begin</div>
+        <div className="text-center text-slate-400 py-10">Select a {isSecondary ? "Secondary" : "Primary"} class to begin</div>
       ) : records.length === 0 ? (
         <div className="text-center text-slate-400 py-10">No active pupils in this class</div>
       ) : (
