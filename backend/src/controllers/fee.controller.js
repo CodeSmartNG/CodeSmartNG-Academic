@@ -3,7 +3,6 @@ import Bill from "../models/Bill.js";
 import Student from "../models/Student.js";
 import Class from "../models/Class.js";
 
-// 👈 SAS: Helper to check track
 const SECONDARY_CLASSES = ["JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3"];
 
 // POST /api/fees/structures
@@ -12,10 +11,12 @@ export const createFeeStructure = async (req, res) => {
     const { classId, session, term, items, dueDate, notes } = req.body;
     const schoolId = req.schoolId || req.user?.schoolId;
 
+    // 👈 SAS: Save the stream for each item
     const itemsKobo = items.map((i) => ({
       name: i.name,
       amountKobo: Math.round(i.amount * 100),
       isOptional: !!i.isOptional,
+      stream: i.stream || null,
     }));
     
     const totalKobo = itemsKobo
@@ -55,23 +56,39 @@ export const generateBills = async (req, res) => {
     const cls = await Class.findById(structure.classId);
     if (!cls) return res.status(404).json({ success: false, message: "Class not found" });
 
-    // 👈 SAS: Only fetch active pupils in this class
     const pupils = await Student.find({
       schoolId,
       className: cls.name,
       admissionStatus: "active",
     });
 
-    const itemsSnapshot = structure.items.map((i) => ({
-      name: i.name,
-      amountKobo: i.amountKobo,
-      isOptional: i.isOptional,
-    }));
+    let createdCount = 0;
 
-    const bulkOps = pupils.map((p) => ({
-      updateOne: {
-        filter: { schoolId, studentId: p._id, session: structure.session, term: structure.term },
-        update: {
+    for (const p of pupils) {
+      // 👈 SAS: Filter the fee items for THIS specific pupil based on their stream
+      const pupilItems = structure.items.filter((item) => {
+        // If the fee item is for a specific stream, the pupil MUST match it
+        if (item.stream && item.stream !== p.stream) return false;
+        // Otherwise, apply it to all pupils
+        return true;
+      });
+
+      // Calculate the total for THIS pupil based on their applicable items
+      const pupilTotalKobo = pupilItems
+        .filter((i) => !i.isOptional)
+        .reduce((sum, i) => sum + i.amountKobo, 0);
+
+      const itemsSnapshot = pupilItems.map((i) => ({
+        name: i.name,
+        amountKobo: i.amountKobo,
+        isOptional: i.isOptional,
+        stream: i.stream || null,
+      }));
+
+      // Upsert the bill (so if it already exists, we don't duplicate it, but we update the items)
+      const result = await Bill.updateOne(
+        { schoolId, studentId: p._id, session: structure.session, term: structure.term },
+        {
           $setOnInsert: {
             schoolId,
             studentId: p._id,
@@ -80,26 +97,27 @@ export const generateBills = async (req, res) => {
             session: structure.session,
             term: structure.term,
             items: itemsSnapshot,
-            totalKobo: structure.totalKobo,
+            totalKobo: pupilTotalKobo,
             paidKobo: 0,
-            balanceKobo: structure.totalKobo,
+            balanceKobo: pupilTotalKobo,
             status: "unpaid",
             dueDate: structure.dueDate,
             generatedBy: req.user._id,
           },
         },
-        upsert: true,
-      },
-    }));
+        { upsert: true }
+      );
 
-    const result = await Bill.bulkWrite(bulkOps);
+      if (result.upsertedCount > 0) createdCount++;
+    }
 
     res.json({
       success: true,
-      message: `${result.upsertedCount} bill(s) generated`,
-      data: { created: result.upsertedCount, skipped: pupils.length - result.upsertedCount },
+      message: `${createdCount} bill(s) generated successfully.`,
+      data: { created: createdCount, skipped: pupils.length - createdCount },
     });
   } catch (err) {
+    console.error("Generate bills error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -109,7 +127,7 @@ export const listBills = async (req, res) => {
   try {
     const schoolId = req.schoolId || req.user?.schoolId;
     const bills = await Bill.find({ schoolId })
-      .populate("studentId", "fullName admissionNumber className")
+      .populate("studentId", "fullName admissionNumber className stream") // 👈 SAS: include stream
       .populate("classId", "name track")
       .sort({ createdAt: -1 });
     res.json({ success: true, data: { bills } });
@@ -122,12 +140,10 @@ export const listBills = async (req, res) => {
 export const listStructures = async (req, res) => {
   try {
     const schoolId = req.schoolId || req.user?.schoolId;
-    const { track } = req.query; // 👈 SAS: Accept track filter
+    const { track } = req.query;
 
     let query = { schoolId };
 
-    // 👈 SAS: If track is provided, we need to filter by the class names
-    // Since FeeStructure references Class ID, we first find the matching classes
     if (track) {
       const isSecondary = track === "secondary";
       const classQuery = { 
@@ -145,7 +161,6 @@ export const listStructures = async (req, res) => {
       .populate("classId", "name level track")
       .sort({ createdAt: -1 });
 
-    // 👈 Fix: Return "feeStructures" to match the frontend
     res.json({ success: true, data: { feeStructures: structures } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
