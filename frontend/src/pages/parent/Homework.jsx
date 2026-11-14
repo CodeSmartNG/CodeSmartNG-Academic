@@ -1,19 +1,25 @@
 import { useEffect, useState } from "react";
 import { homeworkApi } from "../../services/commsApi";
+import { useAuth } from "../../context/AuthContext"; // 👈 SAS
 
 export default function ParentHomework() {
+  const { activeTrack } = useAuth(); // 👈 SAS
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    homeworkApi.list()
+    setLoading(true);
+    // 👈 SAS: Pass the track filter
+    homeworkApi.list({ track: activeTrack })
       .then(({ data }) => setItems(data.data.homework))
       .finally(() => setLoading(false));
-  }, []);
+  }, [activeTrack]); // 👈 Reload when track changes
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">Homework</h1>
+      <h1 className="text-2xl font-bold text-slate-800 mb-6">
+        {activeTrack === "secondary" ? "Secondary" : "Primary"} Homework
+      </h1>
 
       {loading ? (
         <p className="text-slate-400">Loading…</p>
