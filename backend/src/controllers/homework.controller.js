@@ -3,12 +3,12 @@ import Class from "../models/Class.js";
 import Subject from "../models/Subject.js";
 import Student from "../models/Student.js";
 
+// 👈 SAS: Secondary class names for filtering
+const SECONDARY_CLASSES = ["JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3"];
+
 // ─────────────────────────────────────────────────────────────
 // POST /api/homework
-// Body: { classId, subjectId, title, description, dueDate,
-//         attachments?, session, term, allowTextSubmission? }
 // ─────────────────────────────────────────────────────────────
-
 export const createHomework = async (req, res) => {
   try {
     const {
@@ -36,7 +36,6 @@ export const createHomework = async (req, res) => {
     if (!cls) return res.status(404).json({ success: false, message: "Class not found" });
     if (!subject) return res.status(404).json({ success: false, message: "Subject not found" });
 
-    // Snapshot of active pupils in the class
     const pupils = await Student.find({
       schoolId,
       className: cls.name,
@@ -47,7 +46,6 @@ export const createHomework = async (req, res) => {
       .filter((p) => p && p._id)
       .map((p) => p._id);
 
-    // Validate dueDate safely
     let safeDueDate = new Date();
     if (dueDate) {
       const parsed = new Date(dueDate);
@@ -78,32 +76,41 @@ export const createHomework = async (req, res) => {
     res.status(400).json({ success: false, message: err.message });
   }
 };
-    
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/homework
-// Query: classId, subjectId, teacherId, session, term, upcoming
+// Query: classId, subjectId, teacherId, session, term, upcoming, track
 // ─────────────────────────────────────────────────────────────
 export const listHomework = async (req, res) => {
   try {
-    const { classId, subjectId, teacherId, session, term, upcoming, page = 1, limit = 30 } = req.query;
+    const { classId, subjectId, teacherId, session, term, upcoming, track, page = 1, limit = 30 } = req.query;
     const query = { schoolId: req.schoolId, isPublished: true };
+
+    // 👈 SAS: Filter by track
+    if (track) {
+      const isSecondary = track === "secondary";
+      const validClasses = await Class.find({
+        schoolId: req.schoolId,
+        name: isSecondary ? { $in: SECONDARY_CLASSES } : { $nin: SECONDARY_CLASSES }
+      }).select("_id");
+      
+      if (!classId) {
+        query.classId = { $in: validClasses.map(c => c._id) };
+      }
+    }
 
     // ── Role-based filtering ────────────────────────────────
     if (req.user.role === "teacher") {
-      // Teacher sees homework they assigned OR in their classes
       query.$or = [
         { teacherId: req.user._id },
         { classId: { $in: req.user.assignedClasses || [] } },
       ];
     } else if (req.user.role === "parent") {
-      // Parent sees homework for their children's classes
       const children = await Student.find({
         _id: { $in: req.user.children || [] },
       }).select("classId");
       query.classId = { $in: children.map((c) => c.classId).filter(Boolean) };
     } else if (req.user.role === "pupil") {
-      // Pupil sees only homework assigned to them
       query.assignedTo = req.user.studentRecord;
     }
 
@@ -116,7 +123,7 @@ export const listHomework = async (req, res) => {
 
     const [homework, total] = await Promise.all([
       Homework.find(query)
-        .populate("classId", "name level")
+        .populate("classId", "name level track")
         .populate("subjectId", "name code")
         .populate("teacherId", "fullName")
         .sort({ dueDate: -1, createdAt: -1 })
@@ -156,7 +163,6 @@ export const getHomework = async (req, res) => {
 
     if (!homework) return res.status(404).json({ success: false, message: "Homework not found" });
 
-    // Pupil: only see own submission
     if (req.user.role === "pupil") {
       const myId = req.user.studentRecord?.toString();
       if (!homework.assignedTo.some((s) => s._id.toString() === myId)) {
@@ -219,7 +225,6 @@ export const deleteHomework = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/homework/:id/submit (pupil)
-// Body: { textResponse?, attachments? }
 // ─────────────────────────────────────────────────────────────
 export const submitHomework = async (req, res) => {
   try {
@@ -238,7 +243,6 @@ export const submitHomework = async (req, res) => {
     const { textResponse, attachments } = req.body;
     const isLate = new Date() > homework.dueDate;
 
-    // Upsert submission
     const existing = homework.submissions.find((s) => s.studentId.toString() === myId);
     if (existing) {
       existing.textResponse = textResponse || existing.textResponse;
@@ -267,7 +271,6 @@ export const submitHomework = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // PATCH /api/homework/:id/submissions/:studentId (teacher)
-// Body: { status, teacherRemark }
 // ─────────────────────────────────────────────────────────────
 export const markSubmission = async (req, res) => {
   try {
@@ -289,7 +292,6 @@ export const markSubmission = async (req, res) => {
     );
 
     if (!submission) {
-      // Create a "marked outstanding" record even if pupil never submitted
       homework.submissions.push({
         studentId: req.params.studentId,
         status,
