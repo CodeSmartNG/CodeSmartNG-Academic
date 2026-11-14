@@ -3,10 +3,7 @@ import Class from "../models/Class.js";
 import Student from "../models/Student.js";
 
 // ─────────────────────────────────────────────────────────────
-// POST /api/announcements (admin/proprietor only)
-// Body: { title, body, category?, priority?, audience?,
-//         targetClassIds?, attachments?, startsAt?, expiresAt?,
-//         isPinned? }
+// POST /api/announcements
 // ─────────────────────────────────────────────────────────────
 export const createAnnouncement = async (req, res) => {
   try {
@@ -21,9 +18,9 @@ export const createAnnouncement = async (req, res) => {
       startsAt,
       expiresAt,
       isPinned,
+      track, // 👈 SAS: Accept track from frontend
     } = req.body;
 
-    // Validate class IDs if provided
     if (targetClassIds?.length) {
       const count = await Class.countDocuments({
         _id: { $in: targetClassIds },
@@ -41,6 +38,7 @@ export const createAnnouncement = async (req, res) => {
       category: category || "general",
       priority: priority || "normal",
       audience: audience || "all",
+      track: track || "all", // 👈 SAS: Default to "all"
       targetClassIds: targetClassIds || [],
       attachments: attachments || [],
       startsAt: startsAt || new Date(),
@@ -62,7 +60,7 @@ export const createAnnouncement = async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 // Helper: build audience filter for a user
 // ─────────────────────────────────────────────────────────────
-const buildAudienceFilter = async (user, schoolId) => {
+const buildAudienceFilter = async (user, schoolId, track) => { // 👈 SAS: Added track
   const now = new Date();
   const base = {
     schoolId,
@@ -72,46 +70,58 @@ const buildAudienceFilter = async (user, schoolId) => {
   };
 
   if (user.role === "super_admin" || user.role === "proprietor" || user.role === "admin") {
-    // Staff sees everything in their school
+    // 👈 SAS: Filter by track for admins
+    if (track === "secondary") {
+      base.track = { $in: ["secondary", "all"] };
+    } else if (track === "nursery_primary") {
+      base.track = { $in: ["nursery_primary", "all"] };
+    }
     return base;
   }
 
   if (user.role === "teacher") {
+    // Teachers usually see all, but we can filter by track if needed
+    if (track === "secondary") base.track = { $in: ["secondary", "all"] };
+    else if (track === "nursery_primary") base.track = { $in: ["nursery_primary", "all"] };
+    
     base.audience = { $in: ["all", "teachers"] };
     return base;
   }
 
   if (user.role === "parent") {
-    // Parent sees announcements for: all, parents, nursery, primary,
-    // OR targeted to any of their children's classes
     const children = await Student.find({
       _id: { $in: user.children || [] },
-    }).select("classId");
+    }).select("classId className");
+
     const classIds = children.map((c) => c.classId).filter(Boolean);
+
+    // 👈 SAS: Filter by track based on their children's classes
+    const hasSecondary = children.some(c => c.className?.startsWith("JSS") || c.className?.startsWith("SSS"));
+    const hasPrimary = children.some(c => !c.className?.startsWith("JSS") && !c.className?.startsWith("SSS"));
+
+    if (track === "secondary" && !hasSecondary) return base; // Parent has no secondary kids in this view
+    if (track === "nursery_primary" && !hasPrimary) return base;
 
     base.$or = [
       ...base.$or,
       { audience: { $in: ["all", "parents"] } },
       { targetClassIds: { $in: classIds } },
     ];
-    // Nursery/primary based on children
-    const levels = new Set();
-    for (const c of children) {
-      if (c.classId) {
-        const cls = await Class.findById(c.classId).select("level");
-        if (cls) levels.add(cls.level);
-      }
-    }
-    if (levels.has("nursery")) base.$or.push({ audience: "nursery" });
-    if (levels.has("primary")) base.$or.push({ audience: "primary" });
+    
+    if (track === "secondary") base.track = { $in: ["secondary", "all"] };
+    else if (track === "nursery_primary") base.track = { $in: ["nursery_primary", "all"] };
+
     return base;
   }
 
   if (user.role === "pupil") {
-    // Pupil sees: all, pupils, their level, or their class
-    const student = await Student.findById(user.studentRecord).populate("classId", "level");
+    const student = await Student.findById(user.studentRecord).populate("classId", "level name");
     const classId = student?.classId?._id;
     const level = student?.classId?.level;
+    const isSecondaryPupil = student?.classId?.name?.startsWith("JSS") || student?.classId?.name?.startsWith("SSS");
+
+    if (track === "secondary" && !isSecondaryPupil) return base;
+    if (track === "nursery_primary" && isSecondaryPupil) return base;
 
     base.$or = [
       ...base.$or,
@@ -119,6 +129,10 @@ const buildAudienceFilter = async (user, schoolId) => {
     ];
     if (level) base.$or.push({ audience: level });
     if (classId) base.$or.push({ targetClassIds: classId });
+
+    if (track === "secondary") base.track = { $in: ["secondary", "all"] };
+    else if (track === "nursery_primary") base.track = { $in: ["nursery_primary", "all"] };
+
     return base;
   }
 
@@ -130,9 +144,9 @@ const buildAudienceFilter = async (user, schoolId) => {
 // ─────────────────────────────────────────────────────────────
 export const listAnnouncements = async (req, res) => {
   try {
-    const { category, page = 1, limit = 30, includeRead } = req.query;
+    const { category, page = 1, limit = 30, track } = req.query; // 👈 SAS: Accept track
 
-    const query = await buildAudienceFilter(req.user, req.schoolId);
+    const query = await buildAudienceFilter(req.user, req.schoolId, track); // 👈 SAS: Pass track
     if (category) query.category = category;
 
     const [announcements, total] = await Promise.all([
@@ -146,7 +160,6 @@ export const listAnnouncements = async (req, res) => {
       Announcement.countDocuments(query),
     ]);
 
-    // Add "isRead" flag for each
     const enriched = announcements.map((a) => ({
       ...a,
       isRead: a.readBy?.some((r) => r.userId.toString() === req.user._id.toString()) || false,
@@ -166,11 +179,11 @@ export const listAnnouncements = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/announcements/me
-// For parent/pupil dashboard: recent + unread count
 // ─────────────────────────────────────────────────────────────
 export const getMyAnnouncements = async (req, res) => {
   try {
-    const query = await buildAudienceFilter(req.user, req.schoolId);
+    const { track } = req.query; // 👈 SAS: Accept track
+    const query = await buildAudienceFilter(req.user, req.schoolId, track);
 
     const [recent, unreadCount] = await Promise.all([
       Announcement.find(query)
@@ -250,17 +263,9 @@ export const markAsRead = async (req, res) => {
 export const updateAnnouncement = async (req, res) => {
   try {
     const allowed = [
-      "title",
-      "body",
-      "category",
-      "priority",
-      "audience",
-      "targetClassIds",
-      "attachments",
-      "startsAt",
-      "expiresAt",
-      "isPublished",
-      "isPinned",
+      "title", "body", "category", "priority", "audience",
+      "track", // 👈 SAS: Allow updating track
+      "targetClassIds", "attachments", "startsAt", "expiresAt", "isPublished", "isPinned",
     ];
     const updates = {};
     allowed.forEach((k) => {
