@@ -2,8 +2,12 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { classApi } from "../../../services/classApi";
 import { feeApi, formatNaira } from "../../../services/feeApi";
+import { useAuth } from "../../../context/AuthContext"; // 👈 SAS
 
 export default function BillList() {
+  const { activeTrack } = useAuth(); // 👈 SAS
+  const isSecondary = activeTrack === "secondary";
+
   const [classes, setClasses] = useState([]);
   const [bills, setBills] = useState([]);
   const [stats, setStats] = useState(null);
@@ -12,25 +16,33 @@ export default function BillList() {
   });
   const [loading, setLoading] = useState(true);
 
+  // 👈 SAS: Fetch classes by active track
   useEffect(() => {
-    classApi.list().then(({ data }) => setClasses(data.data.classes));
-  }, []);
+    classApi.list({ track: activeTrack }).then(({ data }) => setClasses(data.data.classes));
+    setFilters(f => ({ ...f, classId: "" })); // Reset class filter when track changes
+  }, [activeTrack]);
 
   const load = () => {
     setLoading(true);
     Promise.all([
-      feeApi.listBills(filters),
-      feeApi.stats(filters.session, filters.term),
+      // 👈 SAS: Send track to bills and stats
+      feeApi.listBills({ ...filters, track: activeTrack }),
+      feeApi.stats(filters.session, filters.term, activeTrack),
     ]).then(([b, s]) => {
       setBills(b.data.data.bills);
       setStats(s.data.data);
     }).finally(() => setLoading(false));
   };
-  useEffect(load, [filters]);
+  
+  useEffect(load, [filters, activeTrack]);
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">Bills & Balances</h1>
+      <div className="flex items-center gap-3 mb-6">
+        <h1 className="text-2xl font-bold text-slate-800">
+          {isSecondary ? "Secondary" : "Primary"} Bills & Balances
+        </h1>
+      </div>
 
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
@@ -80,7 +92,7 @@ export default function BillList() {
               <tr><td colSpan="7" className="p-6 text-center text-slate-400">Loading…</td></tr>
             ) : bills.length === 0 ? (
               <tr><td colSpan="7" className="p-6 text-center text-slate-400">
-                No bills yet. Create a fee structure and click Generate Bills.
+                No bills yet. Go to Fee Structures and click "Generate Bills".
               </td></tr>
             ) : bills.map((b) => (
               <tr key={b._id} className="border-t">
@@ -88,7 +100,15 @@ export default function BillList() {
                   <div className="font-medium">{b.studentId?.fullName}</div>
                   <div className="text-xs text-slate-400 font-mono">{b.studentId?.admissionNumber}</div>
                 </td>
-                <td className="p-3 text-xs">{b.classId?.name}</td>
+                <td className="p-3 text-xs">
+                  {b.classId?.name}
+                  {/* 👈 SAS: Show stream if applicable */}
+                  {b.studentId?.stream && (
+                    <span className="ml-1 text-[10px] text-blue-600 capitalize">
+                      ({b.studentId.stream})
+                    </span>
+                  )}
+                </td>
                 <td className="p-3 text-right font-mono">{formatNaira(b.totalKobo)}</td>
                 <td className="p-3 text-right font-mono text-green-700">{formatNaira(b.paidKobo)}</td>
                 <td className="p-3 text-right font-mono text-red-700">{formatNaira(b.balanceKobo)}</td>
