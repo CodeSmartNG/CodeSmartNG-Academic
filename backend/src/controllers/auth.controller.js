@@ -77,6 +77,38 @@ export const login = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
+// GET CURRENT USER (Used by frontend on refresh)
+// ─────────────────────────────────────────────────────────────
+export const getMe = async (req, res) => {
+  try {
+    const user = req.user; // Set by the 'protect' middleware
+    let userSchool = null;
+    
+    // Fetch the school to get the tracks
+    if (user.role !== "super_admin" && user.schoolId) {
+      userSchool = await School.findById(user.schoolId);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          role: user.role,
+          schoolId: user.schoolId,
+          schoolTracks: userSchool?.tracks || ["nursery_primary"], // 👈 THIS FIXES THE DISAPPEARING TOGGLE
+        },
+      },
+    });
+  } catch (err) {
+    console.error("getMe error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
 // FORGOT PASSWORD
 // ─────────────────────────────────────────────────────────────
 export const forgotPassword = async (req, res) => {
