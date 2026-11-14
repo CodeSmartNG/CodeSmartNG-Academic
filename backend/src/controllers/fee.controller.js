@@ -3,13 +3,15 @@ import Bill from "../models/Bill.js";
 import Student from "../models/Student.js";
 import Class from "../models/Class.js";
 
+// 👈 SAS: Helper to check track
+const SECONDARY_CLASSES = ["JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3"];
+
 // POST /api/fees/structures
 export const createFeeStructure = async (req, res) => {
   try {
     const { classId, session, term, items, dueDate, notes } = req.body;
     const schoolId = req.schoolId || req.user?.schoolId;
 
-    // Convert Naira to Kobo for safety
     const itemsKobo = items.map((i) => ({
       name: i.name,
       amountKobo: Math.round(i.amount * 100),
@@ -53,6 +55,7 @@ export const generateBills = async (req, res) => {
     const cls = await Class.findById(structure.classId);
     if (!cls) return res.status(404).json({ success: false, message: "Class not found" });
 
+    // 👈 SAS: Only fetch active pupils in this class
     const pupils = await Student.find({
       schoolId,
       className: cls.name,
@@ -106,8 +109,8 @@ export const listBills = async (req, res) => {
   try {
     const schoolId = req.schoolId || req.user?.schoolId;
     const bills = await Bill.find({ schoolId })
-      .populate("studentId", "fullName admissionNumber")
-      .populate("classId", "name")
+      .populate("studentId", "fullName admissionNumber className")
+      .populate("classId", "name track")
       .sort({ createdAt: -1 });
     res.json({ success: true, data: { bills } });
   } catch (err) {
@@ -119,10 +122,31 @@ export const listBills = async (req, res) => {
 export const listStructures = async (req, res) => {
   try {
     const schoolId = req.schoolId || req.user?.schoolId;
-    const structures = await FeeStructure.find({ schoolId })
-      .populate("classId", "name level")
+    const { track } = req.query; // 👈 SAS: Accept track filter
+
+    let query = { schoolId };
+
+    // 👈 SAS: If track is provided, we need to filter by the class names
+    // Since FeeStructure references Class ID, we first find the matching classes
+    if (track) {
+      const isSecondary = track === "secondary";
+      const classQuery = { 
+        schoolId, 
+        name: isSecondary ? { $in: SECONDARY_CLASSES } : { $nin: SECONDARY_CLASSES } 
+      };
+      
+      const validClasses = await Class.find(classQuery).select("_id");
+      const validClassIds = validClasses.map(c => c._id);
+      
+      query.classId = { $in: validClassIds };
+    }
+
+    const structures = await FeeStructure.find(query)
+      .populate("classId", "name level track")
       .sort({ createdAt: -1 });
-    res.json({ success: true, data: { structures } });
+
+    // 👈 Fix: Return "feeStructures" to match the frontend
+    res.json({ success: true, data: { feeStructures: structures } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
