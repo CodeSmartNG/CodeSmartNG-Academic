@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../../services/api";
 import ImageUpload from "../../components/ImageUpload";
-import { useAuth } from "../../context/AuthContext"; // 👈 SAS
+import { useAuth } from "../../context/AuthContext";
 
 export default function SchoolAdminDashboard() {
-  const { activeTrack } = useAuth(); // 👈 SAS
+  const { activeTrack } = useAuth();
   const isSecondary = activeTrack === "secondary";
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -13,6 +13,9 @@ export default function SchoolAdminDashboard() {
   const [subjects, setSubjects] = useState([]);
   const [parents, setParents] = useState([]);
   
+  // 👈 SAS: State for the school overview stats
+  const [pupilStats, setPupilStats] = useState(null);
+
   const [teacherForm, setTeacherForm] = useState({ fullName: "", email: "", password: "" });
   const [subjectForm, setSubjectForm] = useState({ name: "", code: "" });
   const [parentForm, setParentForm] = useState({ fullName: "", email: "", password: "" });
@@ -29,11 +32,18 @@ export default function SchoolAdminDashboard() {
 
   const loadData = () => {
     api.get("/users?role=teacher").then(({ data }) => setTeachers(data.data.users || [])).catch(console.error);
+    
     // 👈 SAS: Filter subjects by active track
     api.get("/subjects", { params: { track: activeTrack } })
       .then(({ data }) => setSubjects(data.data.subjects || []))
       .catch(console.error);
+      
     api.get("/users?role=parent").then(({ data }) => setParents(data.data.users || [])).catch(console.error);
+
+    // 👈 SAS: Fetch pupil stats (gives us trackSplit)
+    api.get("/students/stats", { params: { track: activeTrack } })
+      .then(({ data }) => setPupilStats(data.data))
+      .catch(console.error);
     
     api.get("/schools/mine").then(({ data }) => {
       const school = data.data.school;
@@ -43,7 +53,6 @@ export default function SchoolAdminDashboard() {
     }).catch(console.error);
   };
 
-  // 👈 SAS: Reload subjects when track changes
   useEffect(() => {
     loadData();
 
@@ -80,7 +89,6 @@ export default function SchoolAdminDashboard() {
     e.preventDefault();
     setMsg(null);
     try {
-      // 👈 SAS: Send the track when creating a subject
       await api.post("/subjects", { ...subjectForm, track: activeTrack });
       setMsg({ type: "success", text: `${isSecondary ? "Secondary" : "Primary"} subject added!` });
       setSubjectForm({ name: "", code: "" });
@@ -107,9 +115,7 @@ export default function SchoolAdminDashboard() {
     e.preventDefault();
     setBankMsg(null);
     try {
-      await api.patch("/schools/mine", {
-        settings: { bankDetails: bankForm }
-      });
+      await api.patch("/schools/mine", { settings: { bankDetails: bankForm } });
       setBankMsg({ type: "success", text: "Bank details saved! Parents will now see these when paying." });
       loadData();
     } catch (err) {
@@ -149,7 +155,6 @@ export default function SchoolAdminDashboard() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      {/* 👈 SAS: Show current track in the header */}
       <div className="flex items-center gap-3 mb-2">
         <h1 className="text-2xl font-bold text-slate-800">
           {isSecondary ? "Secondary School" : "Primary School"} Dashboard
@@ -163,6 +168,37 @@ export default function SchoolAdminDashboard() {
       <p className="text-sm text-slate-500 mb-6">
         Welcome to CodeSmartNG Academic — manage your {isSecondary ? "secondary" : "nursery & primary"} school here.
       </p>
+
+      {/* 👈 SAS: SCHOOL OVERVIEW (Global Stats) */}
+      {pupilStats?.trackSplit && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          {/* Show Primary Card if school has Primary pupils OR is currently on Primary track */}
+          {(pupilStats.trackSplit.primary > 0 || !isSecondary) && (
+            <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-green-500 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Total Primary Pupils</p>
+                <h3 className="text-3xl font-bold text-slate-800 mt-1">{pupilStats.trackSplit.primary}</h3>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-green-50 text-green-600 flex items-center justify-center">
+                <i className="fas fa-child text-xl"></i>
+              </div>
+            </div>
+          )}
+
+          {/* Show Secondary Card if school has Secondary pupils OR is currently on Secondary track */}
+          {(pupilStats.trackSplit.secondary > 0 || isSecondary) && (
+            <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-blue-500 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Total Secondary Pupils</p>
+                <h3 className="text-3xl font-bold text-slate-800 mt-1">{pupilStats.trackSplit.secondary}</h3>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+                <i className="fas fa-book-reader text-xl"></i>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {isExpiring() && (
         <div className="bg-red-50 border-l-4 border-red-600 p-5 rounded-xl mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm">
