@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom"; // 👈 ADDED for Paystack verification
+import { useSearchParams } from "react-router-dom";
 import api from "../../services/api";
 import ImageUpload from "../../components/ImageUpload";
+import { useAuth } from "../../context/AuthContext"; // 👈 SAS
 
 export default function SchoolAdminDashboard() {
-  const [searchParams, setSearchParams] = useSearchParams(); // 👈 ADDED
+  const { activeTrack } = useAuth(); // 👈 SAS
+  const isSecondary = activeTrack === "secondary";
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [teachers, setTeachers] = useState([]);
   const [subjects, setSubjects] = useState([]);
@@ -14,26 +17,24 @@ export default function SchoolAdminDashboard() {
   const [subjectForm, setSubjectForm] = useState({ name: "", code: "" });
   const [parentForm, setParentForm] = useState({ fullName: "", email: "", password: "" });
   
-  // Bank Details
   const [bankForm, setBankForm] = useState({ bankName: "", accountName: "", accountNumber: "" });
   const [bankMsg, setBankMsg] = useState(null);
   const [msg, setMsg] = useState(null);
 
-  // School Logo Upload
   const [logoUrl, setLogoUrl] = useState("");
   const [logoMsg, setLogoMsg] = useState(null);
 
-  // Subscription Status
   const [schoolData, setSchoolData] = useState(null);
   const [paying, setPaying] = useState(false);
 
-  // Load data on mount
   const loadData = () => {
     api.get("/users?role=teacher").then(({ data }) => setTeachers(data.data.users || [])).catch(console.error);
-    api.get("/subjects").then(({ data }) => setSubjects(data.data.subjects || [])).catch(console.error);
+    // 👈 SAS: Filter subjects by active track
+    api.get("/subjects", { params: { track: activeTrack } })
+      .then(({ data }) => setSubjects(data.data.subjects || []))
+      .catch(console.error);
     api.get("/users?role=parent").then(({ data }) => setParents(data.data.users || [])).catch(console.error);
     
-    // Load existing school settings
     api.get("/schools/mine").then(({ data }) => {
       const school = data.data.school;
       setSchoolData(school);
@@ -42,30 +43,26 @@ export default function SchoolAdminDashboard() {
     }).catch(console.error);
   };
 
+  // 👈 SAS: Reload subjects when track changes
   useEffect(() => {
     loadData();
 
-    // 👇 PAYSTACK VERIFICATION LOGIC
     const reference = searchParams.get("reference");
     const paymentStatus = searchParams.get("payment");
 
     if (paymentStatus === "success" && reference) {
-      // Tell the backend to verify this reference securely
       api.get(`/subscriptions/verify/${reference}`)
         .then(({ data }) => {
           if (data.success) {
             alert("Payment successful! Your subscription has been renewed.");
-            loadData(); // Reload school data to hide the red banner
-            setSearchParams({}); // Clear the URL parameters so it doesn't loop
+            loadData();
+            setSearchParams({});
           }
         })
-        .catch((err) => {
-          console.error("Verification failed", err);
-        });
+        .catch((err) => console.error("Verification failed", err));
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, activeTrack]);
 
-  // Create teacher
   const handleAddTeacher = async (e) => {
     e.preventDefault();
     setMsg(null);
@@ -79,13 +76,13 @@ export default function SchoolAdminDashboard() {
     }
   };
 
-  // Create subject
   const handleAddSubject = async (e) => {
     e.preventDefault();
     setMsg(null);
     try {
-      await api.post("/subjects", subjectForm);
-      setMsg({ type: "success", text: "Subject added!" });
+      // 👈 SAS: Send the track when creating a subject
+      await api.post("/subjects", { ...subjectForm, track: activeTrack });
+      setMsg({ type: "success", text: `${isSecondary ? "Secondary" : "Primary"} subject added!` });
       setSubjectForm({ name: "", code: "" });
       loadData();
     } catch (err) {
@@ -93,7 +90,6 @@ export default function SchoolAdminDashboard() {
     }
   };
 
-  // Create parent
   const handleAddParent = async (e) => {
     e.preventDefault();
     setMsg(null);
@@ -107,7 +103,6 @@ export default function SchoolAdminDashboard() {
     }
   };
 
-  // Save bank details
   const handleSaveBank = async (e) => {
     e.preventDefault();
     setBankMsg(null);
@@ -122,7 +117,6 @@ export default function SchoolAdminDashboard() {
     }
   };
 
-  // Save Logo URL
   const handleSaveLogo = async (url) => {
     try {
       await api.patch("/schools/mine", { logoUrl: url });
@@ -134,7 +128,6 @@ export default function SchoolAdminDashboard() {
     }
   };
 
-  // Handle Subscription Upgrade
   const handleUpgrade = async (plan) => {
     try {
       setPaying(true);
@@ -147,7 +140,6 @@ export default function SchoolAdminDashboard() {
     }
   };
 
-  // Check if subscription is expiring or expired
   const isExpiring = () => {
     if (!schoolData?.subscriptionExpiresAt) return false;
     const expiry = new Date(schoolData.subscriptionExpiresAt);
@@ -157,10 +149,21 @@ export default function SchoolAdminDashboard() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      <h1 className="text-2xl font-bold text-slate-800 mb-2">School Admin Dashboard</h1>
-      <p className="text-sm text-slate-500 mb-6">Welcome to CodeSmartNG Academic — manage your school here.</p>
+      {/* 👈 SAS: Show current track in the header */}
+      <div className="flex items-center gap-3 mb-2">
+        <h1 className="text-2xl font-bold text-slate-800">
+          {isSecondary ? "Secondary School" : "Primary School"} Dashboard
+        </h1>
+        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+          isSecondary ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
+        }`}>
+          {isSecondary ? "SECONDARY" : "PRIMARY"}
+        </span>
+      </div>
+      <p className="text-sm text-slate-500 mb-6">
+        Welcome to CodeSmartNG Academic — manage your {isSecondary ? "secondary" : "nursery & primary"} school here.
+      </p>
 
-      {/* 👇 SUBSCRIPTION ALERT BANNER */}
       {isExpiring() && (
         <div className="bg-red-50 border-l-4 border-red-600 p-5 rounded-xl mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm">
           <div>
@@ -172,25 +175,16 @@ export default function SchoolAdminDashboard() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button 
-              onClick={() => handleUpgrade("starter")} 
-              disabled={paying}
-              className="bg-white border border-red-600 text-red-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-100 transition"
-            >
+            <button onClick={() => handleUpgrade("starter")} disabled={paying}
+              className="bg-white border border-red-600 text-red-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-100 transition">
               Starter ₦5,000
             </button>
-            <button 
-              onClick={() => handleUpgrade("standard")} 
-              disabled={paying}
-              className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition"
-            >
+            <button onClick={() => handleUpgrade("standard")} disabled={paying}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition">
               Standard ₦10,000
             </button>
-            <button 
-              onClick={() => handleUpgrade("premium")} 
-              disabled={paying}
-              className="bg-red-800 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-900 transition"
-            >
+            <button onClick={() => handleUpgrade("premium")} disabled={paying}
+              className="bg-red-800 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-900 transition">
               Premium ₦20,000
             </button>
           </div>
@@ -203,7 +197,7 @@ export default function SchoolAdminDashboard() {
         </div>
       )}
 
-      {/* School Logo & Branding Section */}
+      {/* School Logo */}
       <div className="bg-white rounded-xl shadow-sm p-6 mb-8 flex flex-col md:flex-row items-center gap-6">
         <div className="flex-1">
           <h2 className="font-semibold text-slate-700 mb-2 text-lg">School Logo & Branding</h2>
@@ -217,15 +211,12 @@ export default function SchoolAdminDashboard() {
           )}
         </div>
         <div className="ml-auto flex-shrink-0">
-          <ImageUpload 
-            currentImage={logoUrl} 
-            onUploadSuccess={handleSaveLogo} 
-          />
+          <ImageUpload currentImage={logoUrl} onUploadSuccess={handleSaveLogo} />
         </div>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6 mb-8">
-        {/* Add Teacher Form */}
+        {/* Add Teacher */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h2 className="font-semibold text-slate-700 mb-4">Add a New Teacher</h2>
           <form onSubmit={handleAddTeacher} className="space-y-4">
@@ -239,19 +230,25 @@ export default function SchoolAdminDashboard() {
           </form>
         </div>
 
-        {/* Add Subject Form */}
+        {/* Add Subject */}
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="font-semibold text-slate-700 mb-4">Add a New Subject</h2>
+          <h2 className="font-semibold text-slate-700 mb-4">
+            Add a {isSecondary ? "Secondary" : "Primary"} Subject
+          </h2>
           <form onSubmit={handleAddSubject} className="space-y-4">
-            <input required placeholder="Subject Name (e.g. Mathematics)" className="w-full border rounded-lg p-2" 
+            <input required 
+              placeholder={isSecondary ? "e.g. Physics, Chemistry" : "e.g. Mathematics"} 
+              className="w-full border rounded-lg p-2" 
               value={subjectForm.name} onChange={(e) => setSubjectForm({ ...subjectForm, name: e.target.value })} />
-            <input placeholder="Subject Code (optional)" className="w-full border rounded-lg p-2" 
+            <input placeholder="Code (optional)" className="w-full border rounded-lg p-2" 
               value={subjectForm.code} onChange={(e) => setSubjectForm({ ...subjectForm, code: e.target.value })} />
-            <button type="submit" className="w-full bg-green-600 text-white px-4 py-2 rounded-lg">+ Create Subject</button>
+            <button type="submit" className="w-full bg-green-600 text-white px-4 py-2 rounded-lg">
+              + Create Subject
+            </button>
           </form>
         </div>
 
-        {/* Add Parent Form */}
+        {/* Add Parent */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h2 className="font-semibold text-slate-700 mb-4">Add a New Parent</h2>
           <form onSubmit={handleAddParent} className="space-y-4">
@@ -298,7 +295,9 @@ export default function SchoolAdminDashboard() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="font-semibold text-slate-700 mb-4">Subjects ({subjects.length})</h2>
+          <h2 className="font-semibold text-slate-700 mb-4">
+            {isSecondary ? "Secondary" : "Primary"} Subjects ({subjects.length})
+          </h2>
           {subjects.length === 0 ? <p className="text-sm text-slate-400">No subjects yet.</p> : (
             <ul className="divide-y">
               {subjects.map((s) => (
