@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { announcementApi } from "../../services/commsApi";
+import { useAuth } from "../../context/AuthContext"; // 👈 SAS
 
 const CATEGORY_COLORS = {
   general: "bg-slate-100 text-slate-700",
@@ -11,17 +12,20 @@ const CATEGORY_COLORS = {
 };
 
 export default function ParentAnnouncements() {
+  const { activeTrack } = useAuth(); // 👈 SAS
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null);
 
   const load = () => {
     setLoading(true);
-    announcementApi.list()
+    // 👈 SAS: Send the track
+    announcementApi.list({ track: activeTrack })
       .then(({ data }) => setItems(data.data.announcements))
       .finally(() => setLoading(false));
   };
-  useEffect(load, []);
+  
+  useEffect(load, [activeTrack]); // 👈 Reload when track changes
 
   const markRead = async (id) => {
     await announcementApi.markRead(id);
@@ -44,7 +48,7 @@ export default function ParentAnnouncements() {
         <p className="text-slate-400">Loading…</p>
       ) : items.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm p-10 text-center text-slate-400">
-          No announcements yet
+          No announcements yet for this track
         </div>
       ) : (
         <div className="space-y-3">
