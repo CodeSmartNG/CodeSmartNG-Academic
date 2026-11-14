@@ -2,9 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { classApi, subjectApi } from "../../../services/classApi";
 import { homeworkApi } from "../../../services/commsApi";
+import { useAuth } from "../../../context/AuthContext"; // 👈 SAS
 
 export default function CreateHomework() {
   const navigate = useNavigate();
+  const { activeTrack } = useAuth(); // 👈 SAS
+  const isSecondary = activeTrack === "secondary";
+
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [form, setForm] = useState({
@@ -21,14 +25,26 @@ export default function CreateHomework() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    // 👈 SAS: Fetch classes and subjects for the active track
+    // For teachers, myClasses returns their assigned classes (both tracks)
+    // So we filter them on the frontend for safety
     Promise.all([
-      classApi.myClasses ? classApi.myClasses() : classApi.list(),
-      subjectApi.list(),
+      classApi.myClasses ? classApi.myClasses() : classApi.list({ track: activeTrack }),
+      subjectApi.list({ track: activeTrack }),
     ]).then(([c, s]) => {
-      setClasses(c.data.data.classes || []);
-      setSubjects(s.data.data.subjects);
-    });
-  }, []);
+      let fetchedClasses = c.data.data.classes || [];
+      
+      // 👈 SAS: Filter classes by active track (in case teacher teaches both)
+      const SECONDARY_CLASSES = ["JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3"];
+      fetchedClasses = fetchedClasses.filter(cls => {
+        const isSecondaryClass = SECONDARY_CLASSES.some(sec => cls.name.includes(sec));
+        return isSecondary ? isSecondaryClass : !isSecondaryClass;
+      });
+
+      setClasses(fetchedClasses);
+      setSubjects(s.data.data.subjects || []);
+    }).catch(console.error);
+  }, [activeTrack]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -46,7 +62,15 @@ export default function CreateHomework() {
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">Assign Homework</h1>
+      <div className="flex items-center gap-3 mb-6">
+        <h1 className="text-2xl font-bold text-slate-800">Assign Homework</h1>
+        {/* 👈 SAS: Show current track */}
+        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+          isSecondary ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
+        }`}>
+          {isSecondary ? "SECONDARY" : "PRIMARY"}
+        </span>
+      </div>
 
       {error && (
         <div className="bg-red-50 text-red-700 p-3 rounded-lg mb-4 text-sm">{error}</div>
@@ -60,7 +84,7 @@ export default function CreateHomework() {
               value={form.classId}
               onChange={(e) => setForm({ ...form, classId: e.target.value })}>
               <option value="">Select…</option>
-              {classes.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
+              {classes.map((c) => <option key={c._id} value={c._id}>{c.displayName || c.name}</option>)}
             </select>
           </label>
           <label className="block">
