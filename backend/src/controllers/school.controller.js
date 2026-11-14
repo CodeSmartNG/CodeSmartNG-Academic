@@ -1,10 +1,11 @@
 import School from "../models/School.js";
 import User from "../models/User.js"; 
 import Student from "../models/Student.js";
-import Class from "../models/Class.js";           // 👈 Added for cascade
-import Subject from "../models/Subject.js";       // 👈 Added for cascade
-import ClassLevel from "../models/ClassLevel.js"; // 👈 Added for cascade
+import Class from "../models/Class.js";           
+import Subject from "../models/Subject.js";       
+import ClassLevel from "../models/ClassLevel.js"; 
 import { seedSecondarySchool } from "../services/seedSchool.js";
+import sendEmail from "../utils/sendEmail.js"; // 👈 ADDED FOR APPROVAL EMAIL
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/auth/register-school
@@ -84,7 +85,44 @@ export const approveSchool = async (req, res) => {
       await seedSecondarySchool(school._id);
     }
 
-    res.json({ success: true, message: "School approved", data: { school } });
+    // 👈 NEW: Send Approval Email
+    try {
+      const loginUrl = `${process.env.CLIENT_URL}/login`;
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
+          <h2 style="color: #0b2b4f; text-align: center;">Welcome to CodeSmartNG!</h2>
+          <p style="color: #334155; font-size: 16px;">Dear ${school.proprietorName},</p>
+          <p style="color: #334155; font-size: 16px;">Great news! Your school, <strong>${school.name}</strong>, has been officially approved by the CodeSmartNG management.</p>
+          <p style="color: #334155; font-size: 16px;">You can now log in to your dashboard to start managing your pupils, teachers, and classes.</p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${loginUrl}" style="background-color: #1b4a7a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Log In to Your Dashboard</a>
+          </div>
+
+          <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin-top: 20px;">
+            <p style="color: #64748b; font-size: 14px; margin: 0;"><strong>Login Details:</strong></p>
+            <p style="color: #64748b; font-size: 14px; margin: 5px 0 0 0;">Email: ${school.email}</p>
+            <p style="color: #64748b; font-size: 14px; margin: 5px 0 0 0;">School Slug: ${school.slug}</p>
+          </div>
+          
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+          <p style="color: #94a3b8; font-size: 12px; text-align: center;">If you need help, contact CodeSmartNG support.</p>
+        </div>
+      `;
+
+      await sendEmail({
+        email: school.email,
+        subject: "Your School has been Approved - CodeSmartNG",
+        message: `Dear ${school.proprietorName}, your school ${school.name} has been approved. Log in at ${loginUrl}`,
+        html,
+      });
+      console.log(`✅ Approval email sent to ${school.email}`);
+    } catch (emailError) {
+      // We log the error but don't crash the approval process if the email fails
+      console.error("❌ Failed to send approval email:", emailError);
+    }
+
+    res.json({ success: true, message: "School approved and email sent", data: { school } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -134,7 +172,6 @@ export const deleteSchool = async (req, res) => {
     const school = await School.findById(req.params.id);
     if (!school) return res.status(404).json({ success: false, message: "School not found" });
 
-    // 👈 Safety: Prevent accidental deletion of approved schools
     if (school.status === "approved" && req.query.force !== "true") {
       return res.status(400).json({
         success: false,
@@ -142,7 +179,6 @@ export const deleteSchool = async (req, res) => {
       });
     }
 
-    // 👈 Cascade delete all related data
     await Promise.all([
       User.deleteMany({ schoolId: school._id }),
       Student.deleteMany({ schoolId: school._id }),
@@ -151,7 +187,6 @@ export const deleteSchool = async (req, res) => {
       ClassLevel.deleteMany({ schoolId: school._id }),
     ]);
 
-    // Finally, delete the school document
     await school.deleteOne();
 
     res.json({ 
