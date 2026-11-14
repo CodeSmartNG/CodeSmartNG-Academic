@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 
+
 const NAV_BY_ROLE = {
   super_admin: [
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
