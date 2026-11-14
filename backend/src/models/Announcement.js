@@ -25,10 +25,19 @@ const announcementSchema = new mongoose.Schema(
       index: true,
     },
 
+    // 👈 SAS: The track this announcement applies to
+    track: {
+      type: String,
+      enum: ["all", "nursery_primary", "secondary"],
+      default: "all",
+      index: true,
+    },
+
     // Who should see it
     audience: {
       type: String,
-      enum: ["all", "parents", "pupils", "teachers", "nursery", "primary"],
+      // 👈 SAS: Added "jss" and "sss" for secondary-specific announcements
+      enum: ["all", "parents", "pupils", "teachers", "nursery", "primary", "jss", "sss"],
       default: "all",
       index: true,
     },
@@ -63,5 +72,7 @@ const announcementSchema = new mongoose.Schema(
 
 announcementSchema.index({ schoolId: 1, audience: 1, createdAt: -1 });
 announcementSchema.index({ schoolId: 1, isPinned: -1, createdAt: -1 });
+// 👈 SAS: Fast lookup for track-filtered lists
+announcementSchema.index({ schoolId: 1, track: 1, createdAt: -1 });
 
 export default mongoose.model("Announcement", announcementSchema);
