@@ -125,7 +125,7 @@ export const listStudents = async (req, res) => {
 export const getStudentStats = async (req, res) => {
   try {
     const schoolId = req.schoolId;
-    const { track } = req.query; // 👈 SAS
+    const { track } = req.query; 
 
     // Base query for the active track
     const baseQuery = { schoolId };
@@ -135,7 +135,7 @@ export const getStudentStats = async (req, res) => {
       baseQuery.className = { $nin: SECONDARY_CLASSES };
     }
 
-    const [total, active, archived, transferred, byClass, byGender] = await Promise.all([
+    const [total, active, archived, transferred, byClass, byGender, primaryCount, secondaryCount] = await Promise.all([
       Student.countDocuments(baseQuery),
       Student.countDocuments({ ...baseQuery, admissionStatus: "active" }),
       Student.countDocuments({ ...baseQuery, admissionStatus: "archived" }),
@@ -149,6 +149,18 @@ export const getStudentStats = async (req, res) => {
         { $match: { ...baseQuery, admissionStatus: "active" } },
         { $group: { _id: "$gender", count: { $sum: 1 } } },
       ]),
+      // 👈 SAS: Global count of active Primary pupils
+      Student.countDocuments({ 
+        schoolId, 
+        admissionStatus: "active", 
+        className: { $nin: SECONDARY_CLASSES } 
+      }),
+      // 👈 SAS: Global count of active Secondary pupils
+      Student.countDocuments({ 
+        schoolId, 
+        admissionStatus: "active", 
+        className: { $in: SECONDARY_CLASSES } 
+      }),
     ]);
 
     res.json({
@@ -160,13 +172,17 @@ export const getStudentStats = async (req, res) => {
         transferred,
         byClass: byClass.map((c) => ({ className: c._id, count: c.count })),
         byGender: byGender.map((g) => ({ gender: g._id, count: g.count })),
+        // 👈 SAS: Send the track split to the frontend
+        trackSplit: {
+          primary: primaryCount,
+          secondary: secondaryCount,
+        }
       },
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
-
 // ─────────────────────────────────────────────────────────────
 // GET /api/students/:id
 // ─────────────────────────────────────────────────────────────
