@@ -1,29 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { studentApi } from "../../../services/studentApi";
+import { classApi } from "../../../services/classApi"; // 👈 Import classApi
 import ImageUpload from "../../../components/ImageUpload";
-import { useAuth } from "../../../context/AuthContext"; // 👈 SAS
-
-const PRIMARY_CLASSES = [
-  "Nursery 1", "Nursery 2", "Nursery 3",
-  "Primary 1", "Primary 2", "Primary 3",
-  "Primary 4", "Primary 5", "Primary 6",
-];
-
-// 👈 SAS: Secondary classes
-const SECONDARY_CLASSES = [
-  "JSS 1", "JSS 2", "JSS 3",
-  "SSS 1", "SSS 2", "SSS 3",
-];
+import { useAuth } from "../../../context/AuthContext";
 
 export default function AdmissionForm() {
   const navigate = useNavigate();
-  const { activeTrack } = useAuth(); // 👈 SAS
+  const { activeTrack } = useAuth();
   const isSecondary = activeTrack === "secondary";
   
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // 👈 SAS: Fetch actual classes instead of using a hardcoded list
+  const [availableClasses, setAvailableClasses] = useState([]);
+  const [loadingClasses, setLoadingClasses] = useState(true);
 
   const [form, setForm] = useState({
     fullName: "",
@@ -33,7 +26,7 @@ export default function AdmissionForm() {
     stateOfOrigin: "",
     religion: "",
     className: "",
-    stream: "", // 👈 SAS: For SSS streams
+    stream: "", 
     academicSession: "2025/2026",
     photoUrl: "",
     guardian: {
@@ -44,6 +37,16 @@ export default function AdmissionForm() {
     medicalInfo: { bloodGroup: "", allergies: "", conditions: "", notes: "" },
     previousSchool: { name: "", lastClass: "", reasonForLeaving: "", lastDate: "" },
   });
+
+  // 👈 Fetch the classes created by the admin (e.g. JSS 1A, JSS 1B)
+  useEffect(() => {
+    classApi.list({ track: activeTrack })
+      .then(({ data }) => {
+        setAvailableClasses(data.data.classes || []);
+      })
+      .catch((err) => console.error("Failed to load classes", err))
+      .finally(() => setLoadingClasses(false));
+  }, [activeTrack]);
 
   const update = (path, value) => {
     setForm((prev) => {
@@ -56,9 +59,9 @@ export default function AdmissionForm() {
     });
   };
 
-  // Determine if the selected class is SSS (requires a stream)
-  const isSSS = isSecondary && form.className.startsWith("SSS");
-  const availableClasses = isSecondary ? SECONDARY_CLASSES : PRIMARY_CLASSES;
+  // 👈 Check if the selected class is SSS (requires a stream)
+  // Note: we check if it includes "SSS" since the name could be "SSS 1A" or "SSS 1 Science"
+  const isSSS = isSecondary && form.className.includes("SSS");
 
   const validateStep1 = () =>
     form.fullName && form.dateOfBirth && form.gender && form.className && form.academicSession && (!isSSS || form.stream);
@@ -72,7 +75,6 @@ export default function AdmissionForm() {
     try {
       const payload = {
         ...form,
-        // Remove stream if not an SSS student
         stream: isSSS ? form.stream : null,
         emergencyContact: form.emergencyContact.fullName ? form.emergencyContact : undefined,
         medicalInfo: form.medicalInfo.bloodGroup ? form.medicalInfo : undefined,
@@ -114,8 +116,15 @@ export default function AdmissionForm() {
               <div className="grid grid-cols-2 gap-4">
                 <Select label="Gender *" value={form.gender} onChange={(v) => update("gender", v)}
                   options={[{ v: "male", l: "Male" }, { v: "female", l: "Female" }]} />
-                <Select label="Class *" value={form.className} onChange={(v) => update("className", v)}
-                  options={availableClasses.map((c) => ({ v: c, l: c }))} placeholder="Select class" />
+                
+                {/* 👈 SAS: Show actual classes fetched from DB */}
+                <Select 
+                  label="Class *" 
+                  value={form.className} 
+                  onChange={(v) => update("className", v)}
+                  options={availableClasses.map((c) => ({ v: c.name, l: c.name }))} 
+                  placeholder={loadingClasses ? "Loading classes..." : availableClasses.length === 0 ? "No classes created yet" : "Select class"} 
+                />
               </div>
 
               {/* 👈 SAS: Stream selector for SSS students */}
