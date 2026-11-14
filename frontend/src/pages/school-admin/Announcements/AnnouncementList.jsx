@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { announcementApi } from "../../../services/commsApi";
+import { useAuth } from "../../../context/AuthContext"; // 👈 SAS
 
 const CATEGORY_COLORS = {
   general: "bg-slate-100 text-slate-700",
@@ -12,14 +13,16 @@ const CATEGORY_COLORS = {
 };
 
 export default function AnnouncementList() {
+  const { activeTrack } = useAuth(); // 👈 SAS
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    announcementApi.list()
+    // 👈 SAS: Send the track so we only get relevant announcements
+    announcementApi.list({ track: activeTrack })
       .then(({ data }) => setAnnouncements(data.data.announcements))
       .finally(() => setLoading(false));
-  }, []);
+  }, [activeTrack]);
 
   const remove = async (id) => {
     if (!confirm("Delete this announcement?")) return;
@@ -44,19 +47,27 @@ export default function AnnouncementList() {
         <p className="text-slate-400">Loading…</p>
       ) : announcements.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm p-10 text-center text-slate-400">
-          No announcements yet
+          No announcements yet for this track.
         </div>
       ) : (
         <div className="space-y-3">
           {announcements.map((a) => (
             <div key={a._id} className="bg-white rounded-xl shadow-sm p-5">
               <div className="flex justify-between items-start mb-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {a.isPinned && <i className="fas fa-thumbtack text-amber-500 text-xs" />}
                   <h3 className="font-semibold text-slate-800">{a.title}</h3>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${CATEGORY_COLORS[a.category]}`}>
                     {a.category}
                   </span>
+                  {/* 👈 SAS: Show target track badge */}
+                  {a.track && a.track !== "all" && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      a.track === "secondary" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
+                    }`}>
+                      {a.track === "secondary" ? "Secondary" : "Primary"}
+                    </span>
+                  )}
                   {a.priority === "urgent" && (
                     <span className="text-xs bg-red-600 text-white px-2 py-0.5 rounded-full">
                       URGENT
