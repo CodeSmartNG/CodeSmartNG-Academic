@@ -1,11 +1,13 @@
 import School from "../models/School.js";
 import User from "../models/User.js"; 
 import Student from "../models/Student.js";
-import { seedSecondarySchool } from "../services/seedSchool.js"; // 👈 Import the seeder
+import Class from "../models/Class.js";           // 👈 Added for cascade
+import Subject from "../models/Subject.js";       // 👈 Added for cascade
+import ClassLevel from "../models/ClassLevel.js"; // 👈 Added for cascade
+import { seedSecondarySchool } from "../services/seedSchool.js";
 
 // ─────────────────────────────────────────────────────────────
-// POST /api/auth/register-school (or /api/schools/register)
-// Public: Register a new school
+// POST /api/auth/register-school
 // ─────────────────────────────────────────────────────────────
 export const registerSchool = async (req, res) => {
   try {
@@ -14,13 +16,11 @@ export const registerSchool = async (req, res) => {
       tracks 
     } = req.body;
 
-    // 1. Check if email already exists
     const existingSchool = await School.findOne({ email });
     if (existingSchool) {
       return res.status(400).json({ success: false, message: "A school with this email already exists" });
     }
 
-    // 2. Create the school
     const school = await School.create({
       name: schoolName,
       email,
@@ -31,7 +31,6 @@ export const registerSchool = async (req, res) => {
       status: "pending", 
     });
 
-    // 3. Create the proprietor user account
     const user = await User.create({
       fullName: proprietorName,
       email,
@@ -40,7 +39,6 @@ export const registerSchool = async (req, res) => {
       schoolId: school._id,
     });
 
-    // 4. Seed Secondary data immediately if selected
     if (school.tracks.includes("secondary")) {
       await seedSecondarySchool(school._id);
     }
@@ -59,16 +57,11 @@ export const registerSchool = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/schools
-// Super Admin: List all schools
 // ─────────────────────────────────────────────────────────────
 export const getAllSchools = async (req, res) => {
   try {
     const schools = await School.find().sort({ createdAt: -1 });
-    
-    res.status(200).json({
-      success: true,
-      data: { schools },
-    });
+    res.status(200).json({ success: true, data: { schools } });
   } catch (err) {
     console.error("❌ Error in getAllSchools:", err);
     res.status(500).json({ success: false, message: err.message });
@@ -87,8 +80,6 @@ export const approveSchool = async (req, res) => {
     school.approvedAt = new Date();
     await school.save();
 
-    // 👈 SAS: Trigger seeding if the school registered for Secondary
-    // (Just in case it wasn't seeded during registration)
     if (school.tracks && school.tracks.includes("secondary")) {
       await seedSecondarySchool(school._id);
     }
@@ -135,8 +126,46 @@ export const suspendSchool = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
+// DELETE /api/schools/:id
+// Super Admin: Permanently delete school + cascade all data
+// ─────────────────────────────────────────────────────────────
+export const deleteSchool = async (req, res) => {
+  try {
+    const school = await School.findById(req.params.id);
+    if (!school) return res.status(404).json({ success: false, message: "School not found" });
+
+    // 👈 Safety: Prevent accidental deletion of approved schools
+    if (school.status === "approved" && req.query.force !== "true") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot delete an active school. Suspend it first, or append ?force=true to the URL.",
+      });
+    }
+
+    // 👈 Cascade delete all related data
+    await Promise.all([
+      User.deleteMany({ schoolId: school._id }),
+      Student.deleteMany({ schoolId: school._id }),
+      Class.deleteMany({ schoolId: school._id }),
+      Subject.deleteMany({ schoolId: school._id }),
+      ClassLevel.deleteMany({ schoolId: school._id }),
+    ]);
+
+    // Finally, delete the school document
+    await school.deleteOne();
+
+    res.json({ 
+      success: true, 
+      message: `"${school.name}" and all its data have been permanently deleted.` 
+    });
+  } catch (err) {
+    console.error("❌ deleteSchool error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
 // GET /api/schools/stats
-// Super Admin: Platform-wide statistics
 // ─────────────────────────────────────────────────────────────
 export const getPlatformStats = async (req, res) => {
   try {
@@ -195,13 +224,11 @@ export const updateMySchool = async (req, res) => {
     const school = await School.findById(req.user.schoolId);
     if (!school) return res.status(404).json({ success: false, message: "School not found" });
 
-    // Update allowed top-level fields
     if (req.body.name) school.name = req.body.name;
     if (req.body.phone) school.phone = req.body.phone;
     if (req.body.address) school.address = req.body.address;
     if (req.body.logoUrl) school.logoUrl = req.body.logoUrl;
 
-    // Merge settings
     if (req.body.settings) {
       if (req.body.settings.bankDetails) {
         school.settings.bankDetails = req.body.settings.bankDetails;
