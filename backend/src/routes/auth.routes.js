@@ -2,30 +2,18 @@ import express from "express";
 import { body } from "express-validator";
 import { protect } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
-import {
-  login,
-  forgotPassword,
-  resetPassword,
-} from "../controllers/auth.controller.js";
-// 👈 Import the registerSchool function from the school controller
-import { registerSchool } from "../controllers/school.controller.js"; 
+// 👈 Import getMe
+import { login, forgotPassword, resetPassword, getMe } from "../controllers/auth.controller.js";
+import { registerSchool } from "../controllers/school.controller.js";
 
 const router = express.Router();
 
-// ─────────────────────────────────────────────────────────────
-// ROUTES
-// ─────────────────────────────────────────────────────────────
-
-// Step 1: Proprietor registers a school
 router.post("/register-school", registerSchool);
-
-// Step 2: Login
 router.post("/login", login);
 
-// Step 3: Get current user (used by AuthContext on refresh)
-router.get("/me", protect, (req, res) => res.json({ success: true, data: { user: req.user } }));
+// 👈 Use getMe here instead of the inline function
+router.get("/me", protect, getMe);
 
-// ── Password reset ────────────────────────────────────────
 router.post(
   "/forgot-password",
   [body("email").isEmail().withMessage("Valid email required")],
