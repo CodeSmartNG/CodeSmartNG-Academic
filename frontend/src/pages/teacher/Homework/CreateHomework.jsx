@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { classApi, subjectApi } from "../../../services/classApi";
 import { homeworkApi } from "../../../services/commsApi";
-import { useAuth } from "../../../context/AuthContext"; // 👈 SAS
+import { useAuth } from "../../../context/AuthContext";
 
 export default function CreateHomework() {
   const navigate = useNavigate();
-  const { activeTrack, user } = useAuth(); // 👈 SAS
+  const { activeTrack, user } = useAuth();
   const isSecondary = activeTrack === "secondary";
   const isTeacher = user?.role === "teacher";
 
@@ -26,7 +26,8 @@ export default function CreateHomework() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    // 👈 SAS: For teachers, fetch their assigned classes. For admins, fetch all classes.
+    // 👈 SAS: For teachers, fetch their assigned classes. For admins, fetch all classes by track.
+    // Note: We removed the extra frontend filtering because the backend already filters by 'track'.
     const fetchClasses = isTeacher 
       ? classApi.myClasses() 
       : classApi.list({ track: activeTrack });
@@ -37,17 +38,23 @@ export default function CreateHomework() {
     ]).then(([c, s]) => {
       let fetchedClasses = c.data.data.classes || [];
       
-      // 👈 SAS: Filter classes by active track (in case teacher teaches both)
-      const SECONDARY_CLASSES = ["JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3"];
-      fetchedClasses = fetchedClasses.filter(cls => {
-        const isSecondaryClass = SECONDARY_CLASSES.some(sec => cls.name.includes(sec));
-        return isSecondary ? isSecondaryClass : !isSecondaryClass;
-      });
+      // If it's a teacher, myClasses() might return both Primary and Secondary classes.
+      // So we still filter just in case, but we check the 'track' property if it exists.
+      if (isTeacher) {
+        fetchedClasses = fetchedClasses.filter(cls => {
+          // If the class has a 'track' property, use it. 
+          if (cls.track) return cls.track === activeTrack;
+          
+          // Fallback: if no track property, check if name starts with JSS/SSS
+          const isSec = ["JSS", "SSS"].some(prefix => cls.name.toUpperCase().startsWith(prefix));
+          return isSecondary ? isSec : !isSec;
+        });
+      }
 
       setClasses(fetchedClasses);
       setSubjects(s.data.data.subjects || []);
     }).catch(console.error);
-  }, [activeTrack, isTeacher]);
+  }, [activeTrack, isTeacher, isSecondary]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -67,7 +74,6 @@ export default function CreateHomework() {
     <div className="p-6 max-w-2xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <h1 className="text-2xl font-bold text-slate-800">Assign Homework</h1>
-        {/* 👈 SAS: Show current track */}
         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
           isSecondary ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
         }`}>
@@ -89,6 +95,7 @@ export default function CreateHomework() {
               <option value="">Select…</option>
               {classes.map((c) => <option key={c._id} value={c._id}>{c.displayName || c.name}</option>)}
             </select>
+            {classes.length === 0 && <p className="text-xs text-red-500 mt-1">No classes found. Create one first.</p>}
           </label>
           <label className="block">
             <span className="text-sm text-slate-600">Subject *</span>
@@ -98,6 +105,7 @@ export default function CreateHomework() {
               <option value="">Select…</option>
               {subjects.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
             </select>
+            {subjects.length === 0 && <p className="text-xs text-red-500 mt-1">No subjects found.</p>}
           </label>
         </div>
 
