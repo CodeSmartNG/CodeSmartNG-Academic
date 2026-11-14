@@ -5,7 +5,8 @@ import {
   approveSchool,
   rejectSchool,
   suspendSchool,
-  renewSchoolSubscription, // 👈 Combined into one import
+  renewSchoolSubscription,
+  deleteSchool, // 👈 Added
   getMySchool,
   updateMySchool,
 } from "../controllers/school.controller.js";
@@ -27,5 +28,8 @@ router.patch("/:id/approve", protect, authorize("super_admin"), approveSchool);
 router.patch("/:id/reject", protect, authorize("super_admin"), rejectSchool);
 router.patch("/:id/suspend", protect, authorize("super_admin"), suspendSchool);
 router.patch("/:id/renew", protect, authorize("super_admin"), renewSchoolSubscription);
+
+// 👈 NEW: Delete a school permanently
+router.delete("/:id", protect, authorize("super_admin"), deleteSchool);
 
 export default router;
