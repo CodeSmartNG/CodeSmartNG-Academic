@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
-import { classApi } from "../../../services/classApi"; // 👈 Make sure this import is correct
+import { classApi } from "../../../services/classApi";
 import { feeApi, formatNaira } from "../../../services/feeApi";
+import { useAuth } from "../../../context/AuthContext"; // 👈 SAS
 
 export default function FeeStructures() {
+  const { activeTrack } = useAuth(); // 👈 SAS
+  const isSecondary = activeTrack === "secondary";
+
   const [structures, setStructures] = useState([]);
   const [classes, setClasses] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
@@ -11,17 +15,14 @@ export default function FeeStructures() {
   const load = async () => {
     setLoading(true);
     try {
+      // 👈 SAS: Pass the track when fetching fee structures
       const [sRes, cRes] = await Promise.all([
-        feeApi.listStructures({ includeInactive: true }),
-        classApi.list(),
+        feeApi.listStructures({ includeInactive: true, track: activeTrack }),
+        classApi.list({ track: activeTrack }),
       ]);
       
       setStructures(sRes.data?.data?.feeStructures || []);
-      
-      // 👇 Safely extract the classes array
-      const fetchedClasses = cRes.data?.data?.classes || [];
-      console.log("Fetched classes for dropdown:", fetchedClasses);
-      setClasses(fetchedClasses);
+      setClasses(cRes.data?.data?.classes || []);
       
     } catch (err) {
       console.error("Failed to load data:", err);
@@ -30,7 +31,7 @@ export default function FeeStructures() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [activeTrack]); // 👈 Reload when track changes
 
   const generate = async (feeStructureId) => {
     if (!confirm("Generate bills for all active pupils in this class?")) return;
@@ -46,8 +47,12 @@ export default function FeeStructures() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Fee Structures</h1>
-          <p className="text-sm text-slate-500">What each class pays per term</p>
+          <h1 className="text-2xl font-bold text-slate-800">
+            {isSecondary ? "Secondary" : "Primary"} Fee Structures
+          </h1>
+          <p className="text-sm text-slate-500">
+            What each {isSecondary ? "JSS/SSS" : "Nursery/Primary"} class pays per term
+          </p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
@@ -102,6 +107,7 @@ export default function FeeStructures() {
       {showCreate && (
         <CreateStructureModal
           classes={classes}
+          isSecondary={isSecondary} // 👈 SAS
           onClose={() => setShowCreate(false)}
           onCreated={() => { setShowCreate(false); load(); }}
         />
@@ -110,15 +116,22 @@ export default function FeeStructures() {
   );
 }
 
-function CreateStructureModal({ classes, onClose, onCreated }) {
+function CreateStructureModal({ classes, onClose, onCreated, isSecondary }) {
   const [form, setForm] = useState({
     classId: "",
     session: "2025/2026",
     term: "First Term",
-    items: [
-      { name: "Tuition", amount: 20000, isOptional: false },
-      { name: "Books", amount: 5000, isOptional: false },
-    ],
+    // 👈 SAS: Default items differ based on track
+    items: isSecondary 
+      ? [
+          { name: "Tuition", amount: 30000, isOptional: false },
+          { name: "Science Lab Fee", amount: 5000, isOptional: true },
+          { name: "Textbooks", amount: 8000, isOptional: false },
+        ]
+      : [
+          { name: "Tuition", amount: 20000, isOptional: false },
+          { name: "Books", amount: 5000, isOptional: false },
+        ],
     notes: "",
   });
   const [error, setError] = useState("");
@@ -153,7 +166,9 @@ function CreateStructureModal({ classes, onClose, onCreated }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 overflow-y-auto">
       <div className="bg-white rounded-xl p-6 w-full max-w-2xl my-8">
-        <h3 className="font-bold text-lg mb-4">New Fee Structure</h3>
+        <h3 className="font-bold text-lg mb-4">
+          New {isSecondary ? "Secondary" : "Primary"} Fee Structure
+        </h3>
         {error && <div className="bg-red-50 text-red-700 p-2 rounded mb-3 text-sm">{error}</div>}
 
         <div className="grid grid-cols-3 gap-3 mb-4">
@@ -163,7 +178,6 @@ function CreateStructureModal({ classes, onClose, onCreated }) {
               value={form.classId}
               onChange={(e) => setForm({ ...form, classId: e.target.value })}>
               <option value="">Select class…</option>
-              {/* 👇 Make sure we render the class _id as the value and name as the label */}
               {classes.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
             </select>
           </label>
@@ -191,6 +205,11 @@ function CreateStructureModal({ classes, onClose, onCreated }) {
               <input type="number" className="w-32 border rounded-lg p-2 text-sm"
                 value={item.amount}
                 onChange={(e) => updateItem(idx, { amount: Number(e.target.value) })} />
+              <label className="flex items-center gap-1 text-xs text-slate-500 whitespace-nowrap">
+                <input type="checkbox" checked={item.isOptional}
+                  onChange={(e) => updateItem(idx, { isOptional: e.target.checked })} />
+                Optional
+              </label>
               <button onClick={() => removeItem(idx)} className="text-red-500 text-sm">✕</button>
             </div>
           ))}
