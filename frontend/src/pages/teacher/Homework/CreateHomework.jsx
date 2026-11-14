@@ -6,8 +6,9 @@ import { useAuth } from "../../../context/AuthContext"; // 👈 SAS
 
 export default function CreateHomework() {
   const navigate = useNavigate();
-  const { activeTrack } = useAuth(); // 👈 SAS
+  const { activeTrack, user } = useAuth(); // 👈 SAS
   const isSecondary = activeTrack === "secondary";
+  const isTeacher = user?.role === "teacher";
 
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
@@ -25,11 +26,13 @@ export default function CreateHomework() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    // 👈 SAS: Fetch classes and subjects for the active track
-    // For teachers, myClasses returns their assigned classes (both tracks)
-    // So we filter them on the frontend for safety
+    // 👈 SAS: For teachers, fetch their assigned classes. For admins, fetch all classes.
+    const fetchClasses = isTeacher 
+      ? classApi.myClasses() 
+      : classApi.list({ track: activeTrack });
+
     Promise.all([
-      classApi.myClasses ? classApi.myClasses() : classApi.list({ track: activeTrack }),
+      fetchClasses,
       subjectApi.list({ track: activeTrack }),
     ]).then(([c, s]) => {
       let fetchedClasses = c.data.data.classes || [];
@@ -44,7 +47,7 @@ export default function CreateHomework() {
       setClasses(fetchedClasses);
       setSubjects(s.data.data.subjects || []);
     }).catch(console.error);
-  }, [activeTrack]);
+  }, [activeTrack, isTeacher]);
 
   const submit = async (e) => {
     e.preventDefault();
