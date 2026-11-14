@@ -63,6 +63,38 @@ export default function SchoolsList() {
     }
   };
 
+  // 👈 NEW: Delete School (with safety checks)
+  const deleteSchool = async (id, name, status) => {
+    // Safety 1: Warn about permanent deletion
+    const confirm1 = confirm(
+      `⚠️ DANGER: You are about to PERMANENTLY delete "${name}".\n\nThis will erase ALL pupils, teachers, classes, results, and fees for this school.\n\nThis action CANNOT be undone. Continue?`
+    );
+    if (!confirm1) return;
+
+    // Safety 2: If approved, force them to suspend first
+    if (status === "approved") {
+      alert(
+        `🛑 "${name}" is currently approved. You must SUSPEND it first before deleting.\n\n(This prevents accidentally deleting an active school.)`
+      );
+      return;
+    }
+
+    // Safety 3: Require typing DELETE
+    const typed = prompt(`To confirm, type DELETE (all caps):`);
+    if (typed !== "DELETE") {
+      alert("Cancelled. You must type DELETE exactly to confirm.");
+      return;
+    }
+
+    try {
+      await api.delete(`/schools/${id}`);
+      alert(`"${name}" and all its data have been deleted.`);
+      load();
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to delete");
+    }
+  };
+
   const isExpired = (date) => {
     if (!date) return false;
     return new Date() > new Date(date);
@@ -92,12 +124,12 @@ export default function SchoolsList() {
           No schools registered yet
         </div>
       ) : (
-        /* 👇 FIXED: overflow-x-auto instead of overflow-hidden */
         <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
-          <table className="w-full text-sm min-w-[600px]"> {/* 👈 min-w prevents squishing */}
+          <table className="w-full text-sm min-w-[700px]">
             <thead className="bg-slate-50 text-slate-600">
               <tr>
                 <th className="p-3 text-left">School</th>
+                <th className="p-3 text-left">Tracks</th>
                 <th className="p-3 text-left">Contact</th>
                 <th className="p-3 text-left">Status</th>
                 <th className="p-3 text-left">Subscription</th>
@@ -113,6 +145,23 @@ export default function SchoolsList() {
                       <div className="font-medium">{s.name}</div>
                       <div className="text-xs text-slate-400 font-mono">
                         {s.slug}
+                      </div>
+                    </td>
+                    {/* 👈 SAS: Show track badges */}
+                    <td className="p-3">
+                      <div className="flex flex-wrap gap-1">
+                        {(s.tracks || ["nursery_primary"]).map((t) => (
+                          <span
+                            key={t}
+                            className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                              t === "secondary"
+                                ? "bg-blue-100 text-blue-700"
+                                : "bg-green-100 text-green-700"
+                            }`}
+                          >
+                            {t === "secondary" ? "Secondary" : "Primary"}
+                          </span>
+                        ))}
                       </div>
                     </td>
                     <td className="p-3">
@@ -135,7 +184,7 @@ export default function SchoolsList() {
                       )}
                     </td>
                     <td className="p-3">
-                      <div className="flex gap-1 flex-wrap min-w-[150px]">
+                      <div className="flex gap-1 flex-wrap min-w-[180px]">
                         {s.status === "pending" && (
                           <>
                             <button
@@ -174,6 +223,14 @@ export default function SchoolsList() {
                           className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 whitespace-nowrap"
                         >
                           Renew 30d
+                        </button>
+
+                        {/* 👈 NEW: Delete button (only if not approved) */}
+                        <button
+                          onClick={() => deleteSchool(s._id, s.name, s.status)}
+                          className="text-xs bg-red-800 text-white px-2 py-1 rounded hover:bg-red-900 whitespace-nowrap"
+                        >
+                          <i className="fas fa-trash mr-1"></i> Delete
                         </button>
                       </div>
                     </td>
