@@ -84,7 +84,6 @@ export default function FeeStructures() {
                   <li key={idx} className="py-1 flex justify-between">
                     <div className="flex gap-2 items-center">
                       <span>{i.name}</span>
-                      {/* 👈 SAS: Show stream badge if fee is stream-specific */}
                       {i.stream && (
                         <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded capitalize">
                           {i.stream}
@@ -96,7 +95,7 @@ export default function FeeStructures() {
                   </li>
                 ))}
                 <li className="py-1 flex justify-between font-bold border-t-2">
-                  <span>Total (Required)</span>
+                  <span>Base Total</span>
                   <span>{formatNaira(s.totalKobo)}</span>
                 </li>
               </ul>
@@ -153,8 +152,9 @@ function CreateStructureModal({ classes, onClose, onCreated, isSecondary }) {
   const addItem = () => setForm({ ...form, items: [...form.items, { name: "", amount: 0, isOptional: false, stream: "" }] });
   const removeItem = (idx) => setForm({ ...form, items: form.items.filter((_, i) => i !== idx) });
 
-  const total = form.items
-    .filter((i) => !i.isOptional)
+  // 👈 SAS FIX: Only calculate base total for required items with NO stream (applies to everyone)
+  const baseTotal = form.items
+    .filter((i) => !i.isOptional && !i.stream)
     .reduce((s, i) => s + Number(i.amount || 0), 0);
 
   const submit = async () => {
@@ -216,7 +216,6 @@ function CreateStructureModal({ classes, onClose, onCreated, isSecondary }) {
                 <button onClick={() => removeItem(idx)} className="text-red-500 text-sm px-2">✕</button>
               </div>
               
-              {/* 👈 SAS: Stream selector and Optional checkbox per item */}
               <div className="flex gap-4 items-center px-1">
                 <label className="flex items-center gap-1 text-xs text-slate-500 whitespace-nowrap">
                   <input type="checkbox" checked={item.isOptional}
@@ -230,7 +229,7 @@ function CreateStructureModal({ classes, onClose, onCreated, isSecondary }) {
                     value={item.stream || ""}
                     onChange={(e) => updateItem(idx, { stream: e.target.value })}
                   >
-                    <option value="">All Streams (or Core)</option>
+                    <option value="">All Streams (Core)</option>
                     <option value="science">Science Only</option>
                     <option value="arts">Arts Only</option>
                     <option value="commercial">Commercial Only</option>
@@ -243,9 +242,14 @@ function CreateStructureModal({ classes, onClose, onCreated, isSecondary }) {
         <button onClick={addItem} className="text-blue-600 text-sm mb-4 font-medium">+ Add Fee Item</button>
 
         <div className="bg-slate-50 rounded-lg p-3 mb-4 flex justify-between font-bold">
-          <span>Total (Required items)</span>
-          <span>₦{total.toLocaleString()}</span>
+          <span>Base Total (Required)</span>
+          <span>₦{baseTotal.toLocaleString()}</span>
         </div>
+        {isSecondary && (
+          <p className="text-xs text-slate-500 mb-4">
+            * Note: Stream-specific fees (e.g. Science Lab) are added on top of the Base Total only for pupils in that stream.
+          </p>
+        )}
 
         <div className="flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 border rounded-lg">Cancel</button>
