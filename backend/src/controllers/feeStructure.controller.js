@@ -2,8 +2,10 @@ import FeeStructure from "../models/FeeStructure.js";
 import Class from "../models/Class.js";
 import { nairaToKobo } from "../utils/money.js";
 
+// 👈 SAS: Secondary class names for filtering
+const SECONDARY_CLASSES = ["JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3"];
+
 // POST /api/fees/structures
-// Body: { classId, session, term, items: [{ name, amount (naira), isOptional }], dueDate?, notes? }
 export const createFeeStructure = async (req, res) => {
   try {
     const { classId, session, term, items, dueDate, notes } = req.body;
@@ -11,7 +13,6 @@ export const createFeeStructure = async (req, res) => {
     const cls = await Class.findOne({ _id: classId, schoolId: req.schoolId });
     if (!cls) return res.status(404).json({ success: false, message: "Class not found" });
 
-    // Convert amounts to kobo
     const itemsKobo = items.map((i) => ({
       name: i.name,
       amountKobo: nairaToKobo(i.amount),
@@ -50,18 +51,30 @@ export const createFeeStructure = async (req, res) => {
   }
 };
 
-// GET /api/fees/structures?classId=&session=&term=
+// GET /api/fees/structures?classId=&session=&term=&track=
 export const listFeeStructures = async (req, res) => {
   try {
-    const { classId, session, term, includeInactive } = req.query;
+    const { classId, session, term, includeInactive, track } = req.query; // 👈 SAS: Accept track
     const query = { schoolId: req.schoolId };
+    
     if (classId) query.classId = classId;
     if (session) query.session = session;
     if (term) query.term = term;
     if (includeInactive !== "true") query.isActive = true;
 
+    // 👈 SAS: Filter by track using the Class collection
+    if (track && !classId) {
+      const isSecondary = track === "secondary";
+      const validClasses = await Class.find({
+        schoolId: req.schoolId,
+        name: isSecondary ? { $in: SECONDARY_CLASSES } : { $nin: SECONDARY_CLASSES }
+      }).select("_id");
+      
+      query.classId = { $in: validClasses.map(c => c._id) };
+    }
+
     const structures = await FeeStructure.find(query)
-      .populate("classId", "name level")
+      .populate("classId", "name level track") // 👈 SAS: include track
       .sort({ createdAt: -1 });
 
     res.json({ success: true, data: { feeStructures: structures } });
