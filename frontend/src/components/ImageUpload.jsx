@@ -8,9 +8,14 @@ export default function ImageUpload({ onUploadSuccess, currentImage }) {
     const file = e.target.files[0];
     if (!file) return;
 
+    // 👈 Prevent files over 5MB to avoid Cloudinary timeouts on mobile
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image is too large. Please choose an image under 5MB.");
+      return;
+    }
+
     setUploading(true);
     
-    // Create a preview instantly
     const localPreview = URL.createObjectURL(file);
     setPreview(localPreview);
 
@@ -21,7 +26,8 @@ export default function ImageUpload({ onUploadSuccess, currentImage }) {
     const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
     if (!cloudName || !uploadPreset) {
-      alert("Cloudinary environment variables are missing.");
+      console.error("Cloudinary missing env vars:", { cloudName, uploadPreset });
+      alert("System Error: Cloudinary environment variables are missing. Please contact support.");
       setUploading(false);
       return;
     }
@@ -36,16 +42,20 @@ export default function ImageUpload({ onUploadSuccess, currentImage }) {
           body: formData,
         }
       );
+      
       const data = await res.json();
       
       if (data.secure_url) {
-        onUploadSuccess(data.secure_url); // Send URL back to parent form
+        onUploadSuccess(data.secure_url); 
       } else {
-        alert(`Upload failed: ${data.error?.message || "Unknown error"}`);
+        console.error("Cloudinary Error:", data);
+        alert(`Upload failed: ${data.error?.message || "Unknown error. Check Cloudinary settings."}`);
+        setPreview(currentImage || ""); // Revert preview
       }
     } catch (err) {
-      console.error(err);
-      alert("Error uploading image");
+      console.error("Network Error:", err);
+      alert("Network error. Please check your internet connection and try again.");
+      setPreview(currentImage || ""); // Revert preview
     } finally {
       setUploading(false);
     }
@@ -53,7 +63,6 @@ export default function ImageUpload({ onUploadSuccess, currentImage }) {
 
   return (
     <div className="flex flex-col items-center gap-3">
-      {/* Image Preview Circle */}
       <div className="w-24 h-24 rounded-full bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden relative">
         {preview ? (
           <img src={preview} alt="Preview" className="w-full h-full object-cover" />
@@ -67,27 +76,24 @@ export default function ImageUpload({ onUploadSuccess, currentImage }) {
         )}
       </div>
       
-      {/* Action Buttons */}
       <div className="flex gap-2 flex-wrap justify-center">
-        {/* 👇 Button 1: Open Camera Directly (capture="environment") */}
         <label className={`cursor-pointer bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-2 rounded-lg text-xs font-medium transition flex items-center gap-1 ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
           <i className="fas fa-camera"></i> Camera
           <input
             type="file"
             accept="image/*"
-            capture="environment" // 👈 Forces camera on mobile
+            capture="environment" 
             className="hidden"
             onChange={handleUpload}
             disabled={uploading}
           />
         </label>
 
-        {/* 👇 Button 2: Choose from Gallery */}
         <label className={`cursor-pointer bg-slate-100 text-slate-700 hover:bg-slate-200 px-3 py-2 rounded-lg text-xs font-medium transition flex items-center gap-1 ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
           <i className="fas fa-images"></i> Gallery
           <input
             type="file"
-            accept="image/*" // 👈 No capture attribute = opens gallery
+            accept="image/*" 
             className="hidden"
             onChange={handleUpload}
             disabled={uploading}
