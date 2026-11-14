@@ -32,15 +32,44 @@ export default function BillDetail() {
   };
 
   const downloadReceipt = async (paymentId, receiptNumber) => {
+  try {
     const token = localStorage.getItem("csn_token");
     const url = feeApi.receiptPdfUrl(paymentId);
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    
+    const res = await fetch(url, { 
+      headers: { Authorization: `Bearer ${token}` } 
+    });
+
+    // If the backend threw an error, don't download it as a PDF
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Server error:", errText);
+      alert("Failed to generate PDF. Check server logs.");
+      return;
+    }
+
     const blob = await res.blob();
+    
+    // Check if the file is too small (meaning it's probably an empty error file)
+    if (blob.size < 100) {
+      alert("The generated PDF is empty. Check the backend.");
+      return;
+    }
+
+    // Standard robust download
     const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `${receiptNumber.replace(/\//g, "-")}.pdf`;
+    link.href = window.URL.createObjectURL(blob);
+    link.download = `Receipt-${receiptNumber.replace(/\//g, "-")}.pdf`;
+    document.body.appendChild(link);
     link.click();
-  };
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(link.href);
+    
+  } catch (err) {
+    console.error("Download error:", err);
+    alert("Network error while downloading PDF.");
+  }
+};
 
   if (loading) return <div className="p-6 text-slate-400">Loading…</div>;
   if (!bill) return <div className="p-6 text-red-600">Bill not found</div>;
