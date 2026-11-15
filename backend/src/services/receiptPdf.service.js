@@ -4,19 +4,31 @@ import { formatNaira } from "../utils/money.js";
 export const generateReceiptPDF = ({ school, payment }) => {
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({ size: "A5", margin: 30 });
+      // A5 size: width 419.53, height 595.28
+      const doc = new PDFDocument({ 
+        size: "A5", 
+        margin: 30,
+        autoFirstPage: true 
+      });
+      
       const chunks = [];
       doc.on("data", (c) => chunks.push(c));
       doc.on("end", () => resolve(Buffer.concat(chunks)));
       doc.on("error", reject);
 
       const { studentId: student, billId: bill, recordedBy } = payment;
+      
+      // Calculate page width for lines (A5 width is ~420)
+      const pageWidth = doc.page.width;
+      const margin = 30;
+      const lineWidth = pageWidth - (margin * 2);
 
       // Header
       doc.fontSize(16).font("Helvetica-Bold").text(school.name.toUpperCase(), { align: "center" });
       if (school.address) doc.fontSize(9).font("Helvetica").text(school.address, { align: "center" });
       if (school.phone) doc.fontSize(9).text(`Tel: ${school.phone}`, { align: "center" });
       doc.moveDown(0.5);
+      
       doc.fontSize(13).font("Helvetica-Bold").fillColor("#0b2b4f")
         .text("OFFICIAL RECEIPT", { align: "center" });
       doc.fillColor("black").moveDown(0.7);
@@ -28,11 +40,13 @@ export const generateReceiptPDF = ({ school, payment }) => {
         .text(new Date(payment.paidAt).toLocaleString("en-NG"));
 
       doc.moveDown(0.5);
-      doc.moveTo(30, doc.y).lineTo(560, doc.y).stroke();
+      
+      // 👈 Fixed Line drawing
+      doc.moveTo(margin, doc.y).lineTo(margin + lineWidth, doc.y).stroke();
       doc.moveDown(0.5);
 
       // Pupil info
-      doc.fontSize(10).font("Helvetica-Bold").text("Pupil");
+      doc.fontSize(10).font("Helvetica-Bold").text("Pupil Info");
       doc.font("Helvetica");
       doc.text(`Name: ${student.fullName}`);
       doc.text(`Admission No: ${student.admissionNumber}`);
@@ -52,7 +66,8 @@ export const generateReceiptPDF = ({ school, payment }) => {
       }
 
       doc.moveDown(0.5);
-      doc.moveTo(30, doc.y).lineTo(560, doc.y).stroke();
+      // 👈 Fixed Line drawing
+      doc.moveTo(margin, doc.y).lineTo(margin + lineWidth, doc.y).stroke();
       doc.moveDown(0.5);
 
       // Amounts
