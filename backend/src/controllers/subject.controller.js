@@ -3,7 +3,8 @@ import Subject from "../models/Subject.js";
 // POST /api/subjects
 export const createSubject = async (req, res) => {
   try {
-    const { name, code, description, applicableClasses, isDevelopmental } = req.body;
+    // 👈 SAS: Extract track and streams
+    const { name, code, description, applicableClasses, isDevelopmental, track, streams } = req.body;
 
     const subject = await Subject.create({
       schoolId: req.schoolId,
@@ -12,6 +13,8 @@ export const createSubject = async (req, res) => {
       description,
       applicableClasses: applicableClasses || [],
       isDevelopmental: !!isDevelopmental,
+      track: track || "nursery_primary", // 👈 Default to primary
+      streams: streams || [],            // 👈 Save streams
       createdBy: req.user._id,
     });
 
@@ -20,20 +23,29 @@ export const createSubject = async (req, res) => {
     if (err.code === 11000) {
       return res.status(400).json({
         success: false,
-        message: "A subject with that name or code already exists",
+        message: "A subject with that name or code already exists for this track",
       });
     }
     res.status(400).json({ success: false, message: err.message });
   }
 };
 
-// GET /api/subjects?level=primary&search=math
+// GET /api/subjects?track=secondary&search=math
 export const listSubjects = async (req, res) => {
   try {
-    const { search, isDevelopmental, includeInactive } = req.query;
+    // 👈 SAS: Extract track from query
+    const { search, isDevelopmental, includeInactive, track } = req.query;
+    
     const query = { schoolId: req.schoolId };
+    
     if (includeInactive !== "true") query.isActive = true;
     if (isDevelopmental !== undefined) query.isDevelopmental = isDevelopmental === "true";
+    
+    // 👈 SAS: Filter by track
+    if (track) {
+      query.track = track;
+    }
+
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: "i" } },
@@ -51,7 +63,8 @@ export const listSubjects = async (req, res) => {
 // PATCH /api/subjects/:id
 export const updateSubject = async (req, res) => {
   try {
-    const allowed = ["name", "code", "description", "applicableClasses", "isDevelopmental", "isActive"];
+    // 👈 SAS: Allow updating track and streams
+    const allowed = ["name", "code", "description", "applicableClasses", "isDevelopmental", "isActive", "track", "streams"];
     const updates = {};
     allowed.forEach((k) => {
       if (req.body[k] !== undefined) updates[k] = req.body[k];
