@@ -1,80 +1,57 @@
-# CodeSmartNG Academic 🎓
-> **Smart School Management, Better Learning.**
+# 🎓 CodeSmartNG Academic Portal
 
-CodeSmartNG Academic is a comprehensive, multi-tenant school management SaaS platform built specifically for Nigerian Nursery and Primary Schools. It provides a centralized portal for Super Admins, School Proprietors, Administrators, Teachers, Parents, and Pupils to manage academic and financial activities seamlessly.
+A comprehensive, multi-tenant School Management System built for Nigerian Nursery, Primary, and Secondary Schools. 
 
-## 🚀 Key Features
+CodeSmartNG Academic provides school administrators, teachers, parents, and pupils with a seamless digital environment to manage academics, finances, and communication.
 
-### 🏢 Multi-Tenancy & Security
-*   **Strict Data Isolation:** Every school's data is isolated using a `schoolId` on every database query. No school can access another school's data.
-*   **Role-Based Access Control (RBAC):** Secure JWT authentication with 6 distinct user roles.
-*   **Brevo Email Integration:** Automated password reset emails using Brevo's HTTP API.
-*   **Subscription Management:** 30-day free trial for new schools. Super Admin can track expirations and renew subscriptions manually.
+## ✨ Key Features (SAS Integration)
 
-### 👑 Super Admin Dashboard
-*   Platform-wide metrics (Total Schools, Users, Pupils, Teachers).
-*   Approve, Reject, or Suspend school registrations.
-*   Manage school subscriptions (Renew 30 days).
+This portal features full support for **SAS (Secondary School)** alongside Primary education:
+*   **Dual-Track Management:** Seamlessly toggle between Primary and Secondary operations.
+*   **Dynamic Class Levels:** Auto-generates JSS 1-3 and SSS 1-3 classes.
+*   **Stream Filtering:** Assign SSS pupils to Science, Arts, or Commercial streams.
+*   **WAEC & Primary Grading:** Automated grading using WAEC (A1-F9) for Secondary and A-F for Primary.
+*   **Stream-Aware Fees:** Automatically apply specific fees (e.g., Science Lab Fees) only to relevant pupils.
+*   **PDF Generation:** Beautiful, track-aware Report Cards and Fee Receipts.
 
-### 🏫 School Admin / Proprietor Dashboard
-*   **Staff Management:** Add Teachers, Admins, and Parents.
-*   **Academics:** Create Classes, Subjects, and assign Form/Subject Teachers.
-*   **Finance:** Create Fee Structures (in Naira/Kobo), Generate Bills, and record manual payments (Cash, Bank Transfer).
-*   **Communication:** Publish school-wide Announcements.
-
-### 👩‍🏫 Teacher Dashboard
-*   **Attendance:** Form teachers can mark daily attendance (Present, Absent, Late, Excused).
-*   **Homework:** Publish assignments with due dates.
-*   **Results:** Create assessments, enter scores, and view class broadsheets.
-*   **Live Chat:** Message School Admins directly (secured so teachers cannot message each other).
-
-### 👨‍👩‍👧 Parent Portal
-*   **Child Linking:** Securely link to children using their Admission Number.
-*   **Overview:** See child's attendance percentage, latest results, outstanding fees, and class position at a glance.
-*   **Finance:** View fee bills, school bank details for manual transfers, and payment history.
-*   **Report Cards:** View and print beautiful, browser-native A4 PDF report cards.
-*   **Communication:** Receive school announcements and message the school Admin.
-
-### 👦 Pupil Portal
-*   View homework, learning materials, and published results.
+### Other Core Modules
+*   **Admissions & Pupil Management:** Detailed profiles with medical, guardian, and promotion history.
+*   **Results & Broadsheets:** Create assessments (CA1, CA2, Exams), enter scores, compute positions, and publish to parents.
+*   **Fees & Billing:** Create fee structures, generate bills, record payments (Cash, Transfer, POS), and track outstanding balances.
+*   **Parent & Pupil Portals:** Parents can link their children, view results, check bills, and receive announcements.
+*   **Communication:** Built-in chat between admins/teachers, announcements, and automated email notifications (Brevo).
+*   **Support:** Integrated floating WhatsApp support button for school admins.
 
 ## 🛠️ Tech Stack
 
 **Frontend:**
 *   React.js (Vite)
-*   Tailwind CSS (Custom UI Design System)
-*   React Router DOM (Role-based routing)
-*   Axios (API requests & Interceptors)
+*   Tailwind CSS (Styling)
+*   React Router v6
+*   Axios (API requests)
+*   Cloudinary (Image Uploads)
 
 **Backend:**
 *   Node.js & Express.js
-*   MongoDB & Mongoose (Database & Modeling)
-*   JWT (JSON Web Tokens for Auth)
-*   Bcrypt.js (Password Hashing)
-*   Brevo API (Email Delivery)
+*   MongoDB & Mongoose
+*   JSON Web Tokens (JWT) for Auth
+*   PDFKit (Report Cards & Receipts)
+*   Brevo API (Transactional Emails)
 
-**Deployment & Hosting:**
-*   Frontend: **Vercel**
-*   Backend: **Render**
-*   Database: **MongoDB Atlas**
+**Deployment & Infrastructure:**
+*   Frontend: Vercel
+*   Backend: Render
+*   Database: MongoDB Atlas
 
-## ⚙️ Environment Variables
+## 🚀 Getting Started (Local Development)
 
-To run this project locally or deploy it, you need to configure the following environment variables.
+### Prerequisites
+*   Node.js (v18+)
+*   MongoDB (Local or Atlas URI)
+*   Brevo API Key (for emails)
+*   Cloudinary Account (for image uploads)
 
-### Backend (`backend/.env`)
-```env
-PORT=5000
-NODE_ENV=development
-MONGO_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/codesmartng_academic
-JWT_SECRET=your_super_secret_jwt_key_min_32_chars
-JWT_EXPIRES_IN=7d
-CLIENT_URL=http://localhost:5173
-
-# Super Admin Seed Data
-SUPER_ADMIN_EMAIL=admin@codesmartng.com
-SUPER_ADMIN_PASSWORD=SecurePassword123!
-
-# Brevo Email API (For Password Resets)
-BREVO_API_KEY=xkeysib-your-brevo-api-key
-EMAIL_FROM=noreply@codesmartng.com
+### 1. Clone the Repository
+```bash
+git clone https://github.com/YourUsername/CodeSmartNG-Academic.git
+cd CodeSmartNG-Academic
