@@ -13,7 +13,6 @@ export default function SchoolAdminDashboard() {
   const [subjects, setSubjects] = useState([]);
   const [parents, setParents] = useState([]);
   
-  // 👈 SAS: State for the school overview stats
   const [pupilStats, setPupilStats] = useState(null);
 
   const [teacherForm, setTeacherForm] = useState({ fullName: "", email: "", password: "" });
@@ -33,24 +32,33 @@ export default function SchoolAdminDashboard() {
   const loadData = () => {
     api.get("/users?role=teacher").then(({ data }) => setTeachers(data.data.users || [])).catch(console.error);
     
-    // 👈 SAS: Filter subjects by active track
     api.get("/subjects", { params: { track: activeTrack } })
       .then(({ data }) => setSubjects(data.data.subjects || []))
       .catch(console.error);
       
     api.get("/users?role=parent").then(({ data }) => setParents(data.data.users || [])).catch(console.error);
 
-    // 👈 SAS: Fetch pupil stats (gives us trackSplit)
     api.get("/students/stats", { params: { track: activeTrack } })
       .then(({ data }) => setPupilStats(data.data))
       .catch(console.error);
     
+    // 👈 SAS FIX: Force the logo to update from the DB
     api.get("/schools/mine").then(({ data }) => {
       const school = data.data.school;
+      
+      // Debugging: Check what the backend is sending on refresh
+      console.log("Fetched School Data:", school); 
+
       setSchoolData(school);
-      if (school?.settings?.bankDetails) setBankForm(school.settings.bankDetails);
-      if (school?.logoUrl) setLogoUrl(school.logoUrl);
-    }).catch(console.error);
+      
+      if (school?.settings?.bankDetails) {
+        setBankForm(school.settings.bankDetails);
+      }
+
+      // Always set the logo, even if it's empty string (prevents stale state)
+      setLogoUrl(school?.logoUrl || "");
+
+    }).catch((err) => console.error("Failed to load school:", err));
   };
 
   useEffect(() => {
@@ -124,28 +132,22 @@ export default function SchoolAdminDashboard() {
   };
 
   const handleSaveLogo = async (url) => {
-  try {
-    // 1. Immediately update the local UI so the user sees it
-    setLogoUrl(url);
-    setLogoMsg({ type: "success", text: "Saving logo to database..." });
+    try {
+      setLogoUrl(url);
+      setLogoMsg({ type: "success", text: "Saving logo to database..." });
 
-    // 2. Send to backend
-    await api.patch("/schools/mine", { logoUrl: url });
-    
-    // 3. Show success
-    setLogoMsg({ type: "success", text: "Logo saved successfully!" });
-    setTimeout(() => setLogoMsg(null), 3000);
+      await api.patch("/schools/mine", { logoUrl: url });
+      
+      setLogoMsg({ type: "success", text: "Logo saved successfully!" });
+      setTimeout(() => setLogoMsg(null), 3000);
 
-    // 4. IMPORTANT: Re-fetch the school data to ensure it's saved
-    const { data } = await api.get("/schools/mine");
-    if (data.data.school.logoUrl) {
-      setLogoUrl(data.data.school.logoUrl);
+      // Force reload to make sure it stuck
+      loadData();
+    } catch (err) {
+      console.error("Logo save error:", err);
+      setLogoMsg({ type: "error", text: "Failed to save logo to database." });
     }
-  } catch (err) {
-    console.error("Logo save error:", err);
-    setLogoMsg({ type: "error", text: "Failed to save logo to database." });
-  }
-};
+  };
 
   const handleUpgrade = async (plan) => {
     try {
@@ -182,10 +184,8 @@ export default function SchoolAdminDashboard() {
         Welcome to CodeSmartNG Academic — manage your {isSecondary ? "secondary" : "nursery & primary"} school here.
       </p>
 
-      {/* 👈 SAS: SCHOOL OVERVIEW (Global Stats) */}
       {pupilStats?.trackSplit && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          {/* Show Primary Card if school has Primary pupils OR is currently on Primary track */}
           {(pupilStats.trackSplit.primary > 0 || !isSecondary) && (
             <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-green-500 flex items-center justify-between">
               <div>
@@ -198,7 +198,6 @@ export default function SchoolAdminDashboard() {
             </div>
           )}
 
-          {/* Show Secondary Card if school has Secondary pupils OR is currently on Secondary track */}
           {(pupilStats.trackSplit.secondary > 0 || isSecondary) && (
             <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-blue-500 flex items-center justify-between">
               <div>
