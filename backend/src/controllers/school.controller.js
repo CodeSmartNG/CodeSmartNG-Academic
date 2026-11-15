@@ -5,7 +5,7 @@ import Class from "../models/Class.js";
 import Subject from "../models/Subject.js";       
 import ClassLevel from "../models/ClassLevel.js"; 
 import { seedSecondarySchool } from "../services/seedSchool.js";
-import sendEmail from "../utils/sendEmail.js"; // 👈 ADDED FOR APPROVAL EMAIL
+import sendEmail from "../utils/sendEmail.js"; 
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/auth/register-school
@@ -85,7 +85,7 @@ export const approveSchool = async (req, res) => {
       await seedSecondarySchool(school._id);
     }
 
-    // 👈 NEW: Send Approval Email
+    // Send Approval Email
     try {
       const loginUrl = `${process.env.CLIENT_URL}/login`;
       const html = `
@@ -118,7 +118,6 @@ export const approveSchool = async (req, res) => {
       });
       console.log(`✅ Approval email sent to ${school.email}`);
     } catch (emailError) {
-      // We log the error but don't crash the approval process if the email fails
       console.error("❌ Failed to send approval email:", emailError);
     }
 
@@ -165,7 +164,6 @@ export const suspendSchool = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // DELETE /api/schools/:id
-// Super Admin: Permanently delete school + cascade all data
 // ─────────────────────────────────────────────────────────────
 export const deleteSchool = async (req, res) => {
   try {
@@ -262,7 +260,9 @@ export const updateMySchool = async (req, res) => {
     if (req.body.name) school.name = req.body.name;
     if (req.body.phone) school.phone = req.body.phone;
     if (req.body.address) school.address = req.body.address;
-    if (req.body.logoUrl) school.logoUrl = req.body.logoUrl;
+    
+    // 👈 SAS FIX: Use !== undefined so it saves correctly
+    if (req.body.logoUrl !== undefined) school.logoUrl = req.body.logoUrl;
 
     if (req.body.settings) {
       if (req.body.settings.bankDetails) {
