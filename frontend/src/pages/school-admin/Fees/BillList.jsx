@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom"; // 👈 Added useLocation
+import { Link, useLocation, useNavigate } from "react-router-dom"; // 👈 Added useNavigate
 import { classApi } from "../../../services/classApi";
 import { feeApi, formatNaira } from "../../../services/feeApi";
 import { useAuth } from "../../../context/AuthContext";
@@ -7,7 +7,8 @@ import { useAuth } from "../../../context/AuthContext";
 export default function BillList() {
   const { activeTrack } = useAuth();
   const isSecondary = activeTrack === "secondary";
-  const location = useLocation(); // 👈 To highlight active tab
+  const location = useLocation();
+  const navigate = useNavigate(); // 👈 Initialize navigate
 
   const [classes, setClasses] = useState([]);
   const [bills, setBills] = useState([]);
@@ -37,7 +38,7 @@ export default function BillList() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      {/* 👈 SAS: Navigation Tabs */}
+      {/* 👈 Navigation Tabs */}
       <div className="flex gap-4 mb-6 border-b pb-2">
         <Link 
           to="/dashboard/fees" 
@@ -99,20 +100,24 @@ export default function BillList() {
               <th className="p-3 text-right">Paid</th>
               <th className="p-3 text-right">Balance</th>
               <th className="p-3 text-left">Status</th>
-              <th className="p-3 text-left"></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="7" className="p-6 text-center text-slate-400">Loading…</td></tr>
+              <tr><td colSpan="6" className="p-6 text-center text-slate-400">Loading…</td></tr>
             ) : bills.length === 0 ? (
-              <tr><td colSpan="7" className="p-6 text-center text-slate-400">
+              <tr><td colSpan="6" className="p-6 text-center text-slate-400">
                 No bills yet. Go to <strong>Fee Structures</strong> and click "Generate Bills".
               </td></tr>
             ) : bills.map((b) => (
-              <tr key={b._id} className="border-t">
+              // 👈 SAS: Made the entire row clickable
+              <tr 
+                key={b._id} 
+                className="border-t hover:bg-blue-50 cursor-pointer transition-colors"
+                onClick={() => navigate(`/dashboard/fees/bills/${b._id}`)}
+              >
                 <td className="p-3">
-                  <div className="font-medium">{b.studentId?.fullName}</div>
+                  <div className="font-medium text-blue-700">{b.studentId?.fullName}</div>
                   <div className="text-xs text-slate-400 font-mono">{b.studentId?.admissionNumber}</div>
                 </td>
                 <td className="p-3 text-xs">
@@ -128,11 +133,6 @@ export default function BillList() {
                 <td className="p-3 text-right font-mono text-red-700">{formatNaira(b.balanceKobo)}</td>
                 <td className="p-3">
                   <StatusBadge status={b.status} />
-                </td>
-                <td className="p-3 text-right">
-                  <Link to={`/dashboard/fees/bills/${b._id}`} className="text-blue-600 hover:underline text-xs">
-                    View
-                  </Link>
                 </td>
               </tr>
             ))}
