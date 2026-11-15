@@ -124,15 +124,28 @@ export default function SchoolAdminDashboard() {
   };
 
   const handleSaveLogo = async (url) => {
-    try {
-      await api.patch("/schools/mine", { logoUrl: url });
-      setLogoUrl(url);
-      setLogoMsg({ type: "success", text: "Logo updated successfully!" });
-      setTimeout(() => setLogoMsg(null), 3000);
-    } catch (err) {
-      setLogoMsg({ type: "error", text: "Failed to save logo" });
+  try {
+    // 1. Immediately update the local UI so the user sees it
+    setLogoUrl(url);
+    setLogoMsg({ type: "success", text: "Saving logo to database..." });
+
+    // 2. Send to backend
+    await api.patch("/schools/mine", { logoUrl: url });
+    
+    // 3. Show success
+    setLogoMsg({ type: "success", text: "Logo saved successfully!" });
+    setTimeout(() => setLogoMsg(null), 3000);
+
+    // 4. IMPORTANT: Re-fetch the school data to ensure it's saved
+    const { data } = await api.get("/schools/mine");
+    if (data.data.school.logoUrl) {
+      setLogoUrl(data.data.school.logoUrl);
     }
-  };
+  } catch (err) {
+    console.error("Logo save error:", err);
+    setLogoMsg({ type: "error", text: "Failed to save logo to database." });
+  }
+};
 
   const handleUpgrade = async (plan) => {
     try {
