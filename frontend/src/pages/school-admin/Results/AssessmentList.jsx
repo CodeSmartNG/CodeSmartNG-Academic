@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom"; // 👈 Added useNavigate
 import { classApi } from "../../../services/classApi";
 import { subjectApi } from "../../../services/classApi";
 import { assessmentApi } from "../../../services/resultApi";
-import { useAuth } from "../../../context/AuthContext"; // 👈 SAS
+import { useAuth } from "../../../context/AuthContext";
 
 export default function AssessmentList() {
-  const { activeTrack } = useAuth(); // 👈 SAS
+  const { activeTrack } = useAuth();
   const isSecondary = activeTrack === "secondary";
+  const navigate = useNavigate(); // 👈 Init navigate
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [classes, setClasses] = useState([]);
@@ -23,7 +24,6 @@ export default function AssessmentList() {
 
   const [showCreate, setShowCreate] = useState(false);
 
-  // 👈 SAS: Load classes and subjects filtered by track
   useEffect(() => {
     Promise.all([
       classApi.list({ track: activeTrack }),
@@ -35,14 +35,14 @@ export default function AssessmentList() {
   }, [activeTrack]);
 
   const load = () => {
-    // 👈 SAS: Include track in filters (in case backend needs it)
     assessmentApi.list({ ...filters, track: activeTrack }).then(({ data }) => setAssessments(data.data.assessments));
     setSearchParams(filters, { replace: true });
   };
 
   useEffect(load, [filters, activeTrack]);
 
-  const remove = async (id) => {
+  const remove = async (e, id) => {
+    e.stopPropagation(); // 👈 Stop the row click from firing
     if (!confirm("Delete this assessment and its scores?")) return;
     await assessmentApi.remove(id);
     load();
@@ -65,7 +65,6 @@ export default function AssessmentList() {
         </button>
       </div>
 
-      {/* Filters */}
       <div className="bg-white p-4 rounded-xl shadow-sm mb-4 grid grid-cols-2 md:grid-cols-4 gap-3">
         <select className="border rounded-lg p-2" value={filters.classId}
           onChange={(e) => setFilters({ ...filters, classId: e.target.value })}>
@@ -88,46 +87,50 @@ export default function AssessmentList() {
         </select>
       </div>
 
-      {/* Table */}
+      {/* 👈 SAS FIX: Changed overflow-hidden to overflow-x-auto */}
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="p-3 text-left">Name</th>
-              <th className="p-3 text-left">Class</th>
-              <th className="p-3 text-left">Subject</th>
-              <th className="p-3 text-left">Type</th>
-              <th className="p-3 text-left">Max</th>
-              <th className="p-3 text-left">Teacher</th>
-              <th className="p-3 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {assessments.length === 0 ? (
-              <tr><td colSpan="7" className="p-6 text-center text-slate-400">No assessments yet</td></tr>
-            ) : assessments.map((a) => (
-              <tr key={a._id} className="border-t">
-                <td className="p-3 font-medium">{a.name}</td>
-                <td className="p-3">{a.classId?.name}</td>
-                <td className="p-3">{a.subjectId?.name}</td>
-                <td className="p-3 capitalize text-xs">{a.type}</td>
-                <td className="p-3">{a.maxScore}</td>
-                <td className="p-3 text-xs">{a.teacherId?.fullName}</td>
-                <td className="p-3 flex gap-2">
-                  <Link
-                    to={`/dashboard/results/scores/${a._id}`}
-                    className="text-blue-600 hover:underline text-xs"
-                  >
-                    Enter Scores
-                  </Link>
-                  <button onClick={() => remove(a._id)} className="text-red-600 hover:underline text-xs">
-                    Delete
-                  </button>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="p-3 text-left whitespace-nowrap">Name</th>
+                <th className="p-3 text-left whitespace-nowrap">Class</th>
+                <th className="p-3 text-left whitespace-nowrap">Subject</th>
+                <th className="p-3 text-left whitespace-nowrap">Type</th>
+                <th className="p-3 text-left whitespace-nowrap">Max</th>
+                <th className="p-3 text-left whitespace-nowrap">Teacher</th>
+                <th className="p-3 text-left whitespace-nowrap">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {assessments.length === 0 ? (
+                <tr><td colSpan="7" className="p-6 text-center text-slate-400">No assessments yet</td></tr>
+              ) : assessments.map((a) => (
+                // 👈 SAS: Entire row is now clickable
+                <tr 
+                  key={a._id} 
+                  className="border-t hover:bg-blue-50 cursor-pointer transition-colors"
+                  onClick={() => navigate(`/dashboard/results/scores/${a._id}`)}
+                >
+                  <td className="p-3 font-medium text-blue-700 whitespace-nowrap">{a.name}</td>
+                  <td className="p-3 whitespace-nowrap">{a.classId?.name}</td>
+                  <td className="p-3 whitespace-nowrap">{a.subjectId?.name}</td>
+                  <td className="p-3 capitalize text-xs whitespace-nowrap">{a.type}</td>
+                  <td className="p-3 whitespace-nowrap">{a.maxScore}</td>
+                  <td className="p-3 text-xs whitespace-nowrap">{a.teacherId?.fullName}</td>
+                  <td className="p-3 flex gap-2 whitespace-nowrap">
+                    <span className="text-blue-600 text-xs font-semibold">
+                      Enter Scores →
+                    </span>
+                    <button onClick={(e) => remove(e, a._id)} className="text-red-600 hover:underline text-xs ml-2">
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {showCreate && (
@@ -135,7 +138,7 @@ export default function AssessmentList() {
           classes={classes}
           subjects={subjects}
           defaults={{ session: filters.session, term: filters.term }}
-          isSecondary={isSecondary} // 👈 SAS
+          isSecondary={isSecondary}
           onClose={() => setShowCreate(false)}
           onCreated={() => { setShowCreate(false); load(); }}
         />
@@ -145,12 +148,11 @@ export default function AssessmentList() {
 }
 
 function CreateAssessmentModal({ classes, subjects, defaults, onClose, onCreated, isSecondary }) {
-  // 👈 SAS: Set default form values based on track
   const [form, setForm] = useState({
     classId: "", subjectId: "",
     session: defaults.session, term: defaults.term,
     name: isSecondary ? "CA 1" : "First Test", 
-    type: isSecondary ? "ca" : "test", // Note: we need to add "ca" to the backend enum
+    type: isSecondary ? "ca" : "test",
     maxScore: isSecondary ? 10 : 10,
   });
   const [error, setError] = useState("");
@@ -166,7 +168,6 @@ function CreateAssessmentModal({ classes, subjects, defaults, onClose, onCreated
     } finally { setSaving(false); }
   };
 
-  // Helper to update max score when the name changes
   const handleNameChange = (name) => {
     let newMax = form.maxScore;
     let newType = form.type;
@@ -228,7 +229,6 @@ function CreateAssessmentModal({ classes, subjects, defaults, onClose, onCreated
         
         <label className="block mb-3">
           <span className="text-sm text-slate-600">Assessment Name</span>
-          {/* 👈 SAS: Dropdown for pre-defined secondary names */}
           <select className="mt-1 w-full border rounded-lg p-2"
             value={form.name}
             onChange={(e) => handleNameChange(e.target.value)}>
