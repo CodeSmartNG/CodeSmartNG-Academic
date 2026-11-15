@@ -17,19 +17,17 @@ const subjectSchema = new mongoose.Schema(
     track: {
       type: String,
       enum: ["nursery_primary", "secondary"],
-      default: "nursery_primary", // Existing subjects default to primary
+      default: "nursery_primary",
       index: true,
     },
     // Only applies to Secondary SSS classes (Science, Arts, Commercial)
-    // Leave empty for JSS, Primary, and general subjects.
     streams: {
       type: [String],
       enum: ["science", "arts", "commercial"],
       default: [], 
     },
 
-    // DEPRECATED: We will use ClassLevel references in the future.
-    // Kept for backward compatibility with existing pages.
+    // DEPRECATED: Kept for backward compatibility
     applicableClasses: [{ type: String, trim: true }],
 
     // For nursery developmental subjects (no numeric scores)
@@ -40,15 +38,15 @@ const subjectSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Unique subject name per school
+// 👈 SAS FIX: Unique subject name per school AND track
 subjectSchema.index(
-  { schoolId: 1, name: 1 },
+  { schoolId: 1, track: 1, name: 1 },
   { unique: true, collation: { locale: "en", strength: 2 } }
 );
 
-// Unique code per school (only if provided)
+// 👈 SAS FIX: Unique code per school AND track
 subjectSchema.index(
-  { schoolId: 1, code: 1 },
+  { schoolId: 1, track: 1, code: 1 },
   {
     unique: true,
     sparse: true,
