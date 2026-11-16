@@ -20,6 +20,7 @@ import SchoolsList from "./pages/super-admin/SchoolsList";
 // ── School Admin ────────────────────────────────────────────
 import SchoolAdminDashboard from "./pages/school-admin/Dashboard";
 import AdminMessages from "./pages/school-admin/Messages";
+import TimetablePage from "./pages/school-admin/Timetable";
 
 // ── Announcements ───────────────────────────────────────────
 import AnnouncementList from "./pages/school-admin/Announcements/AnnouncementList";
@@ -223,6 +224,14 @@ export default function App() {
                 }
               />
 
+              <Route
+  path="/dashboard/timetable"
+  element={
+    <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+      <TimetablePage />
+    </RoleRoute>
+  }
+/>
               {/* ── Attendance ─────────────────────────── */}
               <Route
                 path="/dashboard/attendance"
