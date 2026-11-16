@@ -19,6 +19,8 @@ import parentRoutes from "./routes/parent.routes.js";
 import homeworkRoutes from "./routes/homework.routes.js";
 import announcementRoutes from "./routes/announcement.routes.js";
 import subscriptionRoutes from "./routes/subscription.routes.js";
+import timetableRoutes from "./routes/timetable.routes.js";
+
 const app = express();
 
 // ── Security & Middleware ───────────────────────────────────
@@ -57,6 +59,7 @@ app.use("/api/parent", parentRoutes);
 app.use("/api/homework", homeworkRoutes);
 app.use("/api/announcements", announcementRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
+app.use("/api/timetables", timetableRoutes);
 
 app.get("/", (_, res) =>
   res.json({ success: true, message: "CodeSmartNG Academic API", version: "1.0.0" })
