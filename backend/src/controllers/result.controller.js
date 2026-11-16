@@ -146,11 +146,11 @@ export const enterAssessmentScores = async (req, res) => {
 // Helper: Recalculate one Result document with the correct scale
 // ─────────────────────────────────────────────────────────────
 const recalcResult = async (result, gradingScale) => {
-  const totalScore = result.scores.reduce((sum, s) => sum + (s.score || 0), 0);
-  const maxPossible = result.scores.reduce((sum, s) => sum + s.maxScore, 0);
+  // 👈 Force Number() conversion to prevent NaN
+  const totalScore = result.scores.reduce((sum, s) => sum + (Number(s.score) || 0), 0);
+  const maxPossible = result.scores.reduce((sum, s) => sum + (Number(s.maxScore) || 0), 0);
   const percentage = maxPossible ? (totalScore / maxPossible) * 100 : 0;
   
-  // 👈 SAS: Get the grade and (optionally) the gradePoint
   const entry = gradeFromPercentage(percentage, gradingScale);
 
   result.totalScore = Number(totalScore.toFixed(2));
@@ -158,7 +158,7 @@ const recalcResult = async (result, gradingScale) => {
   result.percentage = Number(percentage.toFixed(2));
   result.grade = entry.grade;
   result.remark = entry.remark;
-  // 👈 SAS: Save gradePoint if present (WAEC scale only)
+  
   if (entry.gradePoint !== undefined) {
     result.gradePoint = entry.gradePoint;
   }
