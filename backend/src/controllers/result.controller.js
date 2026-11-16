@@ -643,14 +643,19 @@ export const downloadReportCardPDF = async (req, res) => {
       return res.status(403).json({ success: false, message: "Access denied" });
     }
 
+    // 👈 THE FIX: Deep populate formTeacherId inside classId
     const student = await Student.findOne({ _id: studentId, schoolId: req.schoolId })
-      .populate("classId");
+      .populate({
+        path: "classId",
+        populate: { path: "formTeacherId", select: "fullName" }
+      });
 
     if (!student) {
       console.log("❌ Student not found");
       return res.status(404).json({ success: false, message: "Pupil not found" });
     }
     console.log("✅ Student:", student.fullName);
+    console.log("✅ Form Teacher:", student.classId?.formTeacherId?.fullName || "Not Assigned");
 
     const results = await Result.find({
       schoolId: req.schoolId, studentId, session, term,
@@ -661,7 +666,6 @@ export const downloadReportCardPDF = async (req, res) => {
     const anchor = results.find((r) => r.isAnchor);
     const school = await (await import("../models/School.js")).default.findById(req.schoolId);
 
-    // 👈 SAS: Tell the PDF service which track this pupil is on
     const isSecondary = student.classId?.track === "secondary" || isSecondaryClassName(student.className);
 
     console.log("🎨 Calling PDF service...");
@@ -673,7 +677,7 @@ export const downloadReportCardPDF = async (req, res) => {
       session,
       term,
       results,
-      isSecondary, // 👈 SAS
+      isSecondary,
       summary: anchor ? {
         overallTotal: anchor.overallTotal,
         overallAverage: anchor.overallAverage,
