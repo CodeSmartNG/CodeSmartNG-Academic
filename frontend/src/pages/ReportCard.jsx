@@ -45,22 +45,20 @@ export default function ReportCard() {
 
   const { student, class: cls, school, results, summary } = data;
   
-  // 👈 SAS: Determine if this pupil is in Secondary
   const isSecondary = isSecondaryClass(cls?.name) || cls?.track === "secondary";
+
+  // 👈 SAS: Extract all unique assessment names dynamically
+  const assessmentNames = new Set();
+  results?.forEach(r => r.scores?.forEach(s => assessmentNames.add(s.assessmentName)));
+  const dynamicAssessments = Array.from(assessmentNames).sort();
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-6 flex justify-between items-center no-print">
-        <button
-          onClick={() => navigate(-1)}
-          className="text-sm text-slate-500 hover:text-slate-800"
-        >
+        <button onClick={() => navigate(-1)} className="text-sm text-slate-500 hover:text-slate-800">
           ← Back
         </button>
-        <button
-          onClick={handlePrint}
-          className="bg-blue-700 hover:bg-blue-800 text-white px-6 py-2 rounded-lg font-medium shadow-sm"
-        >
+        <button onClick={handlePrint} className="bg-blue-700 hover:bg-blue-800 text-white px-6 py-2 rounded-lg font-medium shadow-sm">
           <i className="fas fa-print mr-2"></i> Print / Save as PDF
         </button>
       </div>
@@ -69,17 +67,12 @@ export default function ReportCard() {
         
         <div className="relative border-b-4 border-blue-900 pb-4 mb-6 text-center">
           {school?.logoUrl && (
-            <img 
-              src={school.logoUrl} 
-              alt="School Logo" 
-              className="absolute left-0 top-0 h-20 w-20 object-contain"
-            />
+            <img src={school.logoUrl} alt="School Logo" className="absolute left-0 top-0 h-20 w-20 object-contain" />
           )}
           <h1 className="text-3xl font-bold text-blue-900 uppercase tracking-wide px-24">
             {school?.name || "School Name"}
           </h1>
           <p className="text-sm text-slate-600">{school?.address || "School Address"}</p>
-          {/* 👈 SAS: Different title based on track */}
           <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-2">
             {isSecondary ? "Secondary School Report Card" : "Primary School Report Card"}
           </h2>
@@ -105,7 +98,6 @@ export default function ReportCard() {
               <p><span className="font-semibold text-slate-600">Admission No:</span> {student.admissionNumber}</p>
               <p>
                 <span className="font-semibold text-slate-600">Class:</span> {cls?.name || student.className}
-                {/* 👈 SAS: Show stream for SSS pupils */}
                 {isSecondary && student.stream && (
                   <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full capitalize">
                     {student.stream}
@@ -120,61 +112,40 @@ export default function ReportCard() {
           </div>
         </div>
 
-        {/* 👈 SAS: Different table structure per track */}
+        {/* 👈 SAS: DYNAMIC TABLE */}
         <table className="w-full text-sm mb-8 border-collapse">
           <thead>
             <tr className="bg-slate-100 print:bg-gray-100">
               <th className="border border-slate-300 p-2 text-left">Subject</th>
+              {dynamicAssessments.map(name => (
+                <th key={name} className="border border-slate-300 p-2 text-center">{name}</th>
+              ))}
+              <th className="border border-slate-300 p-2 text-center">Total</th>
+              <th className="border border-slate-300 p-2 text-center">Grade</th>
               {isSecondary ? (
-                <>
-                  <th className="border border-slate-300 p-2 text-center">CA1<br/><span className="text-xs font-normal">(10)</span></th>
-                  <th className="border border-slate-300 p-2 text-center">CA2<br/><span className="text-xs font-normal">(10)</span></th>
-                  <th className="border border-slate-300 p-2 text-center">ASG<br/><span className="text-xs font-normal">(10)</span></th>
-                  <th className="border border-slate-300 p-2 text-center">Exam<br/><span className="text-xs font-normal">(70)</span></th>
-                  <th className="border border-slate-300 p-2 text-center">Total</th>
-                  <th className="border border-slate-300 p-2 text-center">Grade</th>
-                  <th className="border border-slate-300 p-2 text-center">GP</th>
-                </>
+                <th className="border border-slate-300 p-2 text-center">GP</th>
               ) : (
-                <>
-                  <th className="border border-slate-300 p-2 text-center">CA</th>
-                  <th className="border border-slate-300 p-2 text-center">Exam</th>
-                  <th className="border border-slate-300 p-2 text-center">Total</th>
-                  <th className="border border-slate-300 p-2 text-center">Grade</th>
-                  <th className="border border-slate-300 p-2 text-left">Remark</th>
-                </>
+                <th className="border border-slate-300 p-2 text-left">Remark</th>
               )}
             </tr>
           </thead>
           <tbody>
             {results?.map((r) => {
-              // Extract component scores
               const scores = {};
-              r.scores?.forEach((s) => {
-                scores[s.assessmentName] = s.score;
-              });
+              r.scores?.forEach((s) => { scores[s.assessmentName] = s.score; });
 
               return (
                 <tr key={r._id}>
                   <td className="border border-slate-300 p-2 font-medium">{r.subjectId?.name}</td>
+                  {dynamicAssessments.map(name => (
+                    <td key={name} className="border border-slate-300 p-2 text-center">{scores[name] ?? "—"}</td>
+                  ))}
+                  <td className="border border-slate-300 p-2 text-center font-semibold">{r.totalScore}/{r.maxPossible}</td>
+                  <td className={`border border-slate-300 p-2 text-center font-bold ${gradeColor(r.grade)}`}>{r.grade}</td>
                   {isSecondary ? (
-                    <>
-                      <td className="border border-slate-300 p-2 text-center">{scores["CA 1"] ?? "—"}</td>
-                      <td className="border border-slate-300 p-2 text-center">{scores["CA 2"] ?? "—"}</td>
-                      <td className="border border-slate-300 p-2 text-center">{scores["Assignment"] ?? "—"}</td>
-                      <td className="border border-slate-300 p-2 text-center">{scores["Examination"] ?? "—"}</td>
-                      <td className="border border-slate-300 p-2 text-center font-semibold">{r.totalScore}</td>
-                      <td className={`border border-slate-300 p-2 text-center font-bold ${gradeColor(r.grade)}`}>{r.grade}</td>
-                      <td className="border border-slate-300 p-2 text-center">{r.gradePoint ?? "—"}</td>
-                    </>
+                    <td className="border border-slate-300 p-2 text-center">{r.gradePoint ?? "—"}</td>
                   ) : (
-                    <>
-                      <td className="border border-slate-300 p-2 text-center">{scores["First Test"] ?? scores["Class Assessment"] ?? "—"}</td>
-                      <td className="border border-slate-300 p-2 text-center">{scores["Examination"] ?? "—"}</td>
-                      <td className="border border-slate-300 p-2 text-center font-semibold">{r.totalScore}/{r.maxPossible}</td>
-                      <td className={`border border-slate-300 p-2 text-center font-bold ${gradeColor(r.grade)}`}>{r.grade}</td>
-                      <td className="border border-slate-300 p-2 text-slate-600">{r.remark}</td>
-                    </>
+                    <td className="border border-slate-300 p-2 text-slate-600">{r.remark}</td>
                   )}
                 </tr>
               );
@@ -196,7 +167,6 @@ export default function ReportCard() {
             <div className={`text-xl font-bold ${gradeColor(summary?.overallGrade)}`}>{summary?.overallGrade || "—"}</div>
           </div>
           
-          {/* 👈 SAS: Show grade point for secondary, position always */}
           {isSecondary && (
             <div className="text-center">
               <div className="text-xs text-slate-500 uppercase font-semibold">Grade Point</div>
@@ -230,10 +200,7 @@ export default function ReportCard() {
         <div className="flex justify-between mt-16 text-sm text-slate-600">
           <div className="text-center w-48 relative">
             {cls?.formTeacherId?.fullName ? (
-              <div 
-                className="text-3xl text-blue-900 -mb-2" 
-                style={{ fontFamily: "'Dancing Script', cursive" }}
-              >
+              <div className="text-3xl text-blue-900 -mb-2" style={{ fontFamily: "'Dancing Script', cursive" }}>
                 {cls.formTeacherId.fullName}
               </div>
             ) : (
@@ -246,10 +213,7 @@ export default function ReportCard() {
 
           <div className="text-center w-48 relative">
             {school?.proprietorName ? (
-              <div 
-                className="text-3xl text-blue-900 -mb-2" 
-                style={{ fontFamily: "'Dancing Script', cursive" }}
-              >
+              <div className="text-3xl text-blue-900 -mb-2" style={{ fontFamily: "'Dancing Script', cursive" }}>
                 {school.proprietorName}
               </div>
             ) : (
