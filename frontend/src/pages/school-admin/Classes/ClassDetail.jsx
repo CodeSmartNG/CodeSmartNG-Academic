@@ -49,10 +49,17 @@ export default function ClassDetail() {
     load();
   }, [id]);
 
-  const saveFormTeacher = async () => {
-    if (!formTeacherId) return;
-    await classApi.assignFormTeacher(id, formTeacherId);
-    load();
+    const saveFormTeacher = async () => {
+    if (!formTeacherId) return alert("Please select a teacher first");
+    
+    try {
+      await classApi.assignFormTeacher(id, formTeacherId);
+      alert("Form teacher assigned successfully!");
+      load();
+    } catch (err) {
+      console.error("Assign form teacher error:", err);
+      alert(err.response?.data?.message || "Failed to assign. Check backend logs.");
+    }
   };
 
   const addSubjectTeacher = async () => {
