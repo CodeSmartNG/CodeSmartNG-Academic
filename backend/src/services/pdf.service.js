@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import fetch from "node-fetch"; // 👈 ADD THIS IMPORT
 
 const gradeColor = (grade) => {
   if (!grade) return "#64748b";
@@ -12,6 +13,18 @@ const gradeColor = (grade) => {
 
 export const generateReportCardPDF = async (data) => {
   const { school, student, class: cls, session, term, results, summary, isSecondary } = data;
+
+  // 👈 1. Download the logo BEFORE starting the PDF
+  let logoBuffer = null;
+  if (school?.logoUrl) {
+    try {
+      const res = await fetch(school.logoUrl);
+      const arrayBuffer = await res.arrayBuffer();
+      logoBuffer = Buffer.from(arrayBuffer);
+    } catch (err) {
+      console.error("Failed to download logo for PDF:", err);
+    }
+  }
 
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: "A4", margin: 40 });
@@ -31,6 +44,15 @@ export const generateReportCardPDF = async (data) => {
     // ═══════════════════════════════════════════════════════
     doc.rect(0, 0, pageWidth, 90).fill(isSecondary ? "#0b2b4f" : "#0b4d2f");
 
+    // 👈 2. Draw the downloaded logo
+    if (logoBuffer) {
+      try {
+        doc.image(logoBuffer, marginLeft, 15, { height: 60, width: 60 });
+      } catch (err) {
+        console.error("PDFKit failed to draw logo:", err);
+      }
+    }
+
     doc.fillColor("white")
       .fontSize(22)
       .font("Helvetica-Bold")
@@ -46,8 +68,6 @@ export const generateReportCardPDF = async (data) => {
         align: "center",
         characterSpacing: 1,
       });
-
-    doc.moveDown(3);
 
     // ═══════════════════════════════════════════════════════
     // 2. SESSION / TERM BAR
@@ -95,12 +115,10 @@ export const generateReportCardPDF = async (data) => {
     // ═══════════════════════════════════════════════════════
     // 4. DYNAMIC RESULTS TABLE
     // ═══════════════════════════════════════════════════════
-    // Extract unique assessment names from the results (CA 1, CA 2, Exam, etc.)
     const assessmentNames = new Set();
     results.forEach(r => r.scores?.forEach(s => assessmentNames.add(s.assessmentName)));
     const dynamicAssessments = Array.from(assessmentNames).sort();
 
-    // Build the columns dynamically
     const columns = [
       { label: "SUBJECT", width: 130, align: "left" },
       ...dynamicAssessments.map(name => ({ label: name.toUpperCase(), width: 40, align: "center" })),
@@ -108,20 +126,17 @@ export const generateReportCardPDF = async (data) => {
       { label: "GRADE", width: 45, align: "center" },
     ];
 
-    // Add GP (Secondary) or Remark (Primary) at the end
     if (isSecondary) {
       columns.push({ label: "GP", width: 30, align: "center" });
     } else {
       columns.push({ label: "REMARK", width: 80, align: "left" });
     }
 
-    // Adjust subject width if too many assessments
     const totalDynamicWidth = dynamicAssessments.length * 40;
     if (totalDynamicWidth > 180) {
       columns[0].width = contentWidth - (totalDynamicWidth + 45 + 45 + (isSecondary ? 30 : 80));
     }
 
-    // Table header
     doc.rect(marginLeft, y, contentWidth, 22).fill(isSecondary ? "#0b2b4f" : "#0b4d2f");
     let colX = marginLeft;
     doc.fillColor("white").fontSize(8).font("Helvetica-Bold");
@@ -131,7 +146,6 @@ export const generateReportCardPDF = async (data) => {
     }
     y += 22;
 
-    // Table rows
     doc.font("Helvetica").fontSize(8).fillColor("#0f172a");
     const lineHeight = 18;
     const maxRows = Math.min(results.length, 20);
@@ -149,7 +163,6 @@ export const generateReportCardPDF = async (data) => {
         scores[s.assessmentName] = s.score;
       });
 
-      // Map the row data to the columns
       const cells = [
         r.subjectId?.name || "—",
         ...dynamicAssessments.map(name => scores[name] ?? "—"),
@@ -242,7 +255,7 @@ export const generateReportCardPDF = async (data) => {
     }
 
     // ═══════════════════════════════════════════════════════
-    // 8. SIGNATURES (Form Teacher + Head Teacher)
+    // 8. SIGNATURES
     // ═══════════════════════════════════════════════════════
     const sigY = pageHeight - 70;
     
