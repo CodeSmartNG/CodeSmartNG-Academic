@@ -22,6 +22,8 @@ const NAV_BY_ROLE = {
     { to: "/dashboard/chat", label: "Chat", icon: "fa-comments" },
     { to: "/dashboard/messages", label: "Messages", icon: "fa-envelope" },
     { to: "/dashboard/link-requests", label: "Link Requests", icon: "fa-link" },
+    { to: "/dashboard/timetable", label: "Timetable", icon: "fa-calendar-alt" },
+    
   ],
   admin: [
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
@@ -36,6 +38,8 @@ const NAV_BY_ROLE = {
     { to: "/dashboard/chat", label: "Chat", icon: "fa-comments" },
     { to: "/dashboard/messages", label: "Messages", icon: "fa-envelope" },
     { to: "/dashboard/link-requests", label: "Link Requests", icon: "fa-link" },
+    { to: "/dashboard/timetable", label: "Timetable", icon: "fa-calendar-alt" },
+    
   ],
   teacher: [
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
