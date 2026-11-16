@@ -1,7 +1,5 @@
 import PDFDocument from "pdfkit";
 
-
-// Helper: format grade color for PDF
 const gradeColor = (grade) => {
   if (!grade) return "#64748b";
   const g = grade.toUpperCase();
@@ -95,27 +93,33 @@ export const generateReportCardPDF = async (data) => {
     y += 35;
 
     // ═══════════════════════════════════════════════════════
-    // 4. RESULTS TABLE
+    // 4. DYNAMIC RESULTS TABLE
     // ═══════════════════════════════════════════════════════
-    const columns = isSecondary
-      ? [
-          { label: "SUBJECT", width: 130, align: "left" },
-          { label: "CA1", width: 35, align: "center" },
-          { label: "CA2", width: 35, align: "center" },
-          { label: "ASG", width: 35, align: "center" },
-          { label: "EXAM", width: 45, align: "center" },
-          { label: "TOTAL", width: 45, align: "center" },
-          { label: "GRADE", width: 50, align: "center" },
-          { label: "GP", width: 35, align: "center" },
-        ]
-      : [
-          { label: "SUBJECT", width: 190, align: "left" },
-          { label: "CA", width: 45, align: "center" },
-          { label: "EXAM", width: 45, align: "center" },
-          { label: "TOTAL", width: 45, align: "center" },
-          { label: "GRADE", width: 50, align: "center" },
-          { label: "REMARK", width: 105, align: "left" },
-        ];
+    // Extract unique assessment names from the results (CA 1, CA 2, Exam, etc.)
+    const assessmentNames = new Set();
+    results.forEach(r => r.scores?.forEach(s => assessmentNames.add(s.assessmentName)));
+    const dynamicAssessments = Array.from(assessmentNames).sort();
+
+    // Build the columns dynamically
+    const columns = [
+      { label: "SUBJECT", width: 130, align: "left" },
+      ...dynamicAssessments.map(name => ({ label: name.toUpperCase(), width: 40, align: "center" })),
+      { label: "TOTAL", width: 45, align: "center" },
+      { label: "GRADE", width: 45, align: "center" },
+    ];
+
+    // Add GP (Secondary) or Remark (Primary) at the end
+    if (isSecondary) {
+      columns.push({ label: "GP", width: 30, align: "center" });
+    } else {
+      columns.push({ label: "REMARK", width: 80, align: "left" });
+    }
+
+    // Adjust subject width if too many assessments
+    const totalDynamicWidth = dynamicAssessments.length * 40;
+    if (totalDynamicWidth > 180) {
+      columns[0].width = contentWidth - (totalDynamicWidth + 45 + 45 + (isSecondary ? 30 : 80));
+    }
 
     // Table header
     doc.rect(marginLeft, y, contentWidth, 22).fill(isSecondary ? "#0b2b4f" : "#0b4d2f");
@@ -136,43 +140,29 @@ export const generateReportCardPDF = async (data) => {
       const r = results[i];
       const rowY = y + i * lineHeight;
 
-      // Alternate row background
       if (i % 2 === 0) {
         doc.rect(marginLeft, rowY, contentWidth, lineHeight).fill("#f8fafc");
       }
 
-      // Extract component scores
       const scores = {};
       r.scores?.forEach((s) => {
         scores[s.assessmentName] = s.score;
       });
 
-      const cells = isSecondary
-        ? [
-            r.subjectId?.name || "—",
-            scores["CA 1"] ?? "—",
-            scores["CA 2"] ?? "—",
-            scores["Assignment"] ?? "—",
-            scores["Examination"] ?? "—",
-            `${r.totalScore ?? 0}`,
-            r.grade || "—",
-            r.gradePoint ?? "—",
-          ]
-        : [
-            r.subjectId?.name || "—",
-            scores["First Test"] ?? scores["Class Assessment"] ?? "—",
-            scores["Examination"] ?? "—",
-            `${r.totalScore ?? 0}`,
-            r.grade || "—",
-            r.remark || "—",
-          ];
+      // Map the row data to the columns
+      const cells = [
+        r.subjectId?.name || "—",
+        ...dynamicAssessments.map(name => scores[name] ?? "—"),
+        r.totalScore ?? 0,
+        r.grade || "—",
+        isSecondary ? (r.gradePoint ?? "—") : (r.remark || "—")
+      ];
 
       colX = marginLeft;
       doc.fillColor("#0f172a");
       for (let c = 0; c < columns.length; c++) {
         const col = columns[c];
-        // Color the grade cell
-        if (columns[c].label === "GRADE") {
+        if (col.label === "GRADE") {
           doc.fillColor(gradeColor(r.grade));
         } else {
           doc.fillColor("#0f172a");
@@ -224,7 +214,7 @@ export const generateReportCardPDF = async (data) => {
     y += 30;
 
     // ═══════════════════════════════════════════════════════
-    // 7. GRADING KEY (bottom left)
+    // 7. GRADING KEY
     // ═══════════════════════════════════════════════════════
     const scale = isSecondary
       ? [
@@ -252,9 +242,18 @@ export const generateReportCardPDF = async (data) => {
     }
 
     // ═══════════════════════════════════════════════════════
-    // 8. SIGNATURES (bottom right)
+    // 8. SIGNATURES (Form Teacher + Head Teacher)
     // ═══════════════════════════════════════════════════════
     const sigY = pageHeight - 70;
+    
+    // Form Teacher Signature (Left)
+    const formTeacherName = cls?.formTeacherId?.fullName;
+    doc.fillColor("#64748b").fontSize(8).font("Helvetica")
+      .text("________________________", marginLeft, sigY)
+      .text(formTeacherName || "Not Assigned", marginLeft, sigY + 12, { width: 160, align: "center" })
+      .text("Form Teacher's Signature", marginLeft, sigY + 25, { width: 160, align: "center" });
+
+    // Head Teacher Signature (Right)
     doc.fillColor("#64748b").fontSize(8).font("Helvetica")
       .text("________________________", pageWidth - 200, sigY)
       .text(school?.proprietorName || "Head Teacher", pageWidth - 200, sigY + 12, { width: 160, align: "center" })
