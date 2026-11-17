@@ -42,22 +42,14 @@ export default function SchoolAdminDashboard() {
       .then(({ data }) => setPupilStats(data.data))
       .catch(console.error);
     
-    // 👈 SAS FIX: Force the logo to update from the DB
     api.get("/schools/mine").then(({ data }) => {
       const school = data.data.school;
-      
-      // Debugging: Check what the backend is sending on refresh
-      console.log("Fetched School Data:", school); 
-
       setSchoolData(school);
       
       if (school?.settings?.bankDetails) {
         setBankForm(school.settings.bankDetails);
       }
-
-      // Always set the logo, even if it's empty string (prevents stale state)
       setLogoUrl(school?.logoUrl || "");
-
     }).catch((err) => console.error("Failed to load school:", err));
   };
 
@@ -140,8 +132,6 @@ export default function SchoolAdminDashboard() {
       
       setLogoMsg({ type: "success", text: "Logo saved successfully!" });
       setTimeout(() => setLogoMsg(null), 3000);
-
-      // Force reload to make sure it stuck
       loadData();
     } catch (err) {
       console.error("Logo save error:", err);
@@ -170,19 +160,61 @@ export default function SchoolAdminDashboard() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex items-center gap-3 mb-2">
-        <h1 className="text-2xl font-bold text-slate-800">
-          {isSecondary ? "Secondary School" : "Primary School"} Dashboard
-        </h1>
-        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-          isSecondary ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
-        }`}>
-          {isSecondary ? "SECONDARY" : "PRIMARY"}
-        </span>
+      
+      {/* 👈 FANTASTIC UI: HERO BANNER WITH LOGO */}
+      <div className="relative bg-gradient-to-r from-blue-900 to-indigo-900 rounded-3xl p-8 mb-8 shadow-xl overflow-hidden">
+        {/* Decorative background circles */}
+        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-white opacity-10 rounded-full blur-2xl"></div>
+        <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-blue-400 opacity-20 rounded-full blur-2xl"></div>
+
+        <div className="relative z-10 flex flex-col md:flex-row items-center gap-6">
+          
+          {/* Logo Container */}
+          <div className="relative group">
+            <div className="w-28 h-28 bg-white rounded-2xl shadow-2xl flex items-center justify-center overflow-hidden border-4 border-white/20 transition-transform duration-300 group-hover:scale-105">
+              {logoUrl ? (
+                <img src={logoUrl} alt="School Logo" className="w-full h-full object-cover" />
+              ) : (
+                <i className="fas fa-school text-4xl text-slate-300"></i>
+              )}
+            </div>
+            <div className="absolute -bottom-3 -right-3 bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+              Logo
+            </div>
+          </div>
+
+          {/* School Info */}
+          <div className="flex-1 text-center md:text-left">
+            <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
+              <h1 className="text-3xl font-bold text-white tracking-tight">{schoolData?.name || "Loading..."}</h1>
+            </div>
+            <p className="text-blue-200 text-sm mb-4">{schoolData?.address || "No address set"}</p>
+            
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
+              <span className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wide shadow-sm ${
+                isSecondary ? "bg-blue-500 text-white" : "bg-green-500 text-white"
+              }`}>
+                {isSecondary ? "SECONDARY SECTION" : "PRIMARY SECTION"}
+              </span>
+              <span className="px-4 py-1.5 rounded-full text-xs font-bold bg-white/20 text-white backdrop-blur-sm">
+                {schoolData?.slug}
+              </span>
+            </div>
+          </div>
+
+          {/* Upload Action */}
+          <div className="flex-shrink-0 bg-white/10 p-4 rounded-2xl backdrop-blur-md border border-white/10">
+            <p className="text-xs text-blue-200 font-semibold mb-2 text-center uppercase tracking-wider">Update Logo</p>
+            <ImageUpload currentImage={logoUrl} onUploadSuccess={handleSaveLogo} />
+            {logoMsg && (
+              <p className={`text-xs text-center mt-2 font-medium ${logoMsg.type === "success" ? "text-green-300" : "text-red-300"}`}>
+                {logoMsg.text}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
-      <p className="text-sm text-slate-500 mb-6">
-        Welcome to CodeSmartNG Academic — manage your {isSecondary ? "secondary" : "nursery & primary"} school here.
-      </p>
+      {/* 👈 END HERO BANNER */}
 
       {pupilStats?.trackSplit && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
@@ -244,24 +276,6 @@ export default function SchoolAdminDashboard() {
           {msg.text}
         </div>
       )}
-
-      {/* School Logo */}
-      <div className="bg-white rounded-xl shadow-sm p-6 mb-8 flex flex-col md:flex-row items-center gap-6">
-        <div className="flex-1">
-          <h2 className="font-semibold text-slate-700 mb-2 text-lg">School Logo & Branding</h2>
-          <p className="text-sm text-slate-500 mb-2">
-            Upload your school logo. It will appear on the parent dashboard, report cards, and PDFs.
-          </p>
-          {logoMsg && (
-            <div className={`text-sm font-medium ${logoMsg.type === "success" ? "text-green-600" : "text-red-600"}`}>
-              {logoMsg.text}
-            </div>
-          )}
-        </div>
-        <div className="ml-auto flex-shrink-0">
-          <ImageUpload currentImage={logoUrl} onUploadSuccess={handleSaveLogo} />
-        </div>
-      </div>
 
       <div className="grid md:grid-cols-3 gap-6 mb-8">
         {/* Add Teacher */}
