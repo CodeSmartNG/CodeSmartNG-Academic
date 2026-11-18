@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { downloadRoadmap } from "../../utils/generateRoadmapPDF"; // 👈 Import PDF Generator
 
 export default function Login() {
   const { login } = useAuth();
-  const navigate = useNavigate(); // 👈 SAS: Added navigate
+  const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "", schoolSlug: "" });
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -16,7 +17,6 @@ export default function Login() {
     setLoading(true);
     try {
       await login(form.email, form.password, form.schoolSlug || undefined);
-      // 👈 SAS: Use navigate instead of window.location.href
       navigate("/dashboard", { replace: true }); 
     } catch (err) {
       const msg = err.response?.data?.message || err.message || "Login failed. Please try again.";
@@ -28,9 +28,8 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex bg-slate-50">
-      {/* ── Left Panel: Branding (hidden on mobile) ───────── */}
+      {/* ── Left Panel: Branding ───────────────────────── */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900">
-        {/* Animated background shapes */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-32 -left-32 w-96 h-96 bg-blue-600/30 rounded-full blur-3xl animate-pulse"></div>
           <div className="absolute top-1/2 -right-32 w-80 h-80 bg-indigo-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }}></div>
@@ -38,7 +37,6 @@ export default function Login() {
         </div>
 
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
-          {/* Logo */}
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-amber-400 flex items-center justify-center shadow-lg shadow-amber-500/30">
               <i className="fas fa-graduation-cap text-blue-900 text-xl"></i>
@@ -49,7 +47,6 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Headline */}
           <div className="space-y-6">
             <h1 className="text-4xl font-bold text-white leading-tight">
               Smart School<br />
@@ -57,10 +54,9 @@ export default function Login() {
               <span className="text-amber-400">Better Learning.</span>
             </h1>
             <p className="text-blue-100 text-lg max-w-md">
-              Everything your school needs — pupils, teachers, results, fees, and parent communication — all in one portal.
+              Everything your school needs — pupils, teachers, WAEC results, fees, and parent communication — all in one portal.
             </p>
 
-            {/* Feature bullets */}
             <div className="space-y-3 pt-4">
               {[
                 { icon: "fa-user-graduate", text: "Manage pupils & admissions" },
@@ -78,7 +74,6 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Trust signal */}
           <div className="flex items-center gap-3 text-blue-200 text-xs">
             <div className="flex -space-x-2">
               {["A", "B", "C", "D"].map((l, i) => (
@@ -98,7 +93,7 @@ export default function Login() {
       {/* ── Right Panel: Login Form ────────────────────────── */}
       <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
         <div className="w-full max-w-md">
-          {/* Mobile logo */}
+          
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
             <div className="w-12 h-12 rounded-2xl bg-blue-900 flex items-center justify-center">
               <i className="fas fa-graduation-cap text-amber-400 text-xl"></i>
@@ -220,6 +215,18 @@ export default function Login() {
             >
               Register Your School
             </Link>
+
+            {/* 👈 Added the User Guide Download Link here */}
+            <div className="pt-4 border-t border-slate-100 text-center">
+              <button 
+                onClick={downloadRoadmap}
+                className="text-sm text-slate-500 hover:text-blue-700 hover:underline flex items-center justify-center gap-2 w-full transition-colors"
+              >
+                <i className="fas fa-file-pdf text-red-500"></i> 
+                Download Quick Start Guide (PDF)
+              </button>
+            </div>
+
           </div>
 
           <p className="text-center text-xs text-slate-400 mt-6">
