@@ -1,7 +1,7 @@
 export default function WhatsAppButton() {
   // 👈 CHANGE THIS to your actual WhatsApp number (with country code, no + or spaces)
   // Example for Nigeria: 2348012345678
-  const phoneNumber = "2348160932630"; 
+  const phoneNumber = "2348021025168"; 
   const message = "Hello CodeSmartNG Support, I need help with my school portal.";
   
   const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
