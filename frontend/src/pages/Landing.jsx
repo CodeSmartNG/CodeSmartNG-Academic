@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { downloadRoadmap } from "../utils/generateRoadmapPDF"; // 👈 Import the PDF generator
 
 export default function Landing() {
   return (
@@ -15,6 +16,9 @@ export default function Landing() {
           <div className="hidden md:flex items-center gap-8 text-sm text-slate-600">
             <a href="#features" className="hover:text-blue-700">Features</a>
             <a href="#pricing" className="hover:text-blue-700">Pricing</a>
+            <button onClick={downloadRoadmap} className="hover:text-blue-700 flex items-center gap-1">
+              <i className="fas fa-file-pdf text-red-500"></i> User Guide
+            </button>
             <Link to="/login" className="hover:text-blue-700">Sign In</Link>
             <Link to="/register-school" className="bg-blue-900 text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition">
               Start Free Trial
@@ -39,15 +43,19 @@ export default function Landing() {
             <span className="text-blue-900">Better Learning.</span>
           </h1>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-10">
-            Everything your nursery and primary school needs — pupils, teachers, results, fees, and parent communication — all in one powerful portal.
+            Everything your Nursery, Primary, and Secondary school needs — pupils, WAEC results, fees, and parent communication — all in one powerful portal.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/register-school" className="bg-blue-900 text-white px-8 py-4 rounded-xl font-semibold hover:bg-blue-800 transition shadow-lg shadow-blue-900/30">
               Start Your Free Trial →
             </Link>
-            <a href="#features" className="border-2 border-slate-200 text-slate-700 px-8 py-4 rounded-xl font-semibold hover:border-blue-700 hover:text-blue-700 transition">
-              See How It Works
-            </a>
+            {/* 👈 Added the PDF Download Button here */}
+            <button 
+              onClick={downloadRoadmap} 
+              className="bg-white border-2 border-slate-200 text-slate-700 px-8 py-4 rounded-xl font-semibold hover:border-blue-700 hover:text-blue-700 transition flex items-center justify-center gap-2"
+            >
+              <i className="fas fa-download"></i> Download User Guide
+            </button>
           </div>
           <p className="text-xs text-slate-400 mt-4">✓ 30 days free · No credit card · Cancel anytime</p>
         </div>
@@ -70,7 +78,7 @@ export default function Landing() {
               { icon: "fa-user-graduate", title: "Admissions & Pupils", desc: "Register new pupils, manage profiles, promote classes, and archive records — all digitally." },
               { icon: "fa-chalkboard-teacher", title: "Teachers & Classes", desc: "Assign form teachers, subject teachers, and timetables. Each teacher sees only their classes." },
               { icon: "fa-calendar-check", title: "Daily Attendance", desc: "Form teachers mark attendance with one tap. Parents see real-time attendance percentages." },
-              { icon: "fa-award", title: "Results & Report Cards", desc: "Enter scores, auto-compute grades and positions, and generate beautiful PDF report cards." },
+              { icon: "fa-award", title: "Results & Report Cards", desc: "Enter scores, auto-compute WAEC (A1-F9) or Primary (A-F) grades, and generate PDF report cards." },
               { icon: "fa-naira-sign", title: "Fees & Payments", desc: "Create fee structures, generate bills, record manual payments, and track outstanding balances." },
               { icon: "fa-comments", title: "Parent Portal & Chat", desc: "Parents see results, fees, and announcements. Chat with teachers and admin directly." },
             ].map((f) => (
@@ -96,7 +104,7 @@ export default function Landing() {
             <div className="space-y-5">
               {[
                 { title: "Multi-School Platform", desc: "Each school gets its own isolated database — your pupils' data is never mixed with another school." },
-                { title: "Nursery & Primary Ready", desc: "Supports both developmental assessments (nursery) and numeric grading (primary)." },
+                { title: "Primary & Secondary Ready", desc: "Seamlessly toggle between Primary and Secondary tracks. Supports JSS/SSS streams and WAEC grading." },
                 { title: "Naira-First Design", desc: "All fees are in ₦, all payments tracked in kobo, all receipts printable as PDFs." },
                 { title: "Parent-First", desc: "Parents see exactly what matters: their child's results, attendance, and outstanding fees." },
               ].map((item) => (
@@ -179,6 +187,8 @@ export default function Landing() {
           <div className="flex justify-center gap-6 text-sm text-blue-200">
             <Link to="/login" className="hover:text-white">Login</Link>
             <Link to="/register-school" className="hover:text-white">Register</Link>
+            {/* 👈 Added User Guide Link to Footer too */}
+            <button onClick={downloadRoadmap} className="hover:text-white">User Guide</button>
             <a href="mailto:hello@codesmartng.com" className="hover:text-white">Contact</a>
           </div>
           <p className="text-xs text-blue-300 mt-8">© {new Date().getFullYear()} CodeSmartNG. All rights reserved.</p>
