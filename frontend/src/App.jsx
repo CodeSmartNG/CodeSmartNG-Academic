@@ -32,7 +32,6 @@ import StudentList from "./pages/school-admin/Students/StudentList";
 import AdmissionForm from "./pages/school-admin/Students/AdmissionForm";
 import StudentDetail from "./pages/school-admin/Students/StudentDetail";
 import PromotePupils from "./pages/school-admin/Students/PromotePupils";
-import ParentExamRegistration from "./pages/parent/ExamRegistration";
 
 // ── Classes & Subjects ──────────────────────────────────────
 import ClassList from "./pages/school-admin/Classes/ClassList";
@@ -51,6 +50,7 @@ import EnterScores from "./pages/school-admin/Results/EnterScores";
 import Broadsheet from "./pages/school-admin/Results/Broadsheet";
 import ParentResults from "./pages/parent/Results";
 import ReportCard from "./pages/ReportCard";
+
 // ── Fees ────────────────────────────────────────────────────
 import FeeStructures from "./pages/school-admin/Fees/FeeStructures";
 import BillList from "./pages/school-admin/Fees/BillList";
@@ -64,6 +64,7 @@ import LinkChild from "./pages/parent/LinkChild";
 import ParentContact from "./pages/parent/Contact";
 import ParentProfile from "./pages/parent/Profile";
 import LinkRequests from "./pages/school-admin/LinkRequests";
+import ParentExamRegistration from "./pages/parent/ExamRegistration"; // 👈 Import here
 
 // ── Homework ────────────────────────────────────────────────
 import CreateHomework from "./pages/teacher/Homework/CreateHomework";
@@ -115,21 +116,14 @@ export default function App() {
 
             {/* ── Protected Routes (with layout) ──────────── */}
             <Route
-  path="/dashboard/report-card/:studentId"
-  element={
-    <RoleRoute allow={["proprietor", "admin", "teacher", "parent", "pupil"]}>
-      <ReportCard />
-    </RoleRoute>
-  }
-/>
-          <Route
-  path="/dashboard/exams/children"
-  element={
-    <RoleRoute allow={["parent"]}>
-      <ParentExamRegistration />
-    </Route>
-  }
-/>  
+              path="/dashboard/report-card/:studentId"
+              element={
+                <RoleRoute allow={["proprietor", "admin", "teacher", "parent", "pupil"]}>
+                  <ReportCard />
+                </RoleRoute>
+              }
+            />
+            
             <Route
               element={
                 <ProtectedRoute>
@@ -233,23 +227,32 @@ export default function App() {
                 }
               />
 
+              {/* ── Timetable & Exams ──────────────────── */}
               <Route
-  path="/dashboard/timetable"
-  element={
-    <RoleRoute allow={["proprietor", "admin", "teacher"]}>
-      <TimetablePage />
-    </RoleRoute>
-  }
-/>
+                path="/dashboard/timetable"
+                element={
+                  <RoleRoute allow={["proprietor", "admin", "teacher"]}>
+                    <TimetablePage />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/exams"
+                element={
+                  <RoleRoute allow={["proprietor", "admin"]}>
+                    <ExamRegistration />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/dashboard/exams/children"
+                element={
+                  <RoleRoute allow={["parent"]}>
+                    <ParentExamRegistration />
+                  </RoleRoute>
+                }
+              />
 
-              <Route
-  path="/dashboard/exams"
-  element={
-    <RoleRoute allow={["proprietor", "admin"]}>
-      <ExamRegistration />
-    </RoleRoute>
-  }
-/>
               {/* ── Attendance ─────────────────────────── */}
               <Route
                 path="/dashboard/attendance"
