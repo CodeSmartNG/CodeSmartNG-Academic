@@ -63,6 +63,8 @@ const NAV_BY_ROLE = {
     { to: "/dashboard/link-child", label: "Link a Child", icon: "fa-link" },
     { to: "/dashboard/contact", label: "Contact School", icon: "fa-envelope" },
     { to: "/dashboard/profile", label: "Profile", icon: "fa-user" },
+    { to: "/dashboard/exams/children", label: "Exam Registration", icon: "fa-file-signature" },
+    
   ],
   pupil: [
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
