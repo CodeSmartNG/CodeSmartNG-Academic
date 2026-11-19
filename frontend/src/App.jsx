@@ -32,6 +32,7 @@ import StudentList from "./pages/school-admin/Students/StudentList";
 import AdmissionForm from "./pages/school-admin/Students/AdmissionForm";
 import StudentDetail from "./pages/school-admin/Students/StudentDetail";
 import PromotePupils from "./pages/school-admin/Students/PromotePupils";
+import ParentExamRegistration from "./pages/parent/ExamRegistration";
 
 // ── Classes & Subjects ──────────────────────────────────────
 import ClassList from "./pages/school-admin/Classes/ClassList";
@@ -121,7 +122,14 @@ export default function App() {
     </RoleRoute>
   }
 />
-            
+          <Route
+  path="/dashboard/exams/children"
+  element={
+    <RoleRoute allow={["parent"]}>
+      <ParentExamRegistration />
+    </Route>
+  }
+/>  
             <Route
               element={
                 <ProtectedRoute>
