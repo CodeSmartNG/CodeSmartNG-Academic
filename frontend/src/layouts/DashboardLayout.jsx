@@ -23,6 +23,7 @@ const NAV_BY_ROLE = {
     { to: "/dashboard/messages", label: "Messages", icon: "fa-envelope" },
     { to: "/dashboard/link-requests", label: "Link Requests", icon: "fa-link" },
     { to: "/dashboard/timetable", label: "Timetable", icon: "fa-calendar-alt" },
+    { to: "/dashboard/exams", label: "Exam Registration", icon: "fa-file-signature" },
     
   ],
   admin: [
@@ -39,6 +40,7 @@ const NAV_BY_ROLE = {
     { to: "/dashboard/messages", label: "Messages", icon: "fa-envelope" },
     { to: "/dashboard/link-requests", label: "Link Requests", icon: "fa-link" },
     { to: "/dashboard/timetable", label: "Timetable", icon: "fa-calendar-alt" },
+    { to: "/dashboard/exams", label: "Exam Registration", icon: "fa-file-signature" },
     
   ],
   teacher: [
