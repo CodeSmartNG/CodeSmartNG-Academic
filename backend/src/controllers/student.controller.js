@@ -6,7 +6,10 @@ import { generateAdmissionNumber } from "../utils/generateAdmissionNumber.js";
 // Helper: Determine if a class is Secondary
 // ─────────────────────────────────────────────────────────────
 const SECONDARY_CLASSES = ["JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3"];
-const isSecondaryClass = (className) => SECONDARY_CLASSES.includes(className);
+const isSecondaryClass = (className) => {
+  if (!className) return false;
+  return SECONDARY_CLASSES.some(c => className.includes(c));
+};
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/students
@@ -22,12 +25,12 @@ export const createStudent = async (req, res) => {
     }
 
     // 👈 SAS: Ensure stream is null if not an SSS class
-    const isSSS = req.body.className?.startsWith("SSS");
+    const isSSS = req.body.className?.toUpperCase().includes("SSS");
     const stream = isSSS ? req.body.stream : null;
 
     const student = await Student.create({
       ...req.body,
-      stream, // 👈 SAS: Save the stream
+      stream, 
       schoolId,
       admissionNumber,
       createdBy: req.user._id,
@@ -60,7 +63,7 @@ export const listStudents = async (req, res) => {
       admissionStatus,
       search,
       session,
-      track, // 👈 SAS: Track filter
+      track, 
       page = 1,
       limit = 50,
       sortBy = "createdAt",
@@ -69,16 +72,20 @@ export const listStudents = async (req, res) => {
 
     const query = { schoolId: req.schoolId };
 
-    if (className) query.className = className;
+    // 👈 FIX: Use Regex to allow partial matching (e.g. "SSS 3" matches "SSS 3A")
+    if (className) {
+      query.className = { $regex: new RegExp(className, "i") }; 
+    }
+    
     if (admissionStatus) query.admissionStatus = admissionStatus;
     else query.admissionStatus = { $ne: "archived" }; 
     if (session) query.academicSession = session;
 
-    // 👈 SAS: Filter by Secondary vs Primary using the className array
+    // 👈 SAS: Filter by Secondary vs Primary using regex
     if (track === "secondary") {
-      query.className = { $in: SECONDARY_CLASSES };
+      query.className = { $regex: new RegExp("^(JSS|SSS)", "i") };
     } else if (track === "nursery_primary") {
-      query.className = { $nin: SECONDARY_CLASSES };
+      query.className = { $not: /^(JSS|SSS)/i };
     }
 
     if (search) {
@@ -127,12 +134,11 @@ export const getStudentStats = async (req, res) => {
     const schoolId = req.schoolId;
     const { track } = req.query; 
 
-    // Base query for the active track
     const baseQuery = { schoolId };
     if (track === "secondary") {
-      baseQuery.className = { $in: SECONDARY_CLASSES };
+      baseQuery.className = { $regex: new RegExp("^(JSS|SSS)", "i") };
     } else if (track === "nursery_primary") {
-      baseQuery.className = { $nin: SECONDARY_CLASSES };
+      baseQuery.className = { $not: /^(JSS|SSS)/i };
     }
 
     const [total, active, archived, transferred, byClass, byGender, primaryCount, secondaryCount] = await Promise.all([
@@ -149,17 +155,15 @@ export const getStudentStats = async (req, res) => {
         { $match: { ...baseQuery, admissionStatus: "active" } },
         { $group: { _id: "$gender", count: { $sum: 1 } } },
       ]),
-      // 👈 SAS: Global count of active Primary pupils
       Student.countDocuments({ 
         schoolId, 
         admissionStatus: "active", 
-        className: { $nin: SECONDARY_CLASSES } 
+        className: { $not: /^(JSS|SSS)/i } 
       }),
-      // 👈 SAS: Global count of active Secondary pupils
       Student.countDocuments({ 
         schoolId, 
         admissionStatus: "active", 
-        className: { $in: SECONDARY_CLASSES } 
+        className: { $regex: new RegExp("^(JSS|SSS)", "i") } 
       }),
     ]);
 
@@ -172,7 +176,6 @@ export const getStudentStats = async (req, res) => {
         transferred,
         byClass: byClass.map((c) => ({ className: c._id, count: c.count })),
         byGender: byGender.map((g) => ({ gender: g._id, count: g.count })),
-        // 👈 SAS: Send the track split to the frontend
         trackSplit: {
           primary: primaryCount,
           secondary: secondaryCount,
@@ -183,6 +186,7 @@ export const getStudentStats = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
 // ─────────────────────────────────────────────────────────────
 // GET /api/students/:id
 // ─────────────────────────────────────────────────────────────
@@ -234,7 +238,6 @@ export const updateStudent = async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 export const promoteStudents = async (req, res) => {
   try {
-    // 👈 SAS: Accept stream
     const { studentIds, toClass, toSession, stream } = req.body;
 
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
@@ -256,8 +259,7 @@ export const promoteStudents = async (req, res) => {
 
     const now = new Date();
     const bulkOps = students.map((s) => {
-      // 👈 SAS: Only set stream if promoting to SSS
-      const isSSS = toClass.startsWith("SSS");
+      const isSSS = toClass.toUpperCase().includes("SSS");
       const newStream = isSSS ? stream : null;
 
       return {
@@ -277,7 +279,7 @@ export const promoteStudents = async (req, res) => {
                 toClass,
                 fromSession: s.academicSession,
                 toSession: toSession || s.academicSession,
-                stream: newStream, // 👈 SAS: Track stream changes
+                stream: newStream,
                 promotedAt: now,
                 promotedBy: req.user._id,
               },
