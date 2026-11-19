@@ -20,6 +20,7 @@ import homeworkRoutes from "./routes/homework.routes.js";
 import announcementRoutes from "./routes/announcement.routes.js";
 import subscriptionRoutes from "./routes/subscription.routes.js";
 import timetableRoutes from "./routes/timetable.routes.js";
+import examRoutes from "./routes/exam.routes.js";
 
 const app = express();
 
@@ -60,6 +61,7 @@ app.use("/api/homework", homeworkRoutes);
 app.use("/api/announcements", announcementRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/timetables", timetableRoutes);
+app.use("/api/exams", examRoutes);
 
 app.get("/", (_, res) =>
   res.json({ success: true, message: "CodeSmartNG Academic API", version: "1.0.0" })
