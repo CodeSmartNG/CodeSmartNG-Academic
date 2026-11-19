@@ -1,24 +1,132 @@
+
 import mongoose from "mongoose";
 
 const examRegistrationSchema = new mongoose.Schema(
   {
-    schoolId: { type: mongoose.Schema.Types.ObjectId, ref: "School", required: true, index: true },
-    studentId: { type: mongoose.Schema.Types.ObjectId, ref: "Student", required: true, index: true },
-    examType: { type: String, enum: ["WAEC", "NECO", "NABTEB"], required: true },
-    examYear: { type: String, required: true }, // e.g., "2026"
-    subjects: [{ type: String, required: true }], // e.g., ["English", "Mathematics", "Physics"]
-    status: { 
-      type: String, 
-      enum: ["pending", "registered", "completed"], 
-      default: "pending" 
+    // School isolation (Multi-tenant)
+    schoolId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "School",
+      required: true,
+      index: true,
     },
-    pinIssued: { type: String, default: "" }, // To store scratch card pin if bought
-    totalFee: { type: Number, required: true }, // The exam fee (e.g., 25000)
+
+    // Registered student
+    studentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Student",
+      required: true,
+      index: true,
+    },
+
+    // Examination type
+    examType: {
+      type: String,
+      enum: ["WAEC", "NECO", "NABTEB"],
+      required: true,
+      uppercase: true,
+      trim: true,
+    },
+
+    // Examination year
+    examYear: {
+      type: String,
+      required: true,
+      trim: true,
+      match: [/^\d{4}$/, "Enter a valid examination year."],
+    },
+
+    // Registered examination subjects
+    subjects: {
+      type: [
+        {
+          type: String,
+          required: true,
+          trim: true,
+        },
+      ],
+      required: true,
+      validate: [
+        {
+          validator: (subjects) =>
+            subjects.length >= 1 && subjects.length <= 15,
+          message: "A student must register between 1 and 15 subjects.",
+        },
+        {
+          validator: (subjects) =>
+            subjects.every((subject) => subject.length > 0),
+          message: "Subject names cannot be empty.",
+        },
+      ],
+    },
+
+    // Registration status
+    status: {
+      type: String,
+      enum: ["pending", "registered", "completed"],
+      default: "pending",
+      index: true,
+    },
+
+    // Examination scratch-card PIN
+    pinIssued: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    // Examination registration fee
+    totalFee: {
+      type: Number,
+      required: true,
+      min: [0, "Examination fee cannot be negative."],
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-// Ensure a student can't be registered twice for the same exam in the same year
-examRegistrationSchema.index({ schoolId: 1, studentId: 1, examType: 1, examYear: 1 }, { unique: true });
+// Prevent duplicate registration for the same student,
+// examination type, school and year.
+examRegistrationSchema.index(
+  {
+    schoolId: 1,
+    studentId: 1,
+    examType: 1,
+    examYear: 1,
+  },
+  {
+    unique: true,
+    name: "unique_student_exam_registration",
+  }
+);
 
-export default mongoose.model("ExamRegistration", examRegistrationSchema);
+// Improve school examination searches
+examRegistrationSchema.index({
+  schoolId: 1,
+  examType: 1,
+  examYear: 1,
+  createdAt: -1,
+});
+
+// Remove duplicate subjects before validation
+examRegistrationSchema.pre("validate", function () {
+  if (Array.isArray(this.subjects)) {
+    this.subjects = [
+      ...new Set(
+        this.subjects.map((subject) =>
+          typeof subject === "string"
+            ? subject.trim()
+            : subject
+        )
+      ),
+    ];
+  }
+});
+
+const ExamRegistration =
+  mongoose.models.ExamRegistration ||
+  mongoose.model("ExamRegistration", examRegistrationSchema);
+
+export default ExamRegistration;
