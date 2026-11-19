@@ -19,7 +19,7 @@ import feeRoutes from "./routes/fee.routes.js";
 import chatRoutes from "./routes/chat.routes.js";
 
 import subscriptionRoutes from "./routes/subscription.routes.js";
-
+import examRoutes from "./routes/exam.routes.js";
 
 
 dotenv.config();
@@ -39,11 +39,12 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/assessments", assessmentRoutes);
 app.use("/api/results", resultRoutes);
 app.use("/api/homework", homeworkRoutes);
-app.use("/api/announcements", announcementRoutes); // 👈 ADDED
-app.use("/api/parent", parentRoutes); // 👈 Add with the other app.use() lines
+app.use("/api/announcements", announcementRoutes);
+app.use("/api/parent", parentRoutes);
 app.use("/api/fees", feeRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
+app.use("/api/exams", examRoutes);
 
 app.get("/", (_, res) =>
   res.json({
