@@ -25,11 +25,21 @@ export default function ExamRegistration() {
   const load = () => {
     setLoading(true);
     Promise.all([
-      studentApi.list({ className: "SSS 3", limit: 200 }),
+      // 👈 FIX: Fetch all Secondary students. We will filter by SSS 3 on the frontend.
+      studentApi.list({ track: "secondary", limit: 500 }),
       examApi.list({ examType: form.examType, examYear: form.examYear })
     ]).then(([sRes, eRes]) => {
-      setStudents(sRes.data.data.students || []);
+      const allStudents = sRes.data.data.students || [];
+      
+      // 👈 Filter: Only keep students whose className contains "SSS 3"
+      const sss3Students = allStudents.filter((s) => 
+        s.className && s.className.toUpperCase().includes("SSS 3")
+      );
+
+      setStudents(sss3Students);
       setRegistrations(eRes.data.data.registrations || []);
+    }).catch((err) => {
+      console.error(err);
     }).finally(() => setLoading(false));
   };
 
@@ -52,7 +62,7 @@ export default function ExamRegistration() {
     }
   };
 
-  // 👈 Export to Excel/CSV
+  // Export to Excel/CSV
   const exportToCSV = () => {
     if (registrations.length === 0) return alert("No registrations to export");
     
@@ -160,8 +170,14 @@ export default function ExamRegistration() {
               <select className="mt-1 w-full border rounded-lg p-2"
                 value={form.studentId}
                 onChange={(e) => setForm({ ...form, studentId: e.target.value })}>
-                <option value="">Select…</option>
-                {students.map((s) => <option key={s._id} value={s._id}>{s.fullName} ({s.admissionNumber})</option>)}
+                <option value="">
+                  {students.length === 0 ? "No SSS 3 pupils found" : "Select…"}
+                </option>
+                {students.map((s) => (
+                  <option key={s._id} value={s._id}>
+                    {s.fullName} ({s.className})
+                  </option>
+                ))}
               </select>
             </label>
 
