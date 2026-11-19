@@ -1,16 +1,16 @@
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { studentApi } from "../../services/studentApi";
 import { examApi } from "../../services/examApi";
-import { useAuth } from "../../context/AuthContext";
 
 export default function ExamRegistration() {
-  const { activeTrack } = useAuth();
-
   const [students, setStudents] = useState([]);
   const [registrations, setRegistrations] = useState([]);
+
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState(null);
 
   const [form, setForm] = useState({
     studentId: "",
@@ -20,54 +20,135 @@ export default function ExamRegistration() {
     totalFee: 25000,
   });
 
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState(null);
-
-  // Load Secondary students and filter SSS 3
-  const load = () => {
+  // Load students and examination registrations
+  const load = useCallback(async () => {
     setLoading(true);
+    setMsg(null);
 
-    Promise.all([
-      studentApi.list({ track: "secondary", limit: 200 }),
+    const results = await Promise.allSettled([
+      studentApi.list({
+        track: "secondary",
+        limit: 200,
+      }),
+
       examApi.list({
         examType: form.examType,
         examYear: form.examYear,
       }),
-    ])
-      .then(([sRes, eRes]) => {
-        const allStudents = sRes.data.data.students || [];
+    ]);
 
-        const sss3Students = allStudents.filter((s) =>
-          (s.className || "").toUpperCase().includes("SSS 3")
+    const errors = [];
+
+    // 1. Load Secondary students
+    if (results[0].status === "fulfilled") {
+      const response = results[0].value;
+
+      console.log("STUDENT API RESPONSE:", response.data);
+
+      const allStudents =
+        response.data?.data?.students ||
+        response.data?.students ||
+        [];
+
+      if (Array.isArray(allStudents)) {
+        const sss3Students = allStudents.filter((student) =>
+          (student.className || "")
+            .toUpperCase()
+            .includes("SSS 3")
         );
 
         setStudents(sss3Students);
-        setRegistrations(
-          eRes.data.data.registrations || []
-        );
-      })
-      .catch((err) => {
-        console.error("Failed to load exam registration data:", err);
-        setMsg({
-          type: "error",
-          text: err.response?.data?.message || "Failed to load data.",
-        });
-      })
-      .finally(() => setLoading(false));
-  };
+
+        console.log("SSS 3 STUDENTS:", sss3Students);
+      } else {
+        setStudents([]);
+
+        errors.push("Unexpected student API response format.");
+      }
+    } else {
+      const error = results[0].reason;
+
+      console.error("STUDENT API ERROR:", error);
+      console.error("STUDENT ERROR RESPONSE:", error?.response?.data);
+
+      setStudents([]);
+
+      errors.push(
+        "Student API: " +
+          (error?.response?.data?.message ||
+            error?.message ||
+            "Unknown error")
+      );
+    }
+
+    // 2. Load examination registrations
+    if (results[1].status === "fulfilled") {
+      const response = results[1].value;
+
+      console.log("EXAM API RESPONSE:", response.data);
+
+      const examRegistrations =
+        response.data?.data?.registrations ||
+        response.data?.registrations ||
+        [];
+
+      if (Array.isArray(examRegistrations)) {
+        setRegistrations(examRegistrations);
+      } else {
+        setRegistrations([]);
+
+        errors.push("Unexpected examination API response format.");
+      }
+    } else {
+      const error = results[1].reason;
+
+      console.error("EXAM API ERROR:", error);
+      console.error("EXAM ERROR RESPONSE:", error?.response?.data);
+
+      setRegistrations([]);
+
+      errors.push(
+        "Exam API: " +
+          (error?.response?.data?.message ||
+            error?.message ||
+            "Unknown error")
+      );
+    }
+
+    if (errors.length > 0) {
+      setMsg({
+        type: "error",
+        text: errors.join(" | "),
+      });
+    }
+
+    setLoading(false);
+  }, [form.examType, form.examYear]);
 
   useEffect(() => {
     load();
-  }, [form.examType, form.examYear]);
+  }, [load]);
 
   // Register pupil
   const handleRegister = async () => {
     if (!form.studentId) {
-      return alert("Select a pupil");
+      return alert("Select a pupil.");
     }
 
-    if (form.subjects.filter(Boolean).length === 0) {
-      return alert("Enter at least one subject");
+    const cleanSubjects = [
+      ...new Set(
+        form.subjects
+          .map((subject) => subject.trim())
+          .filter(Boolean)
+      ),
+    ];
+
+    if (cleanSubjects.length === 0) {
+      return alert("Enter at least one subject.");
+    }
+
+    if (form.totalFee < 0 || !Number.isFinite(form.totalFee)) {
+      return alert("Enter a valid registration fee.");
     }
 
     setSaving(true);
@@ -76,7 +157,7 @@ export default function ExamRegistration() {
     try {
       await examApi.register({
         ...form,
-        subjects: form.subjects.filter(Boolean),
+        subjects: cleanSubjects,
       });
 
       setMsg({
@@ -86,18 +167,25 @@ export default function ExamRegistration() {
 
       setShowModal(false);
 
-      setForm({
-        ...form,
+      setForm((previous) => ({
+        ...previous,
         studentId: "",
-        subjects: ["English Language", "Mathematics"],
-      });
+        subjects: [
+          "English Language",
+          "Mathematics",
+        ],
+      }));
 
-      load();
-    } catch (err) {
+      await load();
+
+    } catch (error) {
+      console.error("REGISTRATION ERROR:", error);
+      console.error("REGISTRATION RESPONSE:", error?.response?.data);
+
       setMsg({
         type: "error",
         text:
-          err.response?.data?.message ||
+          error?.response?.data?.message ||
           "Failed to register pupil.",
       });
     } finally {
@@ -107,8 +195,8 @@ export default function ExamRegistration() {
 
   // Export candidates to CSV
   const exportToCSV = () => {
-    if (registrations.length === 0) {
-      return alert("No registrations to export");
+    if (!registrations.length) {
+      return alert("No registrations to export.");
     }
 
     const headers = [
@@ -124,14 +212,14 @@ export default function ExamRegistration() {
     const escapeCSV = (value) =>
       `"${String(value ?? "").replace(/"/g, '""')}"`;
 
-    const rows = registrations.map((r) => [
-      r.studentId?.fullName,
-      r.studentId?.admissionNumber,
-      r.studentId?.gender,
-      r.examType,
-      r.examYear,
-      (r.subjects || []).join(" | "),
-      r.status,
+    const rows = registrations.map((registration) => [
+      registration.studentId?.fullName,
+      registration.studentId?.admissionNumber,
+      registration.studentId?.gender,
+      registration.examType,
+      registration.examYear,
+      (registration.subjects || []).join(" | "),
+      registration.status,
     ]);
 
     const csvContent = [headers, ...rows]
@@ -148,29 +236,32 @@ export default function ExamRegistration() {
 
     link.href = url;
     link.download = `${form.examType}_${form.examYear}_Candidates.csv`;
-    link.click();
 
-    URL.revokeObjectURL(url);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto">
 
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between gap-4 items-start mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">
             Exam Registration
           </h1>
 
-          <p className="text-sm text-slate-500">
+          <p className="text-sm sm:text-base text-slate-500 mt-1">
             Register SSS 3 pupils for WAEC, NECO, or NABTEB
           </p>
         </div>
 
         <button
           onClick={() => setShowModal(true)}
-          className="bg-blue-700 text-white px-4 py-2 rounded-lg"
+          className="bg-blue-700 hover:bg-blue-800 text-white px-5 py-3 rounded-lg w-full sm:w-auto"
         >
           + Register Pupil
         </button>
@@ -179,7 +270,7 @@ export default function ExamRegistration() {
       {/* Messages */}
       {msg && (
         <div
-          className={`p-3 rounded-lg mb-4 text-sm ${
+          className={`p-4 rounded-lg mb-5 text-sm break-words ${
             msg.type === "success"
               ? "bg-green-50 text-green-700"
               : "bg-red-50 text-red-700"
@@ -190,13 +281,16 @@ export default function ExamRegistration() {
       )}
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-xl shadow-sm mb-6 flex gap-3 flex-wrap">
+      <div className="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-wrap gap-3">
 
         <select
-          className="border rounded-lg p-2"
+          className="border rounded-lg p-3 flex-1 min-w-[120px]"
           value={form.examType}
           onChange={(e) =>
-            setForm({ ...form, examType: e.target.value })
+            setForm((previous) => ({
+              ...previous,
+              examType: e.target.value,
+            }))
           }
         >
           <option value="WAEC">WAEC</option>
@@ -206,24 +300,58 @@ export default function ExamRegistration() {
 
         <input
           type="number"
-          className="border rounded-lg p-2 w-32"
+          className="border rounded-lg p-3 w-full sm:w-32"
           value={form.examYear}
           onChange={(e) =>
-            setForm({ ...form, examYear: e.target.value })
+            setForm((previous) => ({
+              ...previous,
+              examYear: e.target.value,
+            }))
           }
         />
 
         <button
           onClick={exportToCSV}
-          className="ml-auto bg-green-600 text-white px-4 py-2 rounded-lg text-sm"
+          disabled={registrations.length === 0}
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg w-full sm:w-auto disabled:opacity-50"
         >
-          <i className="fas fa-file-excel"></i> Export Candidates
+          <i className="fas fa-file-excel mr-2"></i>
+          Export Candidates
         </button>
+
+        <button
+          onClick={load}
+          disabled={loading}
+          className="border border-blue-600 text-blue-700 px-4 py-3 rounded-lg w-full sm:w-auto disabled:opacity-50"
+        >
+          {loading ? "Loading..." : "Refresh"}
+        </button>
+      </div>
+
+      {/* Statistics */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="bg-white rounded-xl p-4 shadow-sm">
+          <p className="text-sm text-slate-500">
+            SSS 3 Students
+          </p>
+          <h2 className="text-2xl font-bold text-blue-700">
+            {students.length}
+          </h2>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 shadow-sm">
+          <p className="text-sm text-slate-500">
+            Registered Candidates
+          </p>
+          <h2 className="text-2xl font-bold text-green-700">
+            {registrations.length}
+          </h2>
+        </div>
       </div>
 
       {/* Registration Table */}
       <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm min-w-[650px]">
           <thead className="bg-slate-50">
             <tr>
               <th className="p-3 text-left">Pupil</th>
@@ -237,19 +365,19 @@ export default function ExamRegistration() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="5" className="p-6 text-center text-slate-400">
-                  Loading…
+                <td colSpan="5" className="p-8 text-center text-slate-400">
+                  Loading examination data...
                 </td>
               </tr>
             ) : registrations.length === 0 ? (
               <tr>
-                <td colSpan="5" className="p-6 text-center text-slate-400">
+                <td colSpan="5" className="p-8 text-center text-slate-400">
                   No candidates registered yet.
                 </td>
               </tr>
             ) : (
               registrations.map((r) => (
-                <tr key={r._id} className="border-t">
+                <tr key={r._id} className="border-t hover:bg-slate-50">
                   <td className="p-3">
                     <div className="font-medium">
                       {r.studentId?.fullName || "Unknown"}
@@ -265,10 +393,7 @@ export default function ExamRegistration() {
                   </td>
 
                   <td className="p-3 font-semibold">
-                    {r.examType}
-                    <span className="text-xs font-normal">
-                      {" "}({r.examYear})
-                    </span>
+                    {r.examType} ({r.examYear})
                   </td>
 
                   <td
@@ -280,13 +405,15 @@ export default function ExamRegistration() {
 
                   <td className="p-3">
                     <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${
                         r.status === "registered"
                           ? "bg-green-100 text-green-700"
+                          : r.status === "completed"
+                          ? "bg-blue-100 text-blue-700"
                           : "bg-amber-100 text-amber-700"
                       }`}
                     >
-                      {r.status}
+                      {r.status || "pending"}
                     </span>
                   </td>
                 </tr>
@@ -299,22 +426,27 @@ export default function ExamRegistration() {
       {/* Registration Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+
           <div className="bg-white rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
 
-            <h3 className="font-bold text-lg mb-4">
+            <h3 className="font-bold text-xl mb-5">
               Register Pupil for {form.examType}
             </h3>
 
-            <label className="block mb-3">
-              <span className="text-sm text-slate-600">
+            {/* Student */}
+            <label className="block mb-4">
+              <span className="text-sm font-medium text-slate-600">
                 Select SSS 3 Pupil
               </span>
 
               <select
-                className="mt-1 w-full border rounded-lg p-2"
+                className="mt-2 w-full border rounded-lg p-3"
                 value={form.studentId}
                 onChange={(e) =>
-                  setForm({ ...form, studentId: e.target.value })
+                  setForm((previous) => ({
+                    ...previous,
+                    studentId: e.target.value,
+                  }))
                 }
               >
                 <option value="">
@@ -331,49 +463,52 @@ export default function ExamRegistration() {
               </select>
             </label>
 
-            <label className="block mb-3">
-              <span className="text-sm text-slate-600">
+            {/* Fee */}
+            <label className="block mb-4">
+              <span className="text-sm font-medium text-slate-600">
                 Registration Fee (₦)
               </span>
 
               <input
                 type="number"
                 min="0"
-                className="mt-1 w-full border rounded-lg p-2"
+                className="mt-2 w-full border rounded-lg p-3"
                 value={form.totalFee}
                 onChange={(e) =>
-                  setForm({
-                    ...form,
+                  setForm((previous) => ({
+                    ...previous,
                     totalFee: Number(e.target.value),
-                  })
+                  }))
                 }
               />
             </label>
 
-            <div className="mb-4">
-              <span className="text-sm text-slate-600 block mb-2">
+            {/* Subjects */}
+            <div className="mb-5">
+              <label className="text-sm font-medium text-slate-600 block mb-2">
                 Subjects (Comma Separated)
-              </span>
+              </label>
 
               <textarea
-                rows="3"
-                className="w-full border rounded-lg p-2 text-sm"
+                rows="4"
+                className="w-full border rounded-lg p-3 text-sm"
                 value={form.subjects.join(", ")}
                 onChange={(e) =>
-                  setForm({
-                    ...form,
-                    subjects: e.target.value
-                      .split(",")
-                      .map((s) => s.trim()),
-                  })
+                  setForm((previous) => ({
+                    ...previous,
+                    subjects: e.target.value.split(","),
+                  }))
                 }
+                placeholder="English Language, Mathematics, Physics..."
               />
             </div>
 
-            <div className="flex justify-end gap-2">
+            {/* Buttons */}
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
+
               <button
                 onClick={() => setShowModal(false)}
-                className="px-4 py-2 border rounded-lg"
+                className="px-5 py-3 border rounded-lg"
                 disabled={saving}
               >
                 Cancel
@@ -382,15 +517,17 @@ export default function ExamRegistration() {
               <button
                 onClick={handleRegister}
                 disabled={saving || !form.studentId}
-                className="bg-blue-700 text-white px-4 py-2 rounded-lg disabled:opacity-50"
+                className="bg-blue-700 hover:bg-blue-800 text-white px-5 py-3 rounded-lg disabled:opacity-50"
               >
-                {saving ? "Saving…" : "Register Pupil"}
+                {saving ? "Registering..." : "Register Pupil"}
               </button>
+
             </div>
 
           </div>
         </div>
       )}
+
     </div>
   );
 }
