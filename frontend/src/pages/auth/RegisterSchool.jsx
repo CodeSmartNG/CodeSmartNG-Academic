@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom"; // 👈 Added useSearchParams
 import api from "../../services/api";
 
 export default function RegisterSchool() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams(); // 👈 Read URL params
+  
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -11,30 +13,29 @@ export default function RegisterSchool() {
   const [success, setSuccess] = useState(false);
 
   const [form, setForm] = useState({
-    tracks: [], // 👈 SAS: Empty array for selected levels
+    tracks: [],
     schoolName: "",
     address: "",
     email: "",
     phone: "",
     proprietorName: "",
     password: "",
+    referralCode: searchParams.get("ref") || "", // 👈 Auto-fill from URL if present
   });
 
   const update = (field, value) => setForm({ ...form, [field]: value });
 
-  // Scroll to top when step changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [step]);
 
-  // Generate a preview slug from the school name
   const slugPreview = form.schoolName
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, ""); // SAS Fix: strip leading/trailing dashes
+    .replace(/^-+|-+$/g, "");
 
   const passwordStrength = () => {
     let score = 0;
@@ -84,7 +85,6 @@ export default function RegisterSchool() {
 
   const submit = async (e) => {
     e.preventDefault();
-    // Validate all steps before submitting
     for (let s = 1; s <= 4; s++) {
       const err = validateStep(s);
       if (err) {
@@ -97,6 +97,7 @@ export default function RegisterSchool() {
     setError("");
     setLoading(true);
     try {
+      // 👈 The referralCode is automatically sent via `...form`
       await api.post("/auth/register-school", { ...form, slug: slugPreview });
       setSuccess(true);
     } catch (err) {
@@ -106,7 +107,6 @@ export default function RegisterSchool() {
     }
   };
 
-  // ── Success Screen ────────────────────────────────────────
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 p-6">
@@ -137,10 +137,9 @@ export default function RegisterSchool() {
     );
   }
 
-  // ── Registration Form ─────────────────────────────────────
   return (
     <div className="min-h-screen flex bg-slate-50">
-      {/* ── Left Panel: Branding ───────────────────────────── */}
+      {/* Left Panel: Branding */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900">
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-32 -left-32 w-96 h-96 bg-blue-600/30 rounded-full blur-3xl animate-pulse"></div>
@@ -193,10 +192,9 @@ export default function RegisterSchool() {
         </div>
       </div>
 
-      {/* ── Right Panel: Registration Form ────────────────── */}
+      {/* Right Panel: Registration Form */}
       <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
         <div className="w-full max-w-md">
-          {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
             <div className="w-12 h-12 rounded-2xl bg-blue-900 flex items-center justify-center">
               <i className="fas fa-graduation-cap text-amber-400 text-xl"></i>
@@ -208,7 +206,6 @@ export default function RegisterSchool() {
           </div>
 
           <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/60 p-8">
-            {/* Progress */}
             <div className="mb-6">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
@@ -259,7 +256,7 @@ export default function RegisterSchool() {
               }} 
               className="space-y-4"
             >
-              {/* ── Step 1: School Levels (SAS) ─────────────── */}
+              {/* Step 1: School Levels */}
               {step === 1 && (
                 <div className="space-y-3">
                   <label 
@@ -304,7 +301,7 @@ export default function RegisterSchool() {
                 </div>
               )}
 
-              {/* ── Step 2: School Info ─────────────────────── */}
+              {/* Step 2: School Info */}
               {step === 2 && (
                 <>
                   <div>
@@ -352,7 +349,7 @@ export default function RegisterSchool() {
                 </>
               )}
 
-              {/* ── Step 3: Contact ─────────────────────────── */}
+              {/* Step 3: Contact */}
               {step === 3 && (
                 <>
                   <div>
@@ -395,7 +392,7 @@ export default function RegisterSchool() {
                 </>
               )}
 
-              {/* ── Step 4: Account ─────────────────────────── */}
+              {/* Step 4: Account */}
               {step === 4 && (
                 <>
                   <div>
@@ -458,10 +455,30 @@ export default function RegisterSchool() {
                       </div>
                     )}
                   </div>
+
+                  {/* 👈 Affiliate: Referral Code Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Referral Code <span className="text-slate-400 font-normal">(optional)</span>
+                    </label>
+                    <div className="relative">
+                      <i className="fas fa-gift absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                      <input
+                        type="text"
+                        className="w-full border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition"
+                        placeholder="e.g. KABIR5"
+                        value={form.referralCode}
+                        onChange={(e) => update("referralCode", e.target.value.toUpperCase())}
+                      />
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Got a code from a friend? Enter it to support them.
+                    </p>
+                  </div>
                 </>
               )}
 
-              {/* ── Navigation Buttons ─────────────────────── */}
+              {/* Navigation Buttons */}
               <div className="flex gap-3 pt-2">
                 {step > 1 && (
                   <button
