@@ -5,63 +5,115 @@ import api from "../services/api";
 export default function AffiliateDashboard() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // You'll need an API endpoint to fetch this data
-    api.get("/affiliates/me").then(({ data }) => setData(data.data));
+    api.get("/affiliates/me")
+      .then(({ data }) => setData(data.data))
+      .catch((err) => console.error("Failed to load affiliate data:", err))
+      .finally(() => setLoading(false));
   }, []);
 
-  const referralLink = `${window.location.origin}/register-school?ref=${user?.referralCode}`;
+  // Use the referral code from the database, fallback to user context
+  const code = data?.referralCode || user?.referralCode || "LOADING";
+  const referralLink = `${window.location.origin}/register-school?ref=${code}`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(referralLink);
-    alert("Referral link copied!");
+    alert("✅ Referral link copied! Share it on WhatsApp to earn.");
   };
+
+  if (loading) {
+    return (
+      <div className="p-6 text-center text-slate-500">
+        <i className="fas fa-spinner fa-spin text-2xl mb-2"></i>
+        <p>Loading affiliate data...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold text-slate-800 mb-2">Affiliate Program</h1>
-      <p className="text-sm text-slate-500 mb-6">Invite schools and earn 20% on their first payment.</p>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-800 mb-2">Affiliate Program</h1>
+        <p className="text-sm text-slate-500">
+          Invite schools and earn <strong className="text-blue-700">20% commission</strong> on their first payment.
+        </p>
+      </div>
 
-      <div className="bg-gradient-to-r from-blue-900 to-indigo-900 rounded-2xl p-6 text-white shadow-lg mb-6">
-        <p className="text-blue-200 font-semibold mb-1 uppercase tracking-wider text-xs">Your Total Earnings</p>
-        <h2 className="text-4xl font-bold">₦{(data?.balance || 0).toLocaleString()}</h2>
+      {/* Hero Earnings Card */}
+      <div className="bg-gradient-to-r from-blue-900 to-indigo-900 rounded-3xl p-8 text-white shadow-xl mb-8 relative overflow-hidden">
+        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-white opacity-10 rounded-full blur-2xl"></div>
         
-        <div className="mt-6 flex flex-col sm:flex-row gap-3">
-          <div className="flex-1 bg-white/10 p-3 rounded-lg border border-white/20 flex items-center justify-between">
-            <span className="font-mono text-sm truncate">{referralLink}</span>
-            <button onClick={copyToClipboard} className="bg-amber-500 text-white px-3 py-1 rounded text-xs font-bold">Copy</button>
+        <p className="text-blue-200 font-semibold mb-1 uppercase tracking-wider text-xs">Your Total Earnings</p>
+        <h2 className="text-5xl font-bold mb-6">
+          ₦{(data?.balance || 0).toLocaleString()}
+        </h2>
+        
+        <div className="bg-white/10 p-2 rounded-xl border border-white/20 flex items-center justify-between gap-2 backdrop-blur-sm">
+          <div className="pl-3 truncate">
+            <span className="font-mono text-sm text-blue-100">{referralLink}</span>
           </div>
+          <button 
+            onClick={copyToClipboard} 
+            className="bg-amber-500 hover:bg-amber-400 text-white px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-colors"
+          >
+            <i className="fas fa-copy mr-2"></i> Copy Link
+          </button>
         </div>
       </div>
 
+      {/* Referrals Table */}
       <h3 className="font-semibold text-slate-700 mb-3">Schools You Referred</h3>
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
         {!data?.referrals?.length ? (
-          <p className="p-6 text-sm text-slate-400">No referrals yet. Share your link to get started!</p>
+          <div className="p-10 text-center text-slate-500">
+            <div className="text-4xl mb-3">📢</div>
+            <p className="text-sm">No referrals yet.</p>
+            <p className="text-xs text-slate-400 mt-1">Share your link on WhatsApp to get started!</p>
+          </div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[500px]">
             <thead className="bg-slate-50">
               <tr>
                 <th className="p-3 text-left">School</th>
-                <th className="p-3 text-left">Date</th>
-                <th className="p-3 text-right">Commission</th>
+                <th className="p-3 text-left">Date Joined</th>
                 <th className="p-3 text-left">Status</th>
+                <th className="p-3 text-right">Commission</th>
               </tr>
             </thead>
             <tbody>
-              {data.referrals.map((r) => (
-                <tr key={r._id} className="border-t">
-                  <td className="p-3 font-medium">{r.schoolName}</td>
-                  <td className="p-3 text-xs text-slate-500">{new Date(r.date).toLocaleDateString()}</td>
-                  <td className="p-3 text-right text-green-700 font-mono">₦{r.commission.toLocaleString()}</td>
-                  <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs ${r.status === "paid" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
-                      {r.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {data.referrals.map((r) => {
+                // Find the commission for this specific school
+                const earning = data.earnings?.find(e => e.schoolId === r._id);
+                
+                return (
+                  <tr key={r._id} className="border-t hover:bg-slate-50">
+                    <td className="p-3 font-medium text-slate-800">{r.schoolName}</td>
+                    <td className="p-3 text-xs text-slate-500">
+                      {new Date(r.date).toLocaleDateString("en-NG", { 
+                        day: "numeric", month: "short", year: "numeric" 
+                      })}
+                    </td>
+                    <td className="p-3">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        r.status === "approved" ? "bg-green-100 text-green-700" : 
+                        r.status === "pending" ? "bg-amber-100 text-amber-700" : 
+                        "bg-red-100 text-red-700"
+                      }`}>
+                        {r.status}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right font-mono">
+                      {earning ? (
+                        <span className="text-green-700 font-bold">₦{earning.amount.toLocaleString()}</span>
+                      ) : (
+                        <span className="text-slate-400 text-xs italic">Pending payment</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

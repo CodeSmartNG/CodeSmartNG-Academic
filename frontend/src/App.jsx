@@ -12,6 +12,7 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import RegisterSchool from "./pages/auth/RegisterSchool";
 import ChangePassword from "./pages/auth/ChangePassword";
+import AffiliateDashboard from "./pages/AffiliateDashboard";
 
 // ── Super Admin ─────────────────────────────────────────────
 import SuperAdminDashboard from "./pages/super-admin/Dashboard";
@@ -354,6 +355,16 @@ export default function App() {
                   </RoleRoute>
                 }
               />
+
+
+              <Route
+  path="/dashboard/affiliate"
+  element={
+    <RoleRoute allow={["super_admin", "proprietor", "admin", "teacher", "parent"]}>
+      <AffiliateDashboard />
+    </RoleRoute>
+  }
+/>
 
               {/* ── Parent Portal ──────────────────────── */}
               <Route
