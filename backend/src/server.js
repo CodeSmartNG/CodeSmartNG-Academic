@@ -1,61 +1,9 @@
-import express from "express";
-import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
-import app from "./app.js";
-
-import authRoutes from "./routes/auth.routes.js";
-import schoolRoutes from "./routes/school.routes.js";
-import studentRoutes from "./routes/student.routes.js";
-import classRoutes from "./routes/class.routes.js";
-import subjectRoutes from "./routes/subject.routes.js";
-import userRoutes from "./routes/user.routes.js";
-import attendanceRoutes from "./routes/attendance.routes.js";
-import assessmentRoutes from "./routes/assessment.routes.js";
-import resultRoutes from "./routes/result.routes.js";
-import homeworkRoutes from "./routes/homework.routes.js";
-import announcementRoutes from "./routes/announcement.routes.js"; // 👈 ADDED
-import parentRoutes from "./routes/parent.routes.js"; // 👈 Add at the top
-import feeRoutes from "./routes/fee.routes.js";
-import chatRoutes from "./routes/chat.routes.js";
-
-import subscriptionRoutes from "./routes/subscription.routes.js";
-import examRoutes from "./routes/exam.routes.js";
-
+import app from "./app.js"; // 👈 This imports the correct app with all routes
 
 dotenv.config();
-const app = express();
 
-app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
-app.use(express.json());
-
-// Routes
-app.use("/api/auth", authRoutes);
-app.use("/api/schools", schoolRoutes);
-app.use("/api/students", studentRoutes);
-app.use("/api/classes", classRoutes);
-app.use("/api/subjects", subjectRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/attendance", attendanceRoutes);
-app.use("/api/assessments", assessmentRoutes);
-app.use("/api/results", resultRoutes);
-app.use("/api/homework", homeworkRoutes);
-app.use("/api/announcements", announcementRoutes);
-app.use("/api/parent", parentRoutes);
-app.use("/api/fees", feeRoutes);
-app.use("/api/chat", chatRoutes);
-app.use("/api/subscriptions", subscriptionRoutes);
-app.use("/api/exams", examRoutes);
-
-app.get("/", (_, res) =>
-  res.json({
-    success: true,
-    message: "CodeSmartNG Academic API",
-    version: "1.0.0",
-  })
-);
-
-// Connect to MongoDB + start server
 const PORT = process.env.PORT || 5000;
 
 const start = async () => {
