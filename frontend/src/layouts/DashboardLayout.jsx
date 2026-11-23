@@ -8,6 +8,7 @@ const NAV_BY_ROLE = {
   super_admin: [
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
     { to: "/dashboard/schools", label: "Schools", icon: "fa-school" },
+    { to: "/dashboard/affiliate", label: "Affiliate", icon: "fa-gift" },
   ],
   proprietor: [
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
@@ -24,7 +25,7 @@ const NAV_BY_ROLE = {
     { to: "/dashboard/link-requests", label: "Link Requests", icon: "fa-link" },
     { to: "/dashboard/timetable", label: "Timetable", icon: "fa-calendar-alt" },
     { to: "/dashboard/exams", label: "Exam Registration", icon: "fa-file-signature" },
-    
+    { to: "/dashboard/affiliate", label: "Affiliate", icon: "fa-gift" },
   ],
   admin: [
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
@@ -41,7 +42,7 @@ const NAV_BY_ROLE = {
     { to: "/dashboard/link-requests", label: "Link Requests", icon: "fa-link" },
     { to: "/dashboard/timetable", label: "Timetable", icon: "fa-calendar-alt" },
     { to: "/dashboard/exams", label: "Exam Registration", icon: "fa-file-signature" },
-    
+    { to: "/dashboard/affiliate", label: "Affiliate", icon: "fa-gift" },
   ],
   teacher: [
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
@@ -52,6 +53,8 @@ const NAV_BY_ROLE = {
     { to: "/dashboard/chat", label: "Chat", icon: "fa-comments" },
     { to: "/dashboard/messages", label: "Messages", icon: "fa-envelope" },
     { to: "/dashboard/announcements/view", label: "Announcements", icon: "fa-bullhorn" },
+    { to: "/dashboard/affiliate", label: "Affiliate", icon: "fa-gift" },
+    
   ],
   parent: [
     { to: "/dashboard", label: "Overview", icon: "fa-chart-line", end: true },
