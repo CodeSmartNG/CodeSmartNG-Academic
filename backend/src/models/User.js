@@ -1,4 +1,3 @@
-
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
@@ -40,9 +39,7 @@ const userSchema = new mongoose.Schema(
     children: [{ type: mongoose.Schema.Types.ObjectId, ref: "Student" }],
 
     // ── Teacher → assignments ──────────────────────────────────
-    // Classes the teacher is a form/class teacher for
     assignedClasses: [{ type: mongoose.Schema.Types.ObjectId, ref: "Class" }],
-    // Subjects the teacher teaches (subject-level assignment)
     assignedSubjects: [
       {
         classId: { type: mongoose.Schema.Types.ObjectId, ref: "Class" },
@@ -52,6 +49,32 @@ const userSchema = new mongoose.Schema(
 
     // ── Pupil → admission record ───────────────────────────────
     studentRecord: { type: mongoose.Schema.Types.ObjectId, ref: "Student" },
+
+    // ── Affiliate / Referral System ────────────────────────────
+    referralCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+      uppercase: true,
+      trim: true,
+    },
+    referredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    affiliateBalance: {
+      type: Number,
+      default: 0,
+    },
+    affiliateEarnings: [
+      {
+        schoolId: { type: mongoose.Schema.Types.ObjectId, ref: "School" },
+        schoolName: { type: String },
+        amount: { type: Number },
+        date: { type: Date, default: Date.now },
+        status: { type: String, enum: ["pending", "paid"], default: "pending" },
+      },
+    ],
 
     // ── Status & audit ─────────────────────────────────────────
     isActive: { type: Boolean, default: true },
@@ -65,12 +88,26 @@ const userSchema = new mongoose.Schema(
 );
 
 // ── Indexes ─────────────────────────────────────────────────────
-// Unique email per school. Super admins have no schoolId and are
-// covered by the sparse index (their schoolId field is unset).
 userSchema.index({ schoolId: 1, email: 1 }, { unique: true, sparse: true });
 
 // ── Hooks ───────────────────────────────────────────────────────
 userSchema.pre("save", async function () {
+  // 👈 Affiliate: Generate a unique referral code if missing
+  if (!this.referralCode) {
+    let isUnique = false;
+    let code = "";
+    
+    while (!isUnique) {
+      const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const namePart = this.fullName.split(" ")[0].substring(0, 3).toUpperCase();
+      code = `${namePart}${randomStr}`;
+
+      const existing = await mongoose.models.User.findOne({ referralCode: code });
+      if (!existing) isUnique = true;
+    }
+    this.referralCode = code;
+  }
+
   // Only re-hash if password changed
   if (!this.isModified("password")) return;
   this.password = await bcrypt.hash(this.password, 12);
@@ -92,7 +129,6 @@ userSchema.methods.comparePassword = function (plain) {
   return bcrypt.compare(plain, this.password);
 };
 
-// Hide sensitive fields in JSON
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;

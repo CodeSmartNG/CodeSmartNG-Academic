@@ -1,12 +1,51 @@
 import axios from "axios";
 import crypto from "crypto";
 import School from "../models/School.js";
+import User from "../models/User.js"; // 👈 Import User model
 import SubscriptionPayment from "../models/SubscriptionPayment.js";
 
 const PLANS = {
   starter: 5000,   // ₦5,000
   standard: 10000, // ₦10,000
   premium: 20000,  // ₦20,000
+};
+
+// ─────────────────────────────────────────────────────────────
+// Helper: Process Affiliate Commission
+// ─────────────────────────────────────────────────────────────
+const processAffiliateCommission = async (schoolId, planAmount) => {
+  try {
+    const school = await School.findById(schoolId);
+    
+    // Check if school exists, has a referrer, and hasn't been paid yet
+    if (!school || !school.referredByAffiliate || school.affiliateCommissionPaid) {
+      return;
+    }
+
+    const commissionAmount = planAmount * 0.20; // 20%
+
+    // 1. Add to the affiliate's balance and earnings history
+    await User.findByIdAndUpdate(school.referredByAffiliate, {
+      $inc: { affiliateBalance: commissionAmount },
+      $push: {
+        affiliateEarnings: {
+          schoolId: school._id,
+          schoolName: school.name,
+          amount: commissionAmount,
+          status: "pending",
+          date: new Date(),
+        },
+      },
+    });
+
+    // 2. Mark commission as paid on the school so we don't pay twice
+    school.affiliateCommissionPaid = true;
+    await school.save();
+
+    console.log(`✅ Affiliate Commission: ₦${commissionAmount} credited for referring "${school.name}"`);
+  } catch (err) {
+    console.error("❌ Affiliate Commission Error:", err);
+  }
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -26,13 +65,11 @@ export const initializeSubscription = async (req, res) => {
 
     const amountKobo = PLANS[plan] * 100;
 
-    // Initialize transaction with Paystack
     const response = await axios.post(
       "https://api.paystack.co/transaction/initialize",
       {
         email: school.email,
         amount: amountKobo,
-        // 👇 FIXED: Paystack will append the reference to this URL automatically
         callback_url: `${process.env.CLIENT_URL}/dashboard?payment=success`, 
         metadata: {
           schoolId: school._id.toString(),
@@ -55,7 +92,7 @@ export const initializeSubscription = async (req, res) => {
       success: true,
       data: { 
         authorization_url: response.data.data.authorization_url,
-        reference: response.data.data.reference // 👈 Send reference to frontend just in case
+        reference: response.data.data.reference
       },
     });
   } catch (err) {
@@ -106,6 +143,9 @@ export const paystackWebhook = async (req, res) => {
         school.subscriptionStatus = "active";
         school.subscriptionPlan = plan;
         await school.save();
+
+        // 👈 Affiliate: Process 20% commission
+        await processAffiliateCommission(schoolId, amount / 100); 
       }
     }
 
@@ -118,13 +158,11 @@ export const paystackWebhook = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/subscriptions/verify/:reference
-// This function now EXTENDS the subscription on the fly
 // ─────────────────────────────────────────────────────────────
 export const verifySubscription = async (req, res) => {
   try {
     const { reference } = req.params;
 
-    // 1. Verify with Paystack
     const response = await axios.get(
       `https://api.paystack.co/transaction/verify/${reference}`,
       {
@@ -139,13 +177,11 @@ export const verifySubscription = async (req, res) => {
     const { amount, metadata } = response.data.data;
     const { schoolId, plan } = metadata;
 
-    // 2. Check if payment is already logged (idempotency)
     const existing = await SubscriptionPayment.findOne({ reference });
     if (existing && existing.status === "success") {
       return res.json({ success: true, message: "Payment already processed" });
     }
 
-    // 3. Log the payment
     await SubscriptionPayment.findOneAndUpdate(
       { reference },
       {
@@ -159,7 +195,6 @@ export const verifySubscription = async (req, res) => {
       { upsert: true, new: true }
     );
 
-    // 4. Extend the school's subscription
     const school = await School.findById(schoolId);
     if (school) {
       const currentExpiry = school.subscriptionExpiresAt
@@ -173,6 +208,9 @@ export const verifySubscription = async (req, res) => {
       school.subscriptionStatus = "active";
       school.subscriptionPlan = plan;
       await school.save();
+
+      // 👈 Affiliate: Process 20% commission
+      await processAffiliateCommission(schoolId, amount / 100);
     }
 
     res.json({ success: true, message: "Payment verified and subscription extended" });

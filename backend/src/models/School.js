@@ -34,8 +34,6 @@ const schoolSchema = new mongoose.Schema(
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 
     // ── SAS: School tracks ─────────────────────────────────────
-    // Determines which class levels, subjects, and grading schemes apply.
-    // A dual-track school runs both nursery/primary AND secondary.
     tracks: {
       type: [String],
       enum: ["nursery_primary", "secondary"],
@@ -44,6 +42,16 @@ const schoolSchema = new mongoose.Schema(
         validator: (v) => Array.isArray(v) && v.length >= 1 && v.length <= 2,
         message: "A school must have at least one track and at most two",
       },
+    },
+
+    // ── Affiliate / Referral Tracking ──────────────────────────
+    referredByAffiliate: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    affiliateCommissionPaid: {
+      type: Boolean,
+      default: false,
     },
 
     // ── Subscription ───────────────────────────────────────────
