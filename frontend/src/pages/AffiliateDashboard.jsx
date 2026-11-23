@@ -3,27 +3,20 @@ import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 
 export default function AffiliateDashboard() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth(); // 👈 Get authLoading
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user) return; // Wait for user to load
     api.get("/affiliates/me")
       .then(({ data }) => setData(data.data))
       .catch((err) => console.error("Failed to load affiliate data:", err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [user]);
 
-  // Use the referral code from the database, fallback to user context
-  const code = data?.referralCode || user?.referralCode || "LOADING";
-  const referralLink = `${window.location.origin}/register-school?ref=${code}`;
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(referralLink);
-    alert("✅ Referral link copied! Share it on WhatsApp to earn.");
-  };
-
-  if (loading) {
+  // 1. Wait for both Auth and API to finish loading
+  if (authLoading || loading) {
     return (
       <div className="p-6 text-center text-slate-500">
         <i className="fas fa-spinner fa-spin text-2xl mb-2"></i>
@@ -31,6 +24,16 @@ export default function AffiliateDashboard() {
       </div>
     );
   }
+
+  // 2. Only build the link if the code exists
+  const code = data?.referralCode || user?.referralCode;
+  const referralLink = code ? `${window.location.origin}/register-school?ref=${code}` : "";
+
+  const copyToClipboard = () => {
+    if (!referralLink) return alert("Referral code is still generating. Please refresh.");
+    navigator.clipboard.writeText(referralLink);
+    alert("✅ Referral link copied! Share it on WhatsApp to earn.");
+  };
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -41,7 +44,6 @@ export default function AffiliateDashboard() {
         </p>
       </div>
 
-      {/* Hero Earnings Card */}
       <div className="bg-gradient-to-r from-blue-900 to-indigo-900 rounded-3xl p-8 text-white shadow-xl mb-8 relative overflow-hidden">
         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-white opacity-10 rounded-full blur-2xl"></div>
         
@@ -50,20 +52,23 @@ export default function AffiliateDashboard() {
           ₦{(data?.balance || 0).toLocaleString()}
         </h2>
         
+        {/* 3. Only show the link input if code exists */}
         <div className="bg-white/10 p-2 rounded-xl border border-white/20 flex items-center justify-between gap-2 backdrop-blur-sm">
           <div className="pl-3 truncate">
-            <span className="font-mono text-sm text-blue-100">{referralLink}</span>
+            <span className="font-mono text-sm text-blue-100">
+              {referralLink || "Generating your unique link..."}
+            </span>
           </div>
           <button 
             onClick={copyToClipboard} 
-            className="bg-amber-500 hover:bg-amber-400 text-white px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-colors"
+            disabled={!referralLink}
+            className="bg-amber-500 hover:bg-amber-400 text-white px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-colors disabled:opacity-50"
           >
             <i className="fas fa-copy mr-2"></i> Copy Link
           </button>
         </div>
       </div>
 
-      {/* Referrals Table */}
       <h3 className="font-semibold text-slate-700 mb-3">Schools You Referred</h3>
       <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
         {!data?.referrals?.length ? (
@@ -84,9 +89,7 @@ export default function AffiliateDashboard() {
             </thead>
             <tbody>
               {data.referrals.map((r) => {
-                // Find the commission for this specific school
                 const earning = data.earnings?.find(e => e.schoolId === r._id);
-                
                 return (
                   <tr key={r._id} className="border-t hover:bg-slate-50">
                     <td className="p-3 font-medium text-slate-800">{r.schoolName}</td>
