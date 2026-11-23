@@ -14,12 +14,19 @@ export const registerSchool = async (req, res) => {
   try {
     const { 
       schoolName, email, phone, address, proprietorName, password,
-      tracks 
+      tracks,
+      referralCode // 👈 Affiliate: Extract the referral code
     } = req.body;
 
     const existingSchool = await School.findOne({ email });
     if (existingSchool) {
       return res.status(400).json({ success: false, message: "A school with this email already exists" });
+    }
+
+    // 👈 Affiliate: Find the user who owns this referral code
+    let referrer = null;
+    if (referralCode) {
+      referrer = await User.findOne({ referralCode: referralCode.toUpperCase() });
     }
 
     const school = await School.create({
@@ -30,6 +37,7 @@ export const registerSchool = async (req, res) => {
       proprietorName,
       tracks: tracks && tracks.length > 0 ? tracks : ["nursery_primary"],
       status: "pending", 
+      referredByAffiliate: referrer ? referrer._id : null, // 👈 Save referrer
     });
 
     const user = await User.create({
@@ -38,6 +46,7 @@ export const registerSchool = async (req, res) => {
       password,
       role: "proprietor",
       schoolId: school._id,
+      referredBy: referrer ? referrer._id : null, // 👈 Save on proprietor too
     });
 
     if (school.tracks.includes("secondary")) {
@@ -61,7 +70,9 @@ export const registerSchool = async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 export const getAllSchools = async (req, res) => {
   try {
-    const schools = await School.find().sort({ createdAt: -1 });
+    const schools = await School.find()
+      .populate("referredByAffiliate", "fullName email referralCode") // 👈 Affiliate: Show referrer details
+      .sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: { schools } });
   } catch (err) {
     console.error("❌ Error in getAllSchools:", err);
@@ -85,7 +96,6 @@ export const approveSchool = async (req, res) => {
       await seedSecondarySchool(school._id);
     }
 
-    // Send Approval Email
     try {
       const loginUrl = `${process.env.CLIENT_URL}/login`;
       const html = `
@@ -261,7 +271,6 @@ export const updateMySchool = async (req, res) => {
     if (req.body.phone) school.phone = req.body.phone;
     if (req.body.address) school.address = req.body.address;
     
-    // 👈 SAS FIX: Use !== undefined so it saves correctly
     if (req.body.logoUrl !== undefined) school.logoUrl = req.body.logoUrl;
 
     if (req.body.settings) {
