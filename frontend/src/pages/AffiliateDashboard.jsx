@@ -3,20 +3,18 @@ import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 
 export default function AffiliateDashboard() {
-  const { user, loading: authLoading } = useAuth(); // 👈 Get authLoading
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return; // Wait for user to load
     api.get("/affiliates/me")
       .then(({ data }) => setData(data.data))
       .catch((err) => console.error("Failed to load affiliate data:", err))
       .finally(() => setLoading(false));
-  }, [user]);
+  }, []);
 
-  // 1. Wait for both Auth and API to finish loading
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div className="p-6 text-center text-slate-500">
         <i className="fas fa-spinner fa-spin text-2xl mb-2"></i>
@@ -25,14 +23,14 @@ export default function AffiliateDashboard() {
     );
   }
 
-  // 2. Only build the link if the code exists
-  const code = data?.referralCode || user?.referralCode;
-  const referralLink = code ? `${window.location.origin}/register-school?ref=${code}` : "";
+  // 👈 THE FIX: Use data.referralCode from API, not user.referralCode
+  const code = data?.referralCode || "NO_CODE";
+  const referralLink = code !== "NO_CODE" ? `${window.location.origin}/register-school?ref=${code}` : "";
 
   const copyToClipboard = () => {
-    if (!referralLink) return alert("Referral code is still generating. Please refresh.");
+    if (!referralLink) return alert("Referral code missing. Please contact support.");
     navigator.clipboard.writeText(referralLink);
-    alert("✅ Referral link copied! Share it on WhatsApp to earn.");
+    alert("✅ Referral link copied!");
   };
 
   return (
@@ -52,11 +50,10 @@ export default function AffiliateDashboard() {
           ₦{(data?.balance || 0).toLocaleString()}
         </h2>
         
-        {/* 3. Only show the link input if code exists */}
         <div className="bg-white/10 p-2 rounded-xl border border-white/20 flex items-center justify-between gap-2 backdrop-blur-sm">
           <div className="pl-3 truncate">
             <span className="font-mono text-sm text-blue-100">
-              {referralLink || "Generating your unique link..."}
+              {referralLink || "Referral code missing"}
             </span>
           </div>
           <button 
