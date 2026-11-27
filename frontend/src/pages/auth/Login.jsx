@@ -230,7 +230,7 @@ export default function Login() {
           </div>
 
           <p className="text-center text-xs text-slate-400 mt-6">
-            © {new Date().getFullYear()} CodeSmartNG Academic · All rights reserved
+            © {new Date().getFullYear()} Kaventra Technologies· All rights reserved
           </p>
         </div>
       </div>
